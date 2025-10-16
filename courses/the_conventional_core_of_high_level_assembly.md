@@ -6,7 +6,7 @@
     #include("stdlib.hhf");
 
     begin helloWorld;
-        stdout.put("Hello, World of Assembly Language",nl);
+        stdout.put("Hello, world!",nl);
     end helloWorld;
 
 ## Lesson 2: Variables
@@ -15,7 +15,7 @@
     #include("stdlib.hhf");
 
     static
-        InitDemo:       int32 := 5;
+        InitDemo: int32 := 5;
         NotInitialized: int32;
 
     begin DemoVars;
