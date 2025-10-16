@@ -1,4 +1,4 @@
-# ~/Apps/rtutor/main.py
+#!/usr/bin/env python3
 import curses
 import sys
 from modules.menu import Menu
