@@ -342,8 +342,6 @@
 
     // Rewrite the temperature conversion program of Section 1.2 to use a function for conversion.
     #include "stdio.h"
-    float celsius_to_fahrenheit(int celsius);
-
     int main(void) {
         float celsius, fahr;
         int lower, upper, step;
@@ -372,40 +370,40 @@
     #include "stdio.h"
     #define MAXLINE 1000
     int get_line(char line[], int maxline);
-    void copy(char from[], char to[]);
+    void copy(char to[], char from[]);
 
     int main(void){
         int len;
+        int max = 0;
         char line[MAXLINE];
-        int maxlen;
-        char maxline[MAXLINE];
-        maxlen = 0;
-        while ((len = get_line(line, MAXLINE)) > 0){
-            if (maxlen < len){ maxlen = len; copy(line, maxline); }
-            printf("line_length: %d\n", len);
+        char longest[MAXLINE];
+        while ((len = get_line(line, MAXLINE)) > 0) {
+            if (len > max) { max = len; copy(longest, line); }
         }
-        if (maxlen > 0){ printf("%s", maxline); }
+        if (max > 0) { printf("Longest line length: %d\n%s", max, longest); }
         return 0;
     }
 
+
 ### Lesson 16B: Longest Line
 
-    int get_line(char line[], int maxline){
+    int get_line(char s[], int lim){
         int c, i;
-        for (i = 0; i < maxline - 1 && (c = getchar()) != EOF && c != '\n'; ++i){ line[i] = c; }
-        if (c == '\n'){ line[i] = c; ++i; }
-        line[i] = '\0';
-        while(c != EOF && c != '\n'){ ++i; c = getchar(); }
-        if (c == '\n') ++i;
+
+        for (i = 0; i < lim - 1 && (c = getchar()) != EOF && c != '\n'; ++i) { s[i] = c; }
+        if (c == '\n') { s[i] = c; ++i; }
+        s[i] = '\0';
+        if (c != EOF && c != '\n') {
+            while ((c = getchar()) != EOF && c != '\n') { ++i; }
+            if (c == '\n') { ++i; }
+        }
         return i;
     }
 
-    void copy(char from[], char to[]) {
+    void copy(char to[], char from[]) {
         int i = 0;
         while ((to[i] = from[i]) != '\0') { ++i; }
     }
-
-
 
 ### Lesson 17: Input Lines > 80 Chars
 
@@ -530,16 +528,18 @@
     // tab stop. Assume a fixed set of tab stops, say every n 
     // columns.  Should n be a variable or a symbolic parameter? 
     #include "stdio.h"
-    #define TAB_LENGTH 8
+    #define TABINC 8
 
-    int main(void){
+    int main() {
         int c;
-        unsigned int nr_of_spaces;
-        while ((c = getchar()) != EOF){
-            if (c == '\t'){
-                nr_of_spaces = TAB_LENGTH;
-                while (nr_of_spaces){ putchar(' '); --nr_of_spaces; }
-            } else { putchar(c); }
+        int pos = 0;
+
+        while ((c = getchar()) != EOF) {
+            if (c == '\t') {
+                int spaces = TABINC - (pos % TABINC);
+                while (spaces > 0) { putchar(' '); pos++; spaces--; }
+            } else if (c == '\n') { putchar(c); pos = 0;
+            } else { putchar(c); pos++; }
         }
         return 0;
     }
@@ -633,6 +633,7 @@
     // Write a program to remove all comments from a C program. 
     // Don't forget to handle quoted strings and character constants 
     // properly. C comments don't nest.
+    // NOTE: This executes via `./a.out < main.c > out.c`
     #include "stdio.h"
     #define MAXSTR 10000
     #define TRUE (1 == 1)
@@ -696,6 +697,7 @@
     // forget about quotes, both single and double, escape sequences, 
     // and comments. This program is hard if you do it in full 
     // generality.
+    // NOTE: This runs via `./a.out < test.c`
     #include "stdio.h"
     #define MAXSTR 10000
     #define TRUE (1 == 1)
