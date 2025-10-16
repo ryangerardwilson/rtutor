@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 import curses
 import sys
+import os
 from modules.menu import Menu
 from modules.course_parser import CourseParser
 
 
 def main():
-    # Initialize CourseParser with the courses directory
-    parser = CourseParser("./courses")
+    # Get the actual directory of main.py, resolving any symlinks
+    script_path = os.path.realpath(__file__)
+    script_dir = os.path.dirname(script_path)
+    courses_dir = os.path.join(script_dir, "courses")
+    # Initialize CourseParser with the absolute path
+    parser = CourseParser(courses_dir)
     courses = parser.parse_courses()
 
     if not courses:
