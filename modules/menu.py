@@ -1,52 +1,72 @@
-# ~/Apps/rtutor/modules/menu.py
 import curses
-from .constants import ascii_art
+from .ascii import title_ascii_art
 
 
 class Menu:
     def __init__(self, courses):
-        self.courses = courses  # List of Course objects
-        self.ascii_art = ascii_art
+        self.courses = courses
+        self.title_ascii_art = title_ascii_art
 
     def run(self, stdscr):
-        curses.curs_set(0)  # Hide cursor
+        curses.curs_set(0)
         curses.start_color()
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)  # Menu highlight
-        curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)  # Normal text
+        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
 
-        # Get terminal dimensions
         max_y, max_x = stdscr.getmaxyx()
-        # Calculate starting y for menu (after ASCII art)
-        ascii_lines = self.ascii_art.count("\n")
-        menu_start_y = ascii_lines
+        title_lines = self.title_ascii_art.count("\n")
+        menu_start_y = title_lines + 4  # Gap: 1 for author, 2 blank lines, 1 extra
+
+        # Calculate content width for centering title art
+        content_width = 0
+        for line in self.title_ascii_art.split("\n"):
+            if line.strip():
+                content_width = max(content_width, len(line.strip()))
+
+        # Calculate menu width for centering the block
+        menu_width = max(
+            max(len(f"> {course.name}") for course in self.courses), len("> Quit")
+        )
 
         selected = 0
         while True:
             stdscr.clear()
 
-            # Center ASCII art
-            for i, line in enumerate(self.ascii_art.split("\n")):
-                if line.strip():  # Skip empty lines
-                    stdscr.addstr(
-                        i, (max_x - len(line)) // 2, line, curses.color_pair(2)
-                    )
+            # Render title ASCII art as is
+            for i, line in enumerate(self.title_ascii_art.split("\n")):
+                if line:  # Render raw line, including all spaces
+                    x_pos = (max_x - content_width) // 2
+                    if x_pos < 0:
+                        line = line[:max_x]
+                        x_pos = 0
+                    stdscr.addstr(i, x_pos, line, curses.color_pair(2))
 
-            # Center menu items
+            # Render author text
+            author_text = "By Ryan Gerard Wilson"
+            stdscr.addstr(
+                title_lines + 1,
+                (max_x - len(author_text)) // 2,
+                author_text,
+                curses.color_pair(2),
+            )
+
+            # Render menu items, left-aligned but centered as a block
+            menu_x_pos = (max_x - menu_width) // 2 if menu_width < max_x else 0
             for i, course in enumerate(self.courses):
                 prefix = "> " if i == selected else "  "
                 text = f"{prefix}{course.name}"
                 stdscr.addstr(
                     menu_start_y + i,
-                    (max_x - len(text)) // 2,
+                    menu_x_pos,
                     text,
                     curses.color_pair(1) if i == selected else curses.color_pair(2),
                 )
 
-            # Center Quit option
+            # Render Quit option
             quit_text = "> Quit" if selected == len(self.courses) else "  Quit"
             stdscr.addstr(
                 menu_start_y + len(self.courses),
-                (max_x - len(quit_text)) // 2,
+                menu_x_pos,
                 quit_text,
                 curses.color_pair(1)
                 if selected == len(self.courses)
@@ -66,7 +86,7 @@ class Menu:
                 selected = len(self.courses)
             elif key in (curses.KEY_ENTER, 10, 13):
                 if selected == len(self.courses):
-                    break  # Quit
+                    break
                 from modules.lesson_sequencer import LessonSequencer
 
                 sequencer = LessonSequencer(

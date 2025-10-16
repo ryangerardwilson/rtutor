@@ -1,13 +1,17 @@
 # ~/Apps/rtutor/modules/lesson_sequencer.py
 import curses
 import sys
-from modules.structs import Lesson
+from .structs import Lesson
+from .ascii import boom_art
 
 
 class LessonSequencer:
-    def __init__(self, name, lessons):
+    def __init__(self, name, lessons, error_threshold_percent=0.10):
         self.name = name  # Sequence name (e.g., "Basic Typing")
         self.lessons = lessons  # List of Lesson objects
+        self.error_threshold_percent = (
+            error_threshold_percent  # Minimum accuracy required (e.g., 0.10 for 90%)
+        )
 
     def run(self, stdscr):
         curses.curs_set(2)  # Set block cursor
@@ -147,12 +151,15 @@ class LessonSequencer:
                             nav_enters += 1
                             current_line += 1  # Move to next line
                         else:
-                            all_correct = all(
-                                "".join(user_inputs[i]) == "".join(processed_lines[i])
+                            # Check if all lines are fully typed
+                            all_lines_typed = all(
+                                len(user_inputs[i]) == len(processed_lines[i])
                                 for i in range(len(lines))
                                 if processed_lines[i]  # Skip empty lines
                             )
-                            if all_correct and accuracy > 3:
+                            if all_lines_typed and accuracy >= (
+                                100 - self.error_threshold_percent * 100
+                            ):
                                 completed = True
                             else:
                                 user_inputs = [[] for _ in lines]  # Reset inputs
