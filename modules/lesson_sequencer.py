@@ -210,4 +210,31 @@ class LessonSequencer:
             if completed:
                 continue  # Move to next lesson in sequence
 
+        # All lessons completed, display centered boom_art at top
+        stdscr.clear()
+        max_y, max_x = stdscr.getmaxyx()  # Get terminal dimensions
+        art_lines = boom_art.splitlines()  # Split ASCII art into lines
+
+        # Calculate content width for centering boom_art
+        content_width = 0
+        for line in art_lines:
+            if line.strip():  # Only consider non-empty lines for width
+                content_width = max(content_width, len(line.strip()))
+
+        # Display boom_art starting 2 lines from top, centered horizontally
+        start_y = 2  # Fixed offset from top
+        for i, line in enumerate(art_lines):
+            if line:  # Render raw line, including all spaces
+                x_pos = (max_x - content_width) // 2
+                if x_pos < 0:
+                    line = line[:max_x]  # Truncate if line exceeds terminal width
+                    x_pos = 0
+                try:
+                    stdscr.addstr(start_y + i, x_pos, line, curses.color_pair(1))
+                except curses.error:
+                    pass  # Ignore errors if art exceeds screen bounds
+        stdscr.addstr(max_y - 1, 0, "Press any key to exit.", curses.color_pair(1))
+        stdscr.refresh()
+        stdscr.getch()  # Wait for keypress to exit
+
         return True
