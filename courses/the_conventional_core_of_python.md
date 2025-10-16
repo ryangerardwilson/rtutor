@@ -38,7 +38,7 @@
     abs(x) # Absolute value
     divmod(x,y) # Returns (x // y, x % y)
     pow(x,y [,modulo]) # Returns (x ** y) % modulo
-    round(x,[n]) # Rounds to the nearest multiple of 10 to the nth # power
+    round(x,[n]) # Rounds to the nearest multiple of 10 to the nth power
 
 ## Lesson 6: Bit Manipulation Operators
 

@@ -95,8 +95,10 @@ class Menu:
 
                     sequencer = LessonSequencer(course.name, course.parts[0].lessons)
                     sequencer.run(stdscr)
+                    curses.curs_set(0)  # Reset cursor after lesson
                 else:
                     self.run_part_menu(stdscr, course)
+                    curses.curs_set(0)  # Reset cursor after part menu
                 stdscr.clear()
             elif key == 27:  # ESC
                 break
@@ -164,5 +166,6 @@ class Menu:
 
                 sequencer = LessonSequencer(f"{course.name}: {part.name}", part.lessons)
                 sequencer.run(stdscr)
+                curses.curs_set(0)  # Reset cursor after lesson
             elif key == 27:  # ESC
                 return

@@ -80,8 +80,8 @@ class CourseParser:
                 ):
                     in_code_block = True
                     content_line = line[4:] if line.startswith("    ") else line[1:]
-                    lesson_content.append(content_line)
-                    print(f"Added to lesson content: '{content_line}'")
+                    lesson_content.append(content_line.rstrip())
+                    print(f"Added to lesson content: '{content_line.rstrip()}'")
                     continue
 
                 if in_code_block and not line.strip():
@@ -175,8 +175,8 @@ class CourseParser:
                 ):
                     in_code_block = True
                     content_line = line[4:] if line.startswith("    ") else line[1:]
-                    lesson_content.append(content_line)
-                    print(f"Added to lesson content: '{content_line}'")
+                    lesson_content.append(content_line.rstrip())
+                    print(f"Added to lesson content: '{content_line.rstrip()}'")
                     continue
 
                 if in_code_block and not line.strip():
