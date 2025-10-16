@@ -2,28 +2,18 @@
 import curses
 import sys
 from modules.menu import Menu
-from modules.structs import Lesson, Course
+from modules.course_parser import CourseParser
 
 
 def main():
-    courses = [
-        Course(
-            "Basic Typing",
-            [
-                Lesson("Lesson1", "The quick brown fox jumps.\n\tThe lazy dog sleeps."),
-                Lesson("Lesson2", "The quick brown dog jumps.\nThe lazy fox sleeps."),
-            ],
-        ),
-        Course(
-            "Basic Typing2",
-            [
-                Lesson("Lesson1", "The quick brown cat jumps.\nThe lazy cat sleeps."),
-                Lesson(
-                    "Lesson2", "The quick brown mouse jumps.\nThe lazy mouse sleeps."
-                ),
-            ],
-        ),
-    ]
+    # Initialize CourseParser with the courses directory
+    parser = CourseParser("./courses")
+    courses = parser.parse_courses()
+
+    if not courses:
+        print("No valid courses found in the courses directory.")
+        sys.exit(1)
+
     menu = Menu(courses)
     try:
         curses.wrapper(menu.run)

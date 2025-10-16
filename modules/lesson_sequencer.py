@@ -17,8 +17,8 @@ class LessonSequencer:
         )  # White for all text
 
         for lesson in self.lessons:
-            # Split lesson content into lines, preserving non-empty lines
-            lines = [line for line in lesson.content.splitlines() if line.strip()]
+            # Split lesson content into lines, preserving all lines including empty ones
+            lines = lesson.content.splitlines()
             # For each line, store non-tab characters and tab positions
             processed_lines = []
             tab_positions = []  # List of lists, each containing tab indices for a line
@@ -28,7 +28,7 @@ class LessonSequencer:
                 processed_lines.append(non_tabs)
                 tab_positions.append(tabs)
             current_line = 0
-            user_inputs = [[] for _ in processed_lines]  # Store input for non-tab chars
+            user_inputs = [[] for _ in lines]  # Store input for non-tab chars
             total_mistakes = 0  # Track mistakes across all lines
             nav_enters = 0  # Track correct navigation Enter presses
             completed = False  # Track lesson completion
@@ -42,8 +42,13 @@ class LessonSequencer:
                     curses.color_pair(1),
                 )
 
-                # Display all lines, showing tabs as four spaces
+                # Display all lines, showing tabs as four spaces and preserving blank lines
+                display_row = 2
                 for i, line in enumerate(lines):
+                    if not line.strip():  # Handle blank lines
+                        stdscr.addstr(display_row, 0, "", curses.color_pair(1))
+                        display_row += 1
+                        continue
                     target_text = line
                     user_input = user_inputs[i]
                     display_pos = 0  # Position in display (including tabs as 4 spaces)
@@ -55,7 +60,7 @@ class LessonSequencer:
                             # Display tab as 4 spaces
                             for _ in range(4):
                                 stdscr.addch(
-                                    2 + i, display_pos, " ", curses.color_pair(1)
+                                    display_row, display_pos, " ", curses.color_pair(1)
                                 )
                                 display_pos += 1
                         else:
@@ -73,19 +78,23 @@ class LessonSequencer:
                             if display_char == "\n":
                                 display_char = "↵"
                             stdscr.addch(
-                                2 + i, display_pos, display_char, curses.color_pair(1)
+                                display_row,
+                                display_pos,
+                                display_char,
+                                curses.color_pair(1),
                             )
                             display_pos += 1
+                    display_row += 1
 
                 # Get terminal dimensions
                 max_y, _ = stdscr.getmaxyx()
 
                 # Display stats at bottom - 2
                 total_chars = sum(
-                    len(line) for line in processed_lines
-                )  # Count non-tab chars
+                    len(line) for line in processed_lines if line
+                )  # Count non-tab chars in non-empty lines
                 typed_chars = sum(
-                    len(user_inputs[i]) for i in range(len(processed_lines))
+                    len(user_inputs[i]) for i in range(len(lines)) if processed_lines[i]
                 )
                 total_chars_with_nav = total_chars + nav_enters
                 accuracy = (
@@ -109,17 +118,14 @@ class LessonSequencer:
                     stdscr.addstr(
                         max_y - 1,
                         0,
-                        "Press Enter to submit current line.",
+                        "Press Enter to submit current line or move past blank line.",
                         curses.color_pair(1),
                     )
 
-                # Move cursor to current line's input position, skipping tabs
-                cursor_pos = len(user_inputs[current_line])  # Non-tab input position
-                display_pos = cursor_pos
-                for tab_idx in tab_positions[current_line]:
-                    if tab_idx <= cursor_pos:
-                        display_pos += 4  # Each tab is 4 spaces
-                stdscr.move(2 + current_line, display_pos)
+                # Move cursor to current line's input position, no tab skipping
+                cursor_pos = len(user_inputs[current_line])  # Raw input position
+                display_row = 2 + current_line
+                stdscr.move(display_row, cursor_pos)
                 stdscr.refresh()
 
                 try:
@@ -127,14 +133,14 @@ class LessonSequencer:
                     if key == 3:  # Ctrl+C
                         sys.exit(0)
                     elif key == 18:  # Ctrl+R
-                        user_inputs = [[] for _ in processed_lines]  # Reset inputs
+                        user_inputs = [[] for _ in lines]  # Reset inputs
                         total_mistakes = 0  # Reset mistakes
                         nav_enters = 0  # Reset navigation Enters
                         current_line = 0  # Restart lesson
                     elif key == 27:  # ESC
                         return False
                     elif key == curses.KEY_BACKSPACE or key == 127:  # Backspace
-                        if user_inputs[current_line]:
+                        if user_inputs[current_line] and processed_lines[current_line]:
                             user_inputs[current_line].pop()
                     elif key in (curses.KEY_ENTER, 10, 13):  # Enter
                         if current_line < len(lines) - 1:
@@ -143,25 +149,41 @@ class LessonSequencer:
                         else:
                             all_correct = all(
                                 "".join(user_inputs[i]) == "".join(processed_lines[i])
-                                for i in range(len(processed_lines))
+                                for i in range(len(lines))
+                                if processed_lines[i]  # Skip empty lines
                             )
                             if all_correct and accuracy > 3:
                                 completed = True
                             else:
-                                user_inputs = [
-                                    [] for _ in processed_lines
-                                ]  # Reset inputs
+                                user_inputs = [[] for _ in lines]  # Reset inputs
                                 total_mistakes = 0  # Reset mistakes
                                 nav_enters = 0  # Reset navigation Enters
                                 current_line = 0  # Start over
+                    elif key == 9:  # Tab key
+                        if processed_lines[
+                            current_line
+                        ]:  # Only allow input on non-empty lines
+                            # Append four spaces for Tab key
+                            next_chars = "".join(
+                                processed_lines[current_line][
+                                    len(user_inputs[current_line]) :
+                                ]
+                            )
+                            if next_chars.startswith(
+                                "    "
+                            ):  # Check if next four chars are spaces
+                                user_inputs[current_line].extend([" ", " ", " ", " "])
+                            else:
+                                total_mistakes += 1  # Incorrect input
                     else:  # Handle printable characters
                         typed_char = None
-                        if key in (curses.KEY_ENTER, 10, 13):
-                            typed_char = "\n"
-                        elif 32 <= key <= 126:  # Printable ASCII
+                        if 32 <= key <= 126:  # Printable ASCII
                             typed_char = chr(key)
-                        if typed_char and len(user_inputs[current_line]) < len(
-                            processed_lines[current_line]
+                        if (
+                            typed_char
+                            and processed_lines[current_line]
+                            and len(user_inputs[current_line])
+                            < len(processed_lines[current_line])
                         ):
                             user_inputs[current_line].append(typed_char)
                             if (
