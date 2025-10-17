@@ -6,7 +6,7 @@
 
     #include "stdio.h"
 
-    int main(){
+    int main() {
         printf("Hello, world!");
         return 0;
     }
@@ -19,7 +19,7 @@
 
     #include "stdio.h"
 
-    int main(){
+    int main() {
         int a = 5;
         char s[10] = "Linus";
         return 0;
@@ -201,29 +201,27 @@
     // Ex: Run the `hello, world` program on your system. 
     #include "stdio.h"
 
-    int main(void){
+    int main(void) {
         printf("hello, world\n");
         return 0;
     }
 
 ### Lesson 2: \c
 
-    // Experiment to find out what happens when prints's argument 
-    // string contains \c
+    // Experiment to find out what happens when printf's argument string contains \c
     #include <stdio.h>
 
-    int main(void){
+    int main(void) {
         printf("hello, world\c");
         return 0;
     }
 
 ### Lesson 3: Temperature Conversion
 
-    // Modify the temperature conversion program to print a heading 
-    // above the table.
+    // Modify the temperature conversion program to print a heading above the table.
     #include "stdio.h"
 
-    int main(void){
+    int main(void) {
         float fahr, celsius;
         int lower, upper, step;
 
@@ -236,7 +234,7 @@
         printf("---------------\n");
 
         fahr = lower;
-        while (fahr <= upper){
+        while (fahr <= upper) {
             celsius = (5.0 / 9.0) * (fahr - 32.0);
             printf("%3.0f\t\t%6.1f\n", fahr, celsius);
             fahr = fahr + step;
@@ -244,18 +242,12 @@
         return 0;
     }
 
-    // NOTE: If all operands from an operation are integers then 
-    // a integer operation is performed. If at least one operand 
-    // is a floating point number then a floating point operation 
-    // will be performed.
-
 ### Lesson 4: Celsius to Fahrenheit
 
-    // Write a program to print the corresponding Celsius to 
-    // Fahrenheit table.
+    // Write a program to print the corresponding Celsius to Fahrenheit table.
     #include "stdio.h"
 
-    int main(void){
+    int main(void) {
         float celsius, fahr;
         int lower, upper, step;
 
@@ -267,7 +259,7 @@
         printf("---------------\n");
 
         celsius = lower;
-        while (celsius <= upper){
+        while (celsius <= upper) {
             fahr = (9.0 / 5.0) * celsius + 32.0f;
             printf("%3.0f\t\t%6.1f\n", celsius, fahr);
             celsius = celsius + step;
@@ -279,11 +271,10 @@
 
 ### Lesson 5: Temperature Conversion Reversed
 
-    // Modify the temperature conversion program to print the 
-    // table in reverse order, that is, from 300 degrees to 0.
+    // Modify the temperature conversion program to print the // table in reverse order, that is, from 300 degrees to 0.  
     #include "stdio.h"
 
-    int main(void){
+    int main(void) {
         float celsius, fahr;
         int lower, upper, step;
 
@@ -294,7 +285,7 @@
         printf("Celsius\tFahr\n");
         printf("---------------\n");
 
-        for (celsius = upper; celsius >= lower; celsius = celsius - step){
+        for (celsius = upper; celsius >= lower; celsius = celsius - step) {
             fahr = (9.0 / 5.0) * celsius + 32.0f;
             printf("%3.0f\t\t%6.1f\n", celsius, fahr);
         }
@@ -313,7 +304,7 @@
     // Verify that the expression getchar() != EOF is 0 or 1.
     #include "stdio.h"
 
-    int main(void){
+    int main(void) {
         printf("value of expression: %d", getchar() != EOF);
         return 0;
     }
@@ -323,7 +314,7 @@
     // Write a program to print the value of EOF.
     #include "stdio.h"
 
-    int main(void){
+    int main(void) {
         printf("EOF: %d", EOF);
         return 0;
     }
@@ -335,12 +326,12 @@
     // Write a program to count blanks, tabs, and newlines.
     #include "stdio.h"
 
-    int main(void){
+    int main(void) {
         int blanks_nr = 0;
         int tabs_nr = 0;
         int newlines_nr = 0;
         char c;
-        while ((c = getchar()) != EOF){
+        while ((c = getchar()) != EOF) {
             if (c == ' '){ ++blanks_nr; } 
             else if (c == '\t'){ ++tabs_nr; } 
             else if (c == '\n'){ ++newlines_nr; }
@@ -352,8 +343,7 @@
 
 ### Lesson 9: Copy Input to Output I
 
-    // Write a program to copy its input to its output, 
-    // replacing each string of one or more blanks by a single blank.
+    // Write a program to copy its input to its output, replacing each string of one or more blanks by a single blank.
     #include "stdio.h"
 
     int main(void) {
@@ -368,14 +358,13 @@
 
 ### Lesson 10: Copy Input to Output II
 
-    // Write a program to copy its input to its output, replacing 
-    // each tab by \t, each backspace by \b, and each backslash by \\. 
+    // Write a program to copy its input to its output, replacing each tab by \t, each backspace by \b, and each backslash by \\. 
     // This makes tabs and backspaces visible in an unambiguous way.
     #include "stdio.h"
 
-    int main(void){
+    int main(void) {
         char c;
-        while ((c = getchar()) != EOF){
+        while ((c = getchar()) != EOF) {
             if (c == '\t'){ putchar('\\'); putchar('t'); } 
             else if (c == '\b') { putchar('\\'); putchar('b'); } 
             else if (c == '\\'){ putchar('\\'); putchar('\\'); } 
@@ -387,13 +376,12 @@
 
 ### Lesson 11: Testing the Word Count Program
 
-    // How would you test the word count program? What kinds of 
-    // input are most likely to uncover bugs if there are any?
+    // How would you test the word count program? What kinds of input are most likely to uncover bugs if there are any?
     #include "stdio.h"
     #define IN 1
     #define OUT 0
 
-    int main(void){
+    int main(void) {
         char nl;
         char nw;
         char nc;
@@ -401,7 +389,7 @@
         nl = nw = nc = 0;
         state = OUT;
         char c;
-        while ((c = getchar()) != EOF){
+        while ((c = getchar()) != EOF) {
             ++nc;
             if (c == '\n'){ ++nl; }
             if (c == ' ' || c == '\n' || c == '\t'){ state = OUT; } 
