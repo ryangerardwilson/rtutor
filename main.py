@@ -7,6 +7,7 @@ from modules.course_parser import CourseParser
 
 
 def main():
+    os.environ["TERM"] = "xterm-256color"
     # Get the actual directory of main.py, resolving any symlinks
     script_path = os.path.realpath(__file__)
     script_dir = os.path.dirname(script_path)
