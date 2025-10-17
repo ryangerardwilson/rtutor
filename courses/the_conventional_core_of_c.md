@@ -268,7 +268,6 @@
         return 0;
     }
 
-
 ### Lesson 5: Temperature Conversion Reversed
 
     // Modify the temperature conversion program to print the // table in reverse order, that is, from 300 degrees to 0.  
@@ -292,12 +291,6 @@
 
         return 0;
     }
-
-    // NOTE: Sometimes the for loop can be more explicit and more 
-    // readable then the while loop because it's more compact. The 
-    // initialization and the incrementation of the counter variable 
-    // is done through the for loop params. However, the while loop 
-    // can be, sometimes, more customizable.
 
 ### Lesson 6: getchar()
 
@@ -340,7 +333,6 @@
         return 0;
     }
 
-
 ### Lesson 9: Copy Input to Output I
 
     // Write a program to copy its input to its output, replacing each string of one or more blanks by a single blank.
@@ -372,7 +364,6 @@
         }
         return 0;
     }
-
 
 ### Lesson 11: Testing the Word Count Program
 
@@ -456,7 +447,6 @@
         int line_index = 0;
         // TBC
     
-
 ### Lesson 13B: Histogram of Lengths of Input Words (Horizontal)
 
         // Print horizontal histogram
@@ -468,7 +458,6 @@
             ++column_index;
         }
         // TBC
-
 
 ### Lesson 13C: Histogram of Lengths of Input Words (Vertical)
 
@@ -487,7 +476,6 @@
         }
         return 0;
     }
-
 
 ### Lesson 14: Histogram of Freq of Different Characters
 
@@ -517,8 +505,6 @@
         }
         return 0;
     }
-
-
 
 ### Lesson 15: Functions
 
@@ -566,7 +552,6 @@
         return 0;
     }
 
-
 ### Lesson 16B: Longest Line
 
     int get_line(char s[], int lim){
@@ -611,8 +596,6 @@
         line[i] = '\0';
         return i;
     }
-
-
 
 ### Lesson 18: Cleaning Input
 
@@ -675,7 +658,6 @@
         line[i] = '\0';
         return i;
     }
-
     // TBC
 
 ### Lesson 19B: Reverse String
