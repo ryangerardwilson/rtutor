@@ -209,7 +209,7 @@
 ### Lesson 2: \c
 
     // Experiment to find out what happens when printf's argument string contains \c
-    #include <stdio.h>
+    #include "stdio.h"
 
     int main(void) {
         printf("hello, world\c");
