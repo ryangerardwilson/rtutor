@@ -108,8 +108,7 @@ class LessonSequencer:
                 stdscr.addstr(
                     max_y - 1,
                     0,
-                    "Ctrl+N -> next lesson | Ctrl+C -> exit | Ctrl+R ->"
-                    "restart | ESC -> quit",
+                    "Ctrl+N -> next lesson | Ctrl+R ->restart | ESC -> quit",
                     curses.color_pair(1),
                 )
 
