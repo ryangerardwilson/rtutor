@@ -26,29 +26,26 @@ Here are the built-in courses, each designed to beat some fundamental
 programming knowledge into your skull through sheer repetition. Don't whine
 about the choices; they're solid starting points.
 
-1. `the_conventional_core_of_high_level_assembly.md`: This one's for those who
-want to dip their toes into assembly without drowning in registers and opcodes
-right away. High-Level Assembly (HLA) makes it almost readable, like a gateway
-drug to low-level programming. Covers basics like Hello World and variables. If
-you're scared of real assembly, start here—but don't stay too long.
+1. `hla.md`: This one's for those who want to dip their toes into assembly
+without drowning in registers and opcodes right away. High-Level Assembly (HLA)
+makes it almost readable, like a gateway drug to low-level programming. Covers
+basics like Hello World and variables. If you're scared of real assembly, start
+here—but don't stay too long.
 
-2. `the_conventional_core_of_python.md`: Python, the language that's taken over
-the world because it's easy and everyone uses it for everything. This course
-hits the essentials: Hello World, primitive types, loops, operators, functions,
-and even the walrus operator. Great for scripting on Omarchy without compiling
-headaches. But remember, performance matters—don't get too cozy.
+2. `python.md`: Python, the language that's taken over the world because it's
+easy and everyone uses it for everything. This course hits the essentials:
+Hello World, primitive types, loops, operators, functions, and even the walrus
+operator. Great for scripting on Omarchy without compiling headaches. But
+remember, performance matters—don't get too cozy.
 
-3. `the_conventional_core_of_c.md`: Ah, C—the mother of all modern languages.
-This course drills the core: Hello World, types, printf formatting, arithmetic,
-control structures, input/output, and constants. It's raw, it's powerful, and
-it'll teach you how computers really work under the hood. Mandatory suffering
-for any serious programmer.
+3. `c.md`: Ah, C—the mother of all modern languages. This course drills the
+core: Hello World, types, printf formatting, arithmetic, control structures,
+input/output, and constants. It's raw, it's powerful, and it'll teach you how
+computers really work under the hood. Mandatory suffering for any serious
+programmer.
 
-4. `k_and_r_2nd_ed_exercises.md`: Straight from Kernighan and Ritchie's "The C
-Programming Language" (2nd edition), the bible of C. This is all exercises:
-Hello World variants, temperature conversions, input/output tricks, histograms,
-functions, and syntax checkers. If you haven't done these, you're not a real C
-hacker. Builds character through debugging frustration.
+4. `classic_unix_tools.md`: Learn classics like TMUX, grep, find. Many more to
+be added over time.
 
 ## Installation
 
@@ -72,6 +69,9 @@ Fire it up from the terminal:
 
     cd ~/Apps/rtutor
     ./main.py
+
+If you're one of those tmux weirdos, use ./init.sh instead to set the damn TERM
+variable right and avoid curses screwing up the colors.
 
 Or make it executable and symlink it somewhere in your PATH if you're lazy.
 
