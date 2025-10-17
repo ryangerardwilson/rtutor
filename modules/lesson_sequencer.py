@@ -30,6 +30,7 @@ class LessonSequencer:
             current_line = 0
             user_inputs = [[] for _ in lines]  # Store input for non-tab chars
             completed = False  # Track lesson completion
+            lesson_finished = False  # Track if all characters have been typed over
 
             while not completed:
                 stdscr.clear()
@@ -105,110 +106,127 @@ class LessonSequencer:
                 )
 
                 # Display instructions at bottom - 1
-                stdscr.addstr(
-                    max_y - 1,
-                    0,
-                    "Ctrl+N -> next lesson | Ctrl+R ->restart | ESC -> quit",
-                    curses.color_pair(1),
-                )
+                if lesson_finished:
+                    stdscr.addstr(
+                        max_y - 1,
+                        0,
+                        "Lesson complete! Hit n for next lesson or esc to exit",
+                        curses.color_pair(1),
+                    )
+                else:
+                    stdscr.addstr(
+                        max_y - 1,
+                        0,
+                        "Ctrl+R ->restart | ESC -> quit",
+                        curses.color_pair(1),
+                    )
 
-                # Compute cursor column correctly, accounting for tabs and extras
-                cursor_col = 0
-                input_pos = 0
-                if current_line < len(lines):
-                    for char in lines[current_line]:
-                        if char == "\t":
-                            cursor_col += 4
-                        else:
-                            if input_pos < len(user_inputs[current_line]):
-                                input_pos += 1
-                                cursor_col += 1
+                # Compute cursor column correctly, accounting for tabs and extras (only if not finished)
+                if not lesson_finished:
+                    cursor_col = 0
+                    input_pos = 0
+                    if current_line < len(lines):
+                        for char in lines[current_line]:
+                            if char == "\t":
+                                cursor_col += 4
                             else:
-                                break
-                    # Add columns for extra inputs
-                    cursor_col += len(user_inputs[current_line]) - input_pos
+                                if input_pos < len(user_inputs[current_line]):
+                                    input_pos += 1
+                                    cursor_col += 1
+                                else:
+                                    break
+                        # Add columns for extra inputs
+                        cursor_col += len(user_inputs[current_line]) - input_pos
 
-                display_row = 2 + current_line
-                stdscr.move(display_row, cursor_col)
+                    display_row = 2 + current_line
+                    stdscr.move(display_row, cursor_col)
+                else:
+                    curses.curs_set(0)  # Hide cursor when finished
+
                 stdscr.refresh()
 
                 try:
                     key = stdscr.getch()
                     if key == 3:  # Ctrl+C
                         sys.exit(0)
-                    elif key == 18:  # Ctrl+R
-                        user_inputs = [[] for _ in lines]  # Reset inputs
-                        current_line = 0  # Restart lesson
-                    elif key == 14:  # Ctrl+N for next lesson
-                        # Check if all positions have been typed over (irrespective of correctness)
-                        all_lines_typed = all(
-                            len(user_inputs[i]) >= len(processed_lines[i])
-                            for i in range(len(lines))
-                            if processed_lines[i]  # Skip empty lines
-                        )
-                        if all_lines_typed:
+
+                    if lesson_finished:
+                        if key == ord("n") or key == ord("N"):
                             completed = True
-                        else:
+                        elif key == 27:  # ESC
+                            return False
+                        # Ignore other keys
+                    else:
+                        if key == 18:  # Ctrl+R
                             user_inputs = [[] for _ in lines]  # Reset inputs
-                            current_line = 0  # Start over
-                    elif key == 27:  # ESC
-                        return False
-                    elif (
-                        key == curses.KEY_BACKSPACE or key == 127
-                    ):  # Backspace disabled
-                        pass
-                    elif key in (curses.KEY_ENTER, 10, 13):  # Enter
-                        if current_line < len(lines) - 1:
-                            current_line += 1  # Move to next line
-                        # No completion check here anymore
-                    elif key == 9:  # Tab key
-                        if processed_lines[
-                            current_line
-                        ]:  # Only allow input on non-empty lines
-                            required_len = len(processed_lines[current_line])
-                            current_len = len(user_inputs[current_line])
-                            if (
-                                current_line == len(lines) - 1
-                                and current_len >= required_len
-                            ):
-                                pass  # Ignore on last line if at or beyond required
-                            else:
-                                # Append four spaces for Tab key
-                                next_chars = "".join(
-                                    processed_lines[current_line][current_len:]
-                                )
-                                if next_chars.startswith(
-                                    "    "
-                                ):  # Check if next four chars are spaces
-                                    user_inputs[current_line].extend(
-                                        [" ", " ", " ", " "]
+                            current_line = 0  # Restart lesson
+                        elif key == 27:  # ESC
+                            return False
+                        elif (
+                            key == curses.KEY_BACKSPACE or key == 127
+                        ):  # Backspace disabled
+                            pass
+                        elif key in (curses.KEY_ENTER, 10, 13):  # Enter
+                            if current_line < len(lines) - 1:
+                                current_line += 1  # Move to next line
+                        elif key == 9:  # Tab key
+                            if processed_lines[
+                                current_line
+                            ]:  # Only allow input on non-empty lines
+                                required_len = len(processed_lines[current_line])
+                                current_len = len(user_inputs[current_line])
+                                if (
+                                    current_line == len(lines) - 1
+                                    and current_len >= required_len
+                                ):
+                                    pass  # Ignore on last line if at or beyond required
+                                else:
+                                    # Append four spaces for Tab key
+                                    next_chars = "".join(
+                                        processed_lines[current_line][current_len:]
                                     )
-                                    # Auto-advance if this pushed us into extra error territory (non-last lines)
+                                    if next_chars.startswith(
+                                        "    "
+                                    ):  # Check if next four chars are spaces
+                                        user_inputs[current_line].extend(
+                                            [" ", " ", " ", " "]
+                                        )
+                                        # Auto-advance if this pushed us into extra error territory (non-last lines)
+                                        if (
+                                            len(user_inputs[current_line])
+                                            > required_len
+                                            and current_line < len(lines) - 1
+                                        ):
+                                            current_line += 1
+                        else:  # Handle printable characters
+                            typed_char = None
+                            if 32 <= key <= 126:  # Printable ASCII
+                                typed_char = chr(key)
+                            if typed_char:
+                                required_len = len(processed_lines[current_line])
+                                current_len = len(user_inputs[current_line])
+                                if (
+                                    current_line == len(lines) - 1
+                                    and current_len >= required_len
+                                ):
+                                    pass  # Ignore extras on last line
+                                else:
+                                    user_inputs[current_line].append(typed_char)
+                                    # Auto-advance if this was an extra error at the end (non-last lines)
                                     if (
                                         len(user_inputs[current_line]) > required_len
                                         and current_line < len(lines) - 1
                                     ):
                                         current_line += 1
-                    else:  # Handle printable characters
-                        typed_char = None
-                        if 32 <= key <= 126:  # Printable ASCII
-                            typed_char = chr(key)
-                        if typed_char:
-                            required_len = len(processed_lines[current_line])
-                            current_len = len(user_inputs[current_line])
-                            if (
-                                current_line == len(lines) - 1
-                                and current_len >= required_len
-                            ):
-                                pass  # Ignore extras on last line
-                            else:
-                                user_inputs[current_line].append(typed_char)
-                                # Auto-advance if this was an extra error at the end (non-last lines)
-                                if (
-                                    len(user_inputs[current_line]) > required_len
-                                    and current_line < len(lines) - 1
-                                ):
-                                    current_line += 1
+
+                    # Check if lesson is finished after handling input
+                    all_lines_typed = all(
+                        len(user_inputs[i]) >= len(processed_lines[i])
+                        for i in range(len(lines))
+                        if processed_lines[i]  # Skip empty lines
+                    )
+                    if all_lines_typed:
+                        lesson_finished = True
 
                 except KeyboardInterrupt:
                     sys.exit(0)
