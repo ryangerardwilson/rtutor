@@ -1,6 +1,20 @@
 # Unix Tool Mastery
 
-## Part I: Tmux
+## Part I: Vim CLI Tools
+
+### Lesson 1: Toggle vim normal mode in Alacrity
+
+    # This is a toggle, use the same combo to turn off vim normal mode
+    Ctrl+Shift+Space
+
+### Lesson 2: Use vim Buffers
+
+    vim file1 file2 # Open specific files as buffers
+    vim dir/* # Open all files as buffers
+    vim dir/*.md # Open files of specific extensions as buffers
+    vim dir/**/*.md # Same as above, but recursively. The dir should have subdirs
+
+## Part II: Tmux
 
 ### Lesson 1: Sessions
 
@@ -24,7 +38,7 @@
     Space # Initiate selection Mode
     ESc # Quit selection mode 
 
-## Part II: Search Utils
+## Part III: Search Utils
 
 ### Lesson 1: Grep, Find & Locate
 
@@ -56,7 +70,7 @@
     git diff HEAD  # All changes since last commit.
     git diff branch1 branch2  # Compare two branches.
 
-## Part III: File & Directory Management
+## Part IV: File & Directory Management
 
 ### Lesson 1: File & Dir CRUD
 
