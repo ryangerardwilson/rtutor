@@ -70,19 +70,20 @@
     ls -alh # All details
     ls -lh # Exclude hidden files
     ls -Rlh # Recursive: List subdirectories too
+    ls -1 # Display has vertical list
     ls -t  # Sort by modification time (newest first)
     ls -S  # Sort by size (largest first)
     ls *.txt  # Wildcard: List only text files
     ls -l | grep "^d"  # Pipe to grep: Show only directories
 
     # Update
-    cp file.txt backup/  # Copy file to dir
-    cp -r dir1/ dir2/  # Recursive copy for directories
+    cp file.txt backup/  
+    cp -r dir1/ dir2/  
     mv oldname.txt newname.txt  
-    mv file.txt /new/path/  # Move to different dir
-    chmod +x # Make executable
+    mv file.txt /new/path/  
     chmod 644 script.sh  # Set octal 
     chmod -R 644 dir/  # Recursive apply
+    chmod +x script.sh # Make executable
     # 600 for private files; 644 for standard files; 700 for private dirs; 755 for letting others peek/run without editing; 777 for all access
     # In unix systems, inside the /home dir, for newly created:
     # - files: 644 is default because it strikes a balance between you owning the file, the others accessing it without editing.
@@ -96,8 +97,8 @@
 ### Lesson 2: Navigating with cd and pwd
 
     pwd  
-    cd  # Straight home
+    cd  
     cd /path
     cd ../..  # Up two levels
-    cd ~  # Home 
+    cd ~  
     cd -  # Back to previous directory

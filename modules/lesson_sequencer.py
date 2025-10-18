@@ -10,13 +10,13 @@ class LessonSequencer:
         self.lessons = lessons  # List of Lesson objects
 
     def run(self, stdscr):
-        curses.curs_set(2)  # Set block cursor
         curses.start_color()
         curses.init_pair(
             1, curses.COLOR_WHITE, curses.COLOR_BLACK
         )  # White for all text
 
         for lesson in self.lessons:
+            curses.curs_set(2)  # Set block cursor for each lesson
             # Split lesson content into lines, preserving all lines including empty ones, but strip trailing/leading whitespace to avoid bogus empty lines
             lines = lesson.content.strip().splitlines()
             # For each line, store non-tab characters and tab positions
@@ -162,24 +162,24 @@ class LessonSequencer:
                             current_line = 0  # Restart lesson
                         elif key == 27:  # ESC
                             return False
-                        elif (
-                            key == curses.KEY_BACKSPACE or key == 127
-                        ):  # Backspace disabled
-                            pass
+                        elif key in (curses.KEY_BACKSPACE, 127):  # Backspace
+                            if user_inputs[current_line]:
+                                user_inputs[current_line].pop()
                         elif key in (curses.KEY_ENTER, 10, 13):  # Enter
-                            if current_line < len(lines) - 1:
-                                current_line += 1  # Move to next line
+                            if (
+                                user_inputs[current_line]
+                                == processed_lines[current_line]
+                            ):
+                                if current_line < len(lines) - 1:
+                                    current_line += 1
                         elif key == 9:  # Tab key
                             if processed_lines[
                                 current_line
                             ]:  # Only allow input on non-empty lines
                                 required_len = len(processed_lines[current_line])
                                 current_len = len(user_inputs[current_line])
-                                if (
-                                    current_line == len(lines) - 1
-                                    and current_len >= required_len
-                                ):
-                                    pass  # Ignore on last line if at or beyond required
+                                if current_len >= required_len:
+                                    pass  # Ignore if at or beyond required
                                 else:
                                     # Append four spaces for Tab key
                                     next_chars = "".join(
@@ -191,13 +191,6 @@ class LessonSequencer:
                                         user_inputs[current_line].extend(
                                             [" ", " ", " ", " "]
                                         )
-                                        # Auto-advance if this pushed us into extra error territory (non-last lines)
-                                        if (
-                                            len(user_inputs[current_line])
-                                            > required_len
-                                            and current_line < len(lines) - 1
-                                        ):
-                                            current_line += 1
                         else:  # Handle printable characters
                             typed_char = None
                             if 32 <= key <= 126:  # Printable ASCII
@@ -205,25 +198,14 @@ class LessonSequencer:
                             if typed_char:
                                 required_len = len(processed_lines[current_line])
                                 current_len = len(user_inputs[current_line])
-                                if (
-                                    current_line == len(lines) - 1
-                                    and current_len >= required_len
-                                ):
-                                    pass  # Ignore extras on last line
+                                if current_len >= required_len:
+                                    pass  # Ignore extras
                                 else:
                                     user_inputs[current_line].append(typed_char)
-                                    # Auto-advance if this was an extra error at the end (non-last lines)
-                                    if (
-                                        len(user_inputs[current_line]) > required_len
-                                        and current_line < len(lines) - 1
-                                    ):
-                                        current_line += 1
 
                     # Check if lesson is finished after handling input
                     all_lines_typed = all(
-                        len(user_inputs[i]) >= len(processed_lines[i])
-                        for i in range(len(lines))
-                        if processed_lines[i]  # Skip empty lines
+                        user_inputs[i] == processed_lines[i] for i in range(len(lines))
                     )
                     if all_lines_typed:
                         lesson_finished = True
