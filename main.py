@@ -7,7 +7,7 @@ from modules.course_parser import CourseParser
 
 
 def main():
-    # Get the actual directory of main.py, resolving any symlinks
+    #### Get the actual directory of main.py, resolving any symlinks
     script_path = os.path.realpath(__file__)
     script_dir = os.path.dirname(script_path)
     courses_dir = os.path.join(script_dir, "courses")

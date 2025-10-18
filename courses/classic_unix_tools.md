@@ -2,82 +2,102 @@
 
 ## Part I: Tmux
 
-### Lesson 1: Start Named Session
+### Lesson 1: Sessions
 
-    tmux new -s dev  # Enter tmux; run commands.
+    tmux new -s dev # Start
+    Ctrl-b d  # Deteach 
+    tmux ls  # List 
+    tmux attach -t dev  # Jump back in
 
-### Lesson 2: Detach Session
+### Lesson 2: Panes
 
-    Ctrl-b d  # Exit without killing processes.
-
-### Lesson 3: List Sessions
-
-    tmux ls  # View active sessions.
-
-### Lesson 4: Reattach Session
-
-    tmux attach -t dev  # Jump back in.
-
-### Lesson 5: Split Vertical
-
-    Ctrl-b %  # Side-by-side panes.
-
-### Lesson 6: Split Horizontal
-
+    Ctrl-b %  # Side-by-side
     Ctrl-b "  # Top-bottom panes.
-
-### Lesson 7: Navigate Panes
-
     Ctrl-b arrow  # Switch panes.
-
-### Lesson 8: Enter Copy Mode
-
-    Ctrl-b [  # Scroll/copy text (arrow/vi keys; q to exit).
-
-### Lesson 9: Close Pane
-
     Ctrl-b x  # Kill current pane (confirm with y).
 
-## Part II: Grep
+### Lesson 3:  Copy Mode
 
-### Lesson 1: Basic Search
+    Ctrl-b [  # Enter copy mode 
+    arrow/hjkl # Navigate 
+    q # exit
+    Space # Initiate selection Mode
+    ESc # Quit selection mode 
 
-    grep "kernel" dmesg  # Match lines.
+## Part II: Search Utils
 
-### Lesson 2: Case-Insensitive
+### Lesson 1: Grep, Find & Locate
 
-    grep -i "error" log.txt  # Ignore case.
+    # Grep searches text within files
+    grep "error" system.log
+    grep -r "error" logs/ # Search dirs.
 
-### Lesson 3: Recursive
+    # Find searches file names
+    find /project -name "*.py" # Match names/extensions.
+    find . -type f -size +50M # Files >50MB.
+    find /backup -mtime -7 # Last 7 days.
 
-    grep -r "TODO" src/  # Search dirs.
+    # Xargs combo to find strings across multiple files of a specific extension
+    find . -type f -name "*.py" | xargs grep "import pandas as pd"
 
-### Lesson 4: Invert Match
+    # Locate: While find seaches below ~/, locate seaches above 
+    sudo updatedb && locate "nginx"
 
-    grep -v "^#" config  # Exclude matches.
+### Lesson 2: Diff and Git Diff
 
-### Lesson 5: Pipe Usage
+    # Diff compares two files line by line
+    diff file1.txt file2.txt  
+    diff -u file1.txt file2.txt  # Unified format, easier to read 
+    diff -r dir1/ dir2/  # Recursively compare directories.
 
-    dmesg | grep -i "usb"  # Chain commands.
+    # Git diff: 
+    git diff  # Shows changes between working dir and index.
+    git diff --cached  # Changes staged for commit.
+    git diff HEAD  # All changes since last commit.
+    git diff branch1 branch2  # Compare two branches.
 
-## Part III: Find
+## Part III: File & Directory Management
 
-### Lesson 1: By Name
+### Lesson 1: File & Dir CRUD
 
-    find /home -name "*.py"  # Match names.
+    # Create
+    touch newfile.txt  
+    mkdir newdir  
+    mkdir -m 755 secure_dir  
 
-### Lesson 2: By Size/Type
+    # Read
+    ls
+    ls -alh # All details
+    ls -lh # Exclude hidden files
+    ls -Rlh # Recursive: List subdirectories too
+    ls -t  # Sort by modification time (newest first)
+    ls -S  # Sort by size (largest first)
+    ls *.txt  # Wildcard: List only text files
+    ls -l | grep "^d"  # Pipe to grep: Show only directories
 
-    find . -type f -size +50M  # Files >50MB.
+    # Update
+    cp file.txt backup/  # Copy file to dir
+    cp -r dir1/ dir2/  # Recursive copy for directories
+    mv oldname.txt newname.txt  
+    mv file.txt /new/path/  # Move to different dir
+    chmod +x # Make executable
+    chmod 644 script.sh  # Set octal 
+    chmod -R 644 dir/  # Recursive apply
+    # 600 for private files; 644 for standard files; 700 for private dirs; 755 for letting others peek/run without editing; 777 for all access
+    # In unix systems, inside the /home dir, for newly created:
+    # - files: 644 is default because it strikes a balance between you owning the file, the others accessing it without editing.
+    # - dirs: 755 is default because it allows others to cd into your dirs as the cd command needs executable permission
 
-### Lesson 3: Exec on Results
+    # Delete
+    rm file.txt  
+    rm *.py
+    rm -rf dir/  
 
-    find /tmp -name "*.tmp" -exec rm {} \;  # Run commands.
+### Lesson 2: Navigating with cd and pwd
 
-### Lesson 4: By Mod Time
-
-    find /backup -mtime -7  # Last 7 days.
-
-### Lesson 5: Pipe to Tools
-
-    find . -name "*.log" | xargs grep "error"  # Combo search.
+    pwd  
+    cd  # Straight home
+    cd /path
+    cd ../..  # Up two levels
+    cd ~  # Home 
+    cd -  # Back to previous directory
