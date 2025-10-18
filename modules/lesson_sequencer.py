@@ -11,10 +11,10 @@ class LessonSequencer:
 
     def run(self, stdscr):
         curses.start_color()
-        curses.init_pair(
-            1, curses.COLOR_WHITE, curses.COLOR_BLACK
-        )  # White for all text
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_WHITE, -1)
 
+        stdscr.bkgd(" ", curses.color_pair(1))
         for lesson in self.lessons:
             curses.curs_set(2)  # Set block cursor for each lesson
             # Split lesson content into lines, preserving all lines including empty ones, but strip trailing/leading whitespace to avoid bogus empty lines
@@ -34,12 +34,15 @@ class LessonSequencer:
 
             while not completed:
                 stdscr.clear()
-                stdscr.addstr(
-                    0,
-                    0,
-                    f"{self.name} | {lesson.name}",
-                    curses.color_pair(1),
-                )
+                try:
+                    stdscr.addstr(
+                        0,
+                        0,
+                        f"{self.name} | {lesson.name}",
+                        curses.color_pair(1),
+                    )
+                except curses.error:
+                    pass
 
                 # Display all lines, showing tabs as four spaces and preserving blank lines
                 display_row = 2
@@ -54,9 +57,15 @@ class LessonSequencer:
                         if char == "\t":
                             # Display tab as 4 spaces
                             for _ in range(4):
-                                stdscr.addch(
-                                    display_row, display_pos, " ", curses.color_pair(1)
-                                )
+                                try:
+                                    stdscr.addch(
+                                        display_row,
+                                        display_pos,
+                                        " ",
+                                        curses.color_pair(1),
+                                    )
+                                except curses.error:
+                                    pass
                                 display_pos += 1
                         else:
                             display_char = char
@@ -72,18 +81,24 @@ class LessonSequencer:
                                 input_pos += 1
                             if display_char == "\n":
                                 display_char = "↵"
-                            stdscr.addch(
-                                display_row,
-                                display_pos,
-                                display_char,
-                                curses.color_pair(1),
-                            )
+                            try:
+                                stdscr.addch(
+                                    display_row,
+                                    display_pos,
+                                    display_char,
+                                    curses.color_pair(1),
+                                )
+                            except curses.error:
+                                pass
                             display_pos += 1
                     # Display extra inputs as blocks
                     while input_pos < len(user_input):
-                        stdscr.addch(
-                            display_row, display_pos, "█", curses.color_pair(1)
-                        )
+                        try:
+                            stdscr.addch(
+                                display_row, display_pos, "█", curses.color_pair(1)
+                            )
+                        except curses.error:
+                            pass
                         display_pos += 1
                         input_pos += 1
                     display_row += 1
@@ -98,28 +113,37 @@ class LessonSequencer:
                 typed_chars = sum(
                     len(user_inputs[i]) for i in range(len(lines)) if processed_lines[i]
                 )
-                stdscr.addstr(
-                    max_y - 2,
-                    0,
-                    f"Typed {typed_chars}/{total_chars} chars",
-                    curses.color_pair(1),
-                )
+                try:
+                    stdscr.addstr(
+                        max_y - 2,
+                        0,
+                        f"Typed {typed_chars}/{total_chars} chars",
+                        curses.color_pair(1),
+                    )
+                except curses.error:
+                    pass
 
                 # Display instructions at bottom - 1
                 if lesson_finished:
-                    stdscr.addstr(
-                        max_y - 1,
-                        0,
-                        "Lesson complete! Hit n for next lesson or esc to exit",
-                        curses.color_pair(1),
-                    )
+                    try:
+                        stdscr.addstr(
+                            max_y - 1,
+                            0,
+                            "Lesson complete! Hit n for next lesson or esc to exit",
+                            curses.color_pair(1),
+                        )
+                    except curses.error:
+                        pass
                 else:
-                    stdscr.addstr(
-                        max_y - 1,
-                        0,
-                        "Ctrl+R ->restart | ESC -> quit",
-                        curses.color_pair(1),
-                    )
+                    try:
+                        stdscr.addstr(
+                            max_y - 1,
+                            0,
+                            "Ctrl+R ->restart | ESC -> quit",
+                            curses.color_pair(1),
+                        )
+                    except curses.error:
+                        pass
 
                 # Compute cursor column correctly, accounting for tabs and extras (only if not finished)
                 if not lesson_finished:
@@ -139,7 +163,10 @@ class LessonSequencer:
                         cursor_col += len(user_inputs[current_line]) - input_pos
 
                     display_row = 2 + current_line
-                    stdscr.move(display_row, cursor_col)
+                    try:
+                        stdscr.move(display_row, cursor_col)
+                    except curses.error:
+                        pass
                 else:
                     curses.curs_set(0)  # Hide cursor when finished
 
@@ -225,10 +252,7 @@ class LessonSequencer:
         art_lines = boom_art.splitlines()  # Split ASCII art into lines
 
         # Calculate content width for centering boom_art
-        content_width = 0
-        for line in art_lines:
-            if line.strip():  # Only consider non-empty lines for width
-                content_width = max(content_width, len(line.strip()))
+        content_width = max(len(line) for line in art_lines)
 
         # Display boom_art starting 2 lines from top, centered horizontally
         start_y = 2  # Fixed offset from top
@@ -242,7 +266,10 @@ class LessonSequencer:
                     stdscr.addstr(start_y + i, x_pos, line, curses.color_pair(1))
                 except curses.error:
                     pass  # Ignore errors if art exceeds screen bounds
-        stdscr.addstr(max_y - 1, 0, "Press any key to exit.", curses.color_pair(1))
+        try:
+            stdscr.addstr(max_y - 1, 0, "Press any key to exit.", curses.color_pair(1))
+        except curses.error:
+            pass
         stdscr.refresh()
         stdscr.getch()  # Wait for keypress to exit
 

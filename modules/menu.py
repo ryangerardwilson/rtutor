@@ -11,8 +11,12 @@ class Menu:
     def run(self, stdscr):
         curses.curs_set(0)
         curses.start_color()
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_CYAN, -1)
+        curses.init_pair(2, curses.COLOR_WHITE, -1)
+        stdscr.bkgd(
+            " ", curses.color_pair(2)
+        )  # Background to default with white fg (for spaces)
 
         max_y, max_x = stdscr.getmaxyx()
         title_lines = self.title_ascii_art.count("\n")
@@ -106,8 +110,12 @@ class Menu:
     def run_part_menu(self, stdscr, course):
         curses.curs_set(0)
         curses.start_color()
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_CYAN, -1)
+        curses.init_pair(2, curses.COLOR_WHITE, -1)
+        stdscr.bkgd(
+            " ", curses.color_pair(2)
+        )  # Background to default with white fg (for spaces)
 
         max_y, max_x = stdscr.getmaxyx()
         menu_start_y = 2  # Simple, no big title here
