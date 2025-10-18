@@ -1,6 +1,6 @@
 # The Conventional Core of C
 
-## Part IA: K&R 2nd Ed - Chapter 1 Concepts
+## Part I: K&R 2nd Ed - Chapter 1 Concepts
 
 ### Lesson 1: Hello World
 
@@ -194,9 +194,11 @@
         return 0;
     }
 
-## Part IB: K&R 2nd Ed - Chapter 1 Exercises 1-12
+## Part II: K&R 2nd Ed - Exercises
 
-### Lesson 1: Hello World
+### Section A: Chapter 1 Exercises 1-12
+
+#### Lesson 1: Hello World
 
     // Ex: Run the `hello, world` program on your system. 
     #include "stdio.h"
@@ -206,7 +208,7 @@
         return 0;
     }
 
-### Lesson 2: \c
+#### Lesson 2: \c
 
     // Experiment to find out what happens when printf's argument string contains \c
     #include "stdio.h"
@@ -216,7 +218,7 @@
         return 0;
     }
 
-### Lesson 3: Temperature Conversion
+#### Lesson 3: Temperature Conversion
 
     // Modify the temperature conversion program to print a heading above the table.
     #include "stdio.h"
@@ -242,7 +244,7 @@
         return 0;
     }
 
-### Lesson 4: Celsius to Fahrenheit
+#### Lesson 4: Celsius to Fahrenheit
 
     // Write a program to print the corresponding Celsius to Fahrenheit table.
     #include "stdio.h"
@@ -268,7 +270,7 @@
         return 0;
     }
 
-### Lesson 5: Temperature Conversion Reversed
+#### Lesson 5: Temperature Conversion Reversed
 
     // Modify the temperature conversion program to print the // table in reverse order, that is, from 300 degrees to 0.  
     #include "stdio.h"
@@ -292,7 +294,7 @@
         return 0;
     }
 
-### Lesson 6: getchar()
+#### Lesson 6: getchar()
 
     // Verify that the expression getchar() != EOF is 0 or 1.
     #include "stdio.h"
@@ -302,7 +304,7 @@
         return 0;
     }
 
-### Lesson 7: EOF
+#### Lesson 7: EOF
 
     // Write a program to print the value of EOF.
     #include "stdio.h"
@@ -314,7 +316,7 @@
 
     // NOTE: The value of the EOF character is -1, which is an integer.
 
-### Lesson 8: Counting chars
+#### Lesson 8: Counting chars
 
     // Write a program to count blanks, tabs, and newlines.
     #include "stdio.h"
@@ -333,7 +335,7 @@
         return 0;
     }
 
-### Lesson 9: Copy Input to Output I
+#### Lesson 9: Copy Input to Output I
 
     // Write a program to copy its input to its output, replacing each string of one or more blanks by a single blank.
     #include "stdio.h"
@@ -348,7 +350,7 @@
         return 0;
     }
 
-### Lesson 10: Copy Input to Output II
+#### Lesson 10: Copy Input to Output II
 
     // Write a program to copy its input to its output, replacing each tab by \t, each backspace by \b, and each backslash by \\. 
     // This makes tabs and backspaces visible in an unambiguous way.
@@ -365,7 +367,7 @@
         return 0;
     }
 
-### Lesson 11: Testing the Word Count Program
+#### Lesson 11: Testing the Word Count Program
 
     // How would you test the word count program? What kinds of input are most likely to uncover bugs if there are any?
     #include "stdio.h"
@@ -390,7 +392,7 @@
         return 0;
     }
 
-### Lesson 12: Print Input
+#### Lesson 12: Print Input
 
     // Write a program that prints its input one word per line.
     #include "stdio.h"
@@ -408,9 +410,9 @@
         return 0;
     }
 
-## Part IC: K&R 2nd Ed - Chapter 1 Exercises 13-19
+### Section B: Chapter 1 Exercises 13-19
 
-### Lesson 13A: Histogram of Lengths of Input Words
+#### Lesson 13A: Histogram of Lengths of Input Words
 
     // Write a program to print a histogram of the lengths of words in its input. It is easy to draw the histogram with the bars horizontal; 
     // a vertical orientation is more challenging.
@@ -447,7 +449,7 @@
         int line_index = 0;
         // TBC
     
-### Lesson 13B: Histogram of Lengths of Input Words (Horizontal)
+#### Lesson 13B: Histogram of Lengths of Input Words (Horizontal)
 
         // Print horizontal histogram
         printf("Horizontal Histogram\n--------------------\n");
@@ -459,7 +461,7 @@
         }
         // TBC
 
-### Lesson 13C: Histogram of Lengths of Input Words (Vertical)
+#### Lesson 13C: Histogram of Lengths of Input Words (Vertical)
 
         putchar('\n');
         // Print a vertical histogram
@@ -477,7 +479,7 @@
         return 0;
     }
 
-### Lesson 14: Histogram of Freq of Different Characters
+#### Lesson 14: Histogram of Freq of Different Characters
 
     // Write a program to print a histogram of the frequencies of different characters in its input.
     #include "stdio.h"
@@ -506,7 +508,7 @@
         return 0;
     }
 
-### Lesson 15: Functions
+#### Lesson 15: Functions
 
     // Rewrite the temperature conversion program of Section 1.2 to use a function for conversion.
     #include "stdio.h"
@@ -530,7 +532,7 @@
 
     float celsius_to_fahrenheit(int celsius) { return (9.0 / 5.0) * celsius + 32.0f; }
 
-### Lesson 16A: Longest Line
+#### Lesson 16A: Longest Line
 
     // Revise the main routine of the longest-line program so it 
     // will correctly print the length of arbitrary long input 
@@ -552,7 +554,7 @@
         return 0;
     }
 
-### Lesson 16B: Longest Line
+#### Lesson 16B: Longest Line
 
     int get_line(char s[], int lim){
         int c, i;
@@ -572,7 +574,7 @@
         while ((to[i] = from[i]) != '\0') { ++i; }
     }
 
-### Lesson 17: Input Lines > 80 Chars
+#### Lesson 17: Input Lines > 80 Chars
 
     // Write a program to print all input lines that are longer than 80 characters.
     #include "stdio.h"
@@ -597,7 +599,7 @@
         return i;
     }
 
-### Lesson 18: Cleaning Input
+#### Lesson 18: Cleaning Input
 
     // Write a program to remove trailing blanks and tabs from each line of input, and to delete entirely blank lines.
     #include "stdio.h"
@@ -630,7 +632,7 @@
         line[i + 2] = '\0';
     }
 
-### Lesson 19A: Reverse String
+#### Lesson 19A: Reverse String
 
     // Write a function reverse(s) that reverses the character 
     // string s. Use it to write a program that reverses its 
@@ -660,7 +662,7 @@
     }
     // TBC
 
-### Lesson 19B: Reverse String
+#### Lesson 19B: Reverse String
 
     int length(char line[]){
         int i;
@@ -683,9 +685,9 @@
         }
     }
 
-## Part ID: K&R 2nd Ed - Chapter 1 Exercises 20-24
+### Section C: Chapter 1 Exercises 20-24
 
-### Lesson 20: detab
+#### Lesson 20: detab
 
     // Write a program detab that replaces tabs in the input 
     // with the proper number of blanks to space to the next 
@@ -708,7 +710,7 @@
         return 0;
     }
 
-### Lesson 21: entab
+#### Lesson 21: entab
 
     // Write a program entab that replaces strings of blanks by 
     // the minimum number of tabs and blanks to achieve the same 
@@ -736,7 +738,7 @@
         return 0;
     }
 
-### Lesson 22A: Fold Long Input Lines
+#### Lesson 22A: Fold Long Input Lines
 
     // Write a program to ``fold'' long input lines into two or 
     // more shorter lines after the last non-blank character that 
@@ -770,7 +772,7 @@
         return i;
     }
 
-### Lesson 22B: Fold Long Input Lines
+#### Lesson 22B: Fold Long Input Lines
 
     void fold_line(char line[], char fold_str[], int n_break){
         int i, j;
@@ -792,7 +794,7 @@
         fold_str[j] = '\0';
     }
 
-### Lesson 23A: Remove Comments
+#### Lesson 23A: Remove Comments
 
     // Write a program to remove all comments from a C program. 
     // Don't forget to handle quoted strings and character constants 
@@ -828,7 +830,7 @@
         return i;
     }
 
-### Lesson 23B: Remove Comments
+#### Lesson 23B: Remove Comments
 
     void remove_comments(char str[], char no_com_str[]) {
         int in_quote = FALSE;
@@ -854,7 +856,7 @@
         no_com_str[j] = '\0';
     }
 
-### Lesson 24A: Syntax Errors
+#### Lesson 24A: Syntax Errors
 
     // Write a program to check a C program for rudimentary syntax 
     // errors like unmatched parentheses, brackets and braces. Don't 
@@ -883,7 +885,7 @@
         return i;
     }
 
-### Lesson 24B: Syntax Errors
+#### Lesson 24B: Syntax Errors
 
     void check_syntax(char str[]) {
         int parentheses = 0;
@@ -919,7 +921,7 @@
         }
       // TBC
 
-### Lesson 24C: Syntax Errors
+#### Lesson 24C: Syntax Errors
 
         if (parentheses) { printf("Error: unbalanced parentheses.\n"); }
         if (brackets) { printf("Error: unbalanced brackets.\n"); }
