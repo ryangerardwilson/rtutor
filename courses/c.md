@@ -231,26 +231,32 @@
         return 0;
     }
 
-### Lesson 3: Constants
+### Lesson 3: Constants & Qualifiers
 
-    #include "stdio.h"
+    #include "stdio.h" 
 
     int main() {
-        // Integer constants: decimal, octal (0 prefix), hex (0x).
-        int dec = 42;
-        int oct = 052;  // 42 in decimal, starts with 0.
-        int hex = 0x2A; // 42 again.
-        // Long: suffix L or l.
-        long big = 1234567890L;
-        // Unsigned: U or u.
-        unsigned int pos = 42U;
-        // Floating: 3.14, or scientific 3.14e0.
-        double pi = 3.14159;
-        // Char constants: 'A' (int value 65 on ASCII).
-        char c = 'A';
-        // String: "foo" - array of chars with \0.
-        char s[] = "Linus rules";
-        printf("%ld\n", big);  // Use %ld for long.
+        // Integer constants (literals): decimal by default, octal (0 prefix), hex (0x prefix).
+        int dec = 42;   
+        int oct = 052;  
+        int hex = 0x2A; 
+
+        // Type qualifiers for variables: short (usually 16 bits), long (64 bits on x86_64 like Omarchy), signed (default), unsigned 
+
+        // Variables are mutable; qualifiers define their storage and behavior.
+        short s1;
+        long s2;
+        unsigned long s3;
+        // For constants, you can simply use 'L' and 'U', instead of long and unsigned 
+        long unsigned l = 1111111111111111111;
+        l = 1111111111111111111UL; // Same as the above 
+        // Use 'LL' for long long or 'ULL' for unsigned long long on even bigger numbers
+        ull = 9223372036854775807ULL;  
+
+        // Best practice: Use unsigned char for extended ASCII to avoid signed negatives.
+        signed char sc = 128;      // Equals -128 due to two's complement.
+        unsigned char uc = 128;    // Stays 128.
+
         return 0;
     }
 
