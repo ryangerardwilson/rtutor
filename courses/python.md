@@ -5,9 +5,27 @@
     #!/usr/bin/env python3
     print("Hello, world!")
 
-## Lesson 2: Primitive Types
+## Lesson 2: Built-In Types
 
+    # Python doesn't have "primitives" like C does—everything's an object here
+    # But these are the core built-in types that act as the basics. 
+
+    # Integer (int): Whole numbers, unlimited size in Python 3. 
     x: int = 42
+    # Float (float): Floating-point numbers, equivalent to C doubles 
+    y: float = 3.14159
+    # String (str): Text, immutable sequences of Unicode characters 
+    z: str = "Linus was here"
+    # Boolean (bool): True or False, subclass of int 
+    a: bool = True
+    # NoneType: The singleton None, for representing absence of value
+    b: None = None
+    # Complex: For complex numbers, real + imaginary parts 
+    c: complex = 1 + 2j
+    # Bytes: Immutable sequences of bytes, for binary data 
+    d: bytes = b'raw bytes'
+    # Bytearray: Mutable version of bytes 
+    e: bytearray = bytearray(b'mutable bytes')
 
 ## Lesson 3: While Loop & Pretty Formatting
 

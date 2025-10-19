@@ -116,3 +116,41 @@
     cd ../..  # Up two levels
     cd ~  
     cd -  # Back to previous directory
+
+## Part V: Internet
+
+### Lesson 1: Check Interace Name
+
+    ip link show
+    # NOTE: Network interface is the logical endpoint where your hardware meets the network stack in the kernel. 
+    # It's how the OS refers to your network devices—like eth0 for Ethernet or wlan0 for wireless.
+
+### Lesson 2: Scan for networks
+
+    sudo iw dev wlan0 scan | grep SSID
+    # NOTE: SSID stands for Service Set Identifier. It's your WiFi network's human-readable name
+
+### Lesson 3: WPA Supplicant
+
+    # wpa_supplicant is a background process that handles the authentication and encryption for wireless networks. 
+
+    # Add login credentials to `wpa_supplicant.conf`
+    vi .wpa_supplicant.conf
+    network={
+        ssid="YourWiFiName"
+        psk="YourPassword"
+    }
+
+    # Connect
+    sudo wpa_supplicant -B -i wlan0 -c ~/.wpa_supplicant.conf
+    sudo wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant/wpa_supplicant.conf
+
+    # Test connection
+    sudo dhcpcd wlan0 
+    # dhcpd is a lightweight DHCP client daemon (hence the 'd' for daemon). DHCP is Dynamic Host Configuration Protocol, 
+    # which automatically grabs an IP address, subnet mask, gateway, DNS servers, and all that crap from your router 
+    # so you don't have to configure it statically
+    ping 8.8.8.8
+
+    # Disconnect
+    sudo killall wpa_supplicant
