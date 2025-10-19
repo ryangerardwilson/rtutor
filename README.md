@@ -1,5 +1,6 @@
 # RTutor: A No-Nonsense Typing Tutor
 
+
 A typing tutor that forces you to type out code snippets from various
 programming courses. Perfect for newbies who need to hammer those syntax keys
 into their fingers or old dogs like me who just want to practice without some
