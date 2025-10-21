@@ -1,116 +1,261 @@
 # The Conventional Core of Python
 
-## Lesson 1: Hello World
+## Part I: Python Basics
 
+### Lesson 1: Running the REPL
+
+    $ python3
+    >>> print("Hello World")
+    Hello World
+    >>> 1000 + 0.1 + 1 
+    1001.1
+    >>> _ + 1  # _ is last result, interactive only
+    1002.1
+    >>> quit()  # Or Ctrl+D to exit
+
+### Lesson 2: Python Programs
+
+    # hello.py
     #!/usr/bin/env python3
-    print("Hello, world!")
+    print("Hello World")
 
-## Lesson 2: Built-In Types
+    # Make executable 
+    $ chmod +x hello.py
+    $ ./hello.py
+    Hello World
 
-    # Python doesn't have "primitives" like C does—everything's an object here
-    # But these are the core built-in types that act as the basics. 
+    # Or just:
+    $ python3 hello.py
 
-    # Integer (int): Whole numbers, unlimited size in Python 3. 
-    x: int = 42
-    # Float (float): Floating-point numbers, equivalent to C doubles 
+### Lesson 3: Primitives, Variables, and Expressions
+
+    # Primitive Types & Variable Assignment
+    x: int = 42  
     y: float = 3.14159
-    # String (str): Text, immutable sequences of Unicode characters 
-    z: str = "Linus was here"
-    # Boolean (bool): True or False, subclass of int 
+    z: str = "Hello World"
     a: bool = True
-    # NoneType: The singleton None, for representing absence of value
-    b: None = None
-    # Complex: For complex numbers, real + imaginary parts 
-    c: complex = 1 + 2j
-    # Bytes: Immutable sequences of bytes, for binary data 
-    d: bytes = b'raw bytes'
-    # Bytearray: Mutable version of bytes 
-    e: bytearray = bytearray(b'mutable bytes')
 
-## Lesson 3: While Loop & Pretty Formatting
+    # Expression
+    result = 2 + 3 * 4  # 14
 
+    # interest.py example
     principal = 1000
     rate = 0.05
     numyears = 5
     year = 1
-
     while year <= numyears:
-        principal = principal * (1+rate)
+        principal = principal * (1 + rate)
         print(f"{year:>3d}  {principal:0.2f}")
         year += 1
 
-## Lesson 4: Arithmetic Operators
+### Lesson 4A: Arithmetic Operators
 
-    x+y
-    x-y
-    x*y
-    x/y
-    x//y # Truncating Division
-    x**y # Power
-    x%y # Modulo (x mod y)
-    -x # Unary minus
-    +x # Unary plus
+    x = 10
+    y = 3
 
-## Lesson 5: Common Mathematical Functions
+    x + y    # 13
+    x - y    # 7
+    x * y    # 30
+    x / y    # 3.333...
+    x // y   # 3 (floor)
+    x ** y   # 1000
+    x % y    # 1
+    -x       # -10
+    +x       # 10
 
-    abs(x) # Absolute value
-    divmod(x,y) # Returns (x // y, x % y)
-    pow(x,y [,modulo]) # Returns (x ** y) % modulo
-    round(x,[n]) # Rounds to the nearest multiple of 10 to the nth power
+    abs(-42)              # 42
+    divmod(10, 3)         # (3, 1)
+    pow(2, 3, 5)          # 8 % 5 = 3
+    round(3.14159, 2)     # 3.14
 
-## Lesson 6: Bit Manipulation Operators
-
-    x << y # Left shift
-    x >> y # Right shift
-    x & y # Bitwise and
-    x | y # Bitwise or
-    x ^ y # Bitwise xor (exclusive or)
-    ~x # Bitwise negation
-
-    # Usage with binary integers
-    a = 0b11001001
+    a = 0b11001001  # 201
     mask = 0b11110000
-    x = (a & mask) >> 4 # x = 0b1100 (12)
+    (a & mask) >> 4  # 12 (0b1100)
 
-## Lesson 7: Comparison Operators
+### Lesson 4B: Arithmetic Operators
 
-    x == y
-    x != y
-    x < y
-    x > y
-    x >= y
+    # Comparisons
+    x == y   
+    x != y  
+    x < y  
+    x > y 
     x <= y
+    x >= y
 
-## Lesson 8: Logical Operators
-
+    # Logical
     x or y
     x and y
-    not x
+    not x 
 
-## Lesson 9: Shorthand Operator Syntax
-
-    x = x + 1
+    # Shorthand
     x += 1
+    y *= 2 
 
-    y = y * n
-    y *= n
+### Lesson 5: Conditionals and Control Flow
 
-## Lesson 10: Conditionals
+    a = 10
+    b = 5
 
-    if s == '.htm':
-        content = 'text/html'
-    elif s == '.png':
-        pass
+    if a < b:
+        print("Yes")
+    elif a == b:
+        pass  # Nada
     else:
-        raise RuntimeError(f"Unknown content type {s!r}")
+        print("No")  
 
-## Lesson 11: Conditioned Expression
+    # Conditional Expression
+    maxval = a if a > b else b  # 10
 
-    maxval = a if a > 5 else b
-
-## Lesson 12: Walrus Operator
-
-    # Assigns and evaluates condition simultaneously
+    # Walrus Operator
     x = 0
     while (x := x + 1) < 10:
-        print(x)
+        print(x)  # 1 to 9
+
+    x = 0
+    while x < 10:
+        x += 1
+        if x == 5:
+            continue
+        print(x)  # 1-4,6-10
+
+    x = 0
+    while x < 10:
+        if x == 5:
+            break
+        print(x)  # 0-4
+        x += 1
+
+### Lesson 6A: Text Strings
+
+    a = 'Hello World'
+    b = "Python is groovy"
+    c = '''Computer says no.'''  
+    d = """Computer says no."""  
+
+    # f-string
+    year = 1
+    principal = 1050.0
+    print(f"{year:>3d}  {principal:0.2f}") # '  1  1050.00'
+
+    # Operations
+    len(a) # 11
+    a[4] # 'o'
+    a[-1] # 'd'
+    a[:5] # 'Hello'
+    a[6:] # 'World'
+    a[3:8] # 'lo Wo'
+
+    g = a.replace('Hello', 'Hello Cruel') # 'Hello Cruel World'
+    g.endswith('World')   # True
+    g.find('Cruel')       # 6
+    g.lower()             # 'hello cruel world'
+    g.split(' ')          # ['Hello', 'Cruel', 'World']
+    g.startswith('Hello') # True
+    g.strip()             # Trim whitespace
+    g.upper()             # 'HELLO CRUEL WORLD'
+
+### Lesson 6B: Text Strings
+
+    # Concat
+    a + 'ly'  # 'Hello Worldly'
+
+    # Conversion
+    x = '37'
+    y = '42'
+    x + y               # '3742'
+    int(x) + int(y)     # 79
+
+    num = 12.34567
+    str(num)            # '12.34567'
+    repr('hello\nworld')# "'hello\\nworld'"
+    format(num, '0.2f') # '12.35'
+    f'{num:0.2f}'       # '12.35'
+
+### Lesson 7: File Input and Output
+
+    # Read line-by-line
+    with open('data.txt') as file:
+        for line in file:
+            print(line, end='')  # No extra \n
+
+    # Read all
+    with open('data.txt') as file:
+        data = file.read()
+
+    # Chunks with walrus
+    with open('data.txt') as file:
+        while (chunk := file.read(10000)):
+            print(chunk, end='')
+
+    # Write
+    with open('out.txt', 'wt') as out:
+        out.write(f'{year:>3d}  {principal:0.2f}\n')
+
+    # Interactive
+    name = input('Enter your name: ')
+    print('Hello', name)
+
+    # Encoding
+    with open('data.txt', encoding='latin-1') as file:
+        data = file.read()
+
+### Lesson 8: Lists
+
+    names = ['Dave', 'Paula', 'Thomas', 'Lewis']
+    names[2]          # 'Thomas'
+    names[2] = 'Tom'  # Modify
+    names[-1]         # 'Lewis'
+    names.append('Alex')
+    names.insert(2, 'Aya')
+    for name in names: print(name)
+    b = names[0:2]  # ['Dave', 'Paula']
+    names[0:2] = ['Dave', 'Mark', 'Jeff']  # Replace slice
+    combo = ['x', 'y'] + ['z']  # ['x', 'y', 'z']
+
+    empty = []
+    letters = list('Dave')  # ['D', 'a', 'v', 'e']
+    mixed = [1, 'Dave', 3.14, ['Mark', 7, 9, [100, 101]], 10]
+    mixed[3][2]     # 9
+    mixed[3][3][1]  # 101
+
+    # pcost.py 
+    import sys
+    if len(sys.argv) != 2:
+        raise SystemExit(f'Usage: {sys.argv[0]} filename')
+
+    rows = []
+    with open(sys.argv[1], 'rt') as file:
+        for line in file:
+            rows.append(line.strip().split(','))
+
+    total = sum([int(row[1]) * float(row[2]) for row in rows])
+    print(f'Total cost: {total:0.2f}')
+
+### Lesson 9: Tuples
+
+    holding = ('GOOG', 100, 490.10)
+    address = ('www.python.org', 80)
+
+    empty = ()          # 0-tuple
+    single = ('item',)  # 1-tuple
+
+    name, shares, price = holding  # Unpack
+    portfolio = []
+    with open('portfolio.csv') as file:
+        for line in file:
+            row = line.strip().split(',')
+            name = row[0]
+            shares = int(row[1])
+            price = float(row[2])
+            holding = (name, shares, price)
+            portfolio.append(holding)
+
+    portfolio[0]      # ('AA', 100, 32.2)
+    portfolio[1][1]   # 50
+
+    total = 0.0
+    for name, shares, price in portfolio:
+        total += shares * price
+
+    # Comprehension
+    total = sum([shares * price for _, shares, price in portfolio])
