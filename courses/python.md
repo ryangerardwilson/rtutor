@@ -9,7 +9,8 @@
     Hello World
     >>> 1000 + 0.1 + 1 
     1001.1
-    >>> _ + 1  # _ is last result, interactive only
+    # Add 1 to the last result
+    >>> _ + 1  # works in REPL only 
     1002.1
     >>> quit()  # Or Ctrl+D to exit
 
@@ -18,27 +19,24 @@
     # hello.py
     #!/usr/bin/env python3
     print("Hello World")
+    $ python3 hello.py
 
-    # Make executable 
+    # Or, make executable 
     $ chmod +x hello.py
     $ ./hello.py
-    Hello World
-
-    # Or just:
-    $ python3 hello.py
 
 ### Lesson 3: Primitives, Variables, and Expressions
 
-    # Primitive Types & Variable Assignment
+    # A type is merely a hint to improve code readability
     x: int = 42  
     y: float = 3.14159
     z: str = "Hello World"
     a: bool = True
 
-    # Expression
+    # An expression is a combination of primitives, names, and operators that produce a value
     result = 2 + 3 * 4  # 14
 
-    # interest.py example
+    # Using variables and expressions together
     principal = 1000
     rate = 0.05
     numyears = 5
@@ -63,11 +61,13 @@
     -x       # -10
     +x       # 10
 
+    # Built-in functions
     abs(-42)              # 42
     divmod(10, 3)         # (3, 1)
     pow(2, 3, 5)          # 8 % 5 = 3
     round(3.14159, 2)     # 3.14
 
+    # Bit manipulation operators
     a = 0b11001001  # 201
     mask = 0b11110000
     (a & mask) >> 4  # 12 (0b1100)
@@ -166,10 +166,10 @@
     int(x) + int(y)     # 79
 
     num = 12.34567
-    str(num)            # '12.34567'
-    repr('hello\nworld')# "'hello\\nworld'"
-    format(num, '0.2f') # '12.35'
-    f'{num:0.2f}'       # '12.35'
+    str(num)                # '12.34567'
+    repr('hello\nworld')    # "'hello\\nworld'"
+    format(num, '0.2f')     # '12.35'
+    f'{num:0.2f}'           # '12.35'
 
 ### Lesson 7: File Input and Output
 
@@ -202,21 +202,21 @@
 ### Lesson 8: Lists
 
     names = ['Dave', 'Paula', 'Thomas', 'Lewis']
-    names[2]          # 'Thomas'
-    names[2] = 'Tom'  # Modify
-    names[-1]         # 'Lewis'
+    names[2] # 'Thomas'
+    names[2] = 'Tom' # Modify
+    names[-1] # 'Lewis'
     names.append('Alex')
     names.insert(2, 'Aya')
     for name in names: print(name)
     b = names[0:2]  # ['Dave', 'Paula']
-    names[0:2] = ['Dave', 'Mark', 'Jeff']  # Replace slice
-    combo = ['x', 'y'] + ['z']  # ['x', 'y', 'z']
+    names[0:2] = ['Dave', 'Mark', 'Jeff'] # Replace slice
+    combo = ['x', 'y'] + ['z'] # ['x', 'y', 'z']
 
     empty = []
-    letters = list('Dave')  # ['D', 'a', 'v', 'e']
+    letters = list('Dave') # ['D', 'a', 'v', 'e']
     mixed = [1, 'Dave', 3.14, ['Mark', 7, 9, [100, 101]], 10]
-    mixed[3][2]     # 9
-    mixed[3][3][1]  # 101
+    mixed[3][2] # 9
+    mixed[3][3][1] # 101
 
     # pcost.py 
     import sys
@@ -236,10 +236,10 @@
     holding = ('GOOG', 100, 490.10)
     address = ('www.python.org', 80)
 
-    empty = ()          # 0-tuple
-    single = ('item',)  # 1-tuple
+    empty = () # 0-tuple
+    single = ('item',) # 1-tuple
 
-    name, shares, price = holding  # Unpack
+    name, shares, price = holding # Unpack
     portfolio = []
     with open('portfolio.csv') as file:
         for line in file:
@@ -250,8 +250,8 @@
             holding = (name, shares, price)
             portfolio.append(holding)
 
-    portfolio[0]      # ('AA', 100, 32.2)
-    portfolio[1][1]   # 50
+    portfolio[0] # ('AA', 100, 32.2)
+    portfolio[1][1] # 50
 
     total = 0.0
     for name, shares, price in portfolio:
