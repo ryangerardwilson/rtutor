@@ -203,13 +203,13 @@
     #include "stdio.h"
 
     int main() {
-        // Names: letters, digits, underscores. First char not digit
-        // Case sensitive. Keep 'em short but meaningful
-        int _valid_name = 42;
-        int InvalidNameBecauseUppercaseMatters = 0;  // See? Different from invalidname.
-        // Don't use keywords like int as names, or the compiler will bite.
-        // int int = 5;  // Nope, syntax error
-        printf("%d\n", _valid_name);
+        int valid_best_pracitce_name = 42; // Starts with letter; lower case;
+uses underscores
+        int _underscore_start = 43; // OK, but avoid double `__`, as it may
+conflict with lib methods
+        int name_with_digits123 = 44; // Digits fine after first char.
+        int lower_case = 1; // Case matters.
+        int LOWER_CASE = 2; // Different from above.
         return 0;
     }
 
