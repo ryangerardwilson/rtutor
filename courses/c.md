@@ -1,8 +1,10 @@
 # The Conventional Core of C
 
-## Part I: K&R 2nd Ed - Chapter 1 Concepts
+## Part I: K&R 2nd Ed Concepts
 
-### Lesson 1: Hello World
+### Section A: K&R Chapter 1
+
+#### Lesson 1: Hello World
 
     #include "stdio.h"
 
@@ -11,11 +13,11 @@
         return 0;
     }
 
-### Lesson 2: Compile & Execute
+#### Lesson 2: Compile & Execute
 
     cc main.c && ./a.out
 
-### Lesson 3: Basic Types
+#### Lesson 3: Basic Types
 
     #include "stdio.h"
 
@@ -25,7 +27,7 @@
         return 0;
     }
 
-### Lesson 4: Basic Data Types and Their Qualifiers
+#### Lesson 4: Basic Data Types and Their Qualifiers
 
     #include "stdio.h"
 
@@ -44,7 +46,7 @@
         return 0;
     } 
 
-### Lesson 5: Derived Data Types
+#### Lesson 5: Derived Data Types
 
     #include "stdio.h"
 
@@ -61,7 +63,7 @@
         return 0;
     } 
 
-### Lesson 6: Formatting with Printf
+#### Lesson 6: Formatting with Printf
 
     #include "stdio.h"
 
@@ -87,7 +89,7 @@
         return 0;
     } 
 
-### Lesson 7: Basic Arithmetic Expressions
+#### Lesson 7: Basic Arithmetic Expressions
 
     #include "stdio.h"
 
@@ -98,7 +100,7 @@
         return 0;
     } 
 
-### Lesson 8: If-Else
+#### Lesson 8: If-Else
 
     #include "stdio.h"
 
@@ -112,7 +114,7 @@
         return 0;
     } 
 
-### Lesson 9: While Loop
+#### Lesson 9: While Loop
 
     #include "stdio.h"
 
@@ -126,7 +128,7 @@
         return 0;
     } 
 
-### Lesson 10: For Loop - Repeat Without Being a Loop Idiot
+#### Lesson 10: For Loop - Repeat Without Being a Loop Idiot
 
     #include "stdio.h"
 
@@ -138,7 +140,7 @@
         return 0;
     } 
 
-### Lesson 11: Getchar, Putchar, EOF
+#### Lesson 11: Getchar, Putchar, EOF
 
     #include "stdio.h"
 
@@ -156,7 +158,7 @@
         return 0;
     }
 
-### Lesson 12: scanf
+#### Lesson 12: scanf
 
     #include "stdio.h"
 
@@ -168,7 +170,7 @@
         return 0;
     } 
 
-### Lesson 13: Constants, Mutables, Globals & Functions
+#### Lesson 13: Constants, Mutables, Globals & Functions
 
     #include "stdio.h"
 
@@ -194,24 +196,24 @@
         return 0;
     }
 
-## Part II: K&R 2nd Ed - Chapter 2 Concepts
+### Section B: K&R Chapter 2
 
-### Lesson 1: Variable Names - Don't Be an Idiot with Naming
+#### Lesson 1: Variable Names
 
     #include "stdio.h"
 
     int main() {
-        // Names: letters, digits, underscores. First char not digit.
-        // Case sensitive. Keep 'em short but meaningful, or I'll mock you.
+        // Names: letters, digits, underscores. First char not digit
+        // Case sensitive. Keep 'em short but meaningful
         int _valid_name = 42;
         int InvalidNameBecauseUppercaseMatters = 0;  // See? Different from invalidname.
         // Don't use keywords like int as names, or the compiler will bite.
-        // int int = 5;  // Nope, syntax error, you moron.
+        // int int = 5;  // Nope, syntax error
         printf("%d\n", _valid_name);
         return 0;
     }
 
-### Lesson 2: Data Types and Sizes
+#### Lesson 2: Data Types and Sizes
 
     #include "stdio.h"
     #include "limits.h"  // For INT_MAX etc.
@@ -231,7 +233,7 @@
         return 0;
     }
 
-### Lesson 3: Constants & Qualifiers
+#### Lesson 3: Constants & Qualifiers
 
     #include "stdio.h" 
 
@@ -241,7 +243,7 @@
         int oct = 052;  
         int hex = 0x2A; 
 
-        // Type qualifiers for variables: short (usually 16 bits), long (64 bits on x86_64 like Omarchy), signed (default), unsigned 
+        // Type qualifiers for variables: short (usually 16 bits), long (64 bits on x86_64), signed (default), unsigned 
 
         // Variables are mutable; qualifiers define their storage and behavior.
         short s1;
@@ -260,7 +262,7 @@
         return 0;
     }
 
-### Lesson 4: Declarations
+#### Lesson 4: Declarations
 
     #include "stdio.h"
 
@@ -278,7 +280,7 @@
         return 0;
     }
 
-### Lesson 5: Arithmetic Operators
+#### Lesson 5: Arithmetic Operators
 
     #include "stdio.h"
 
@@ -298,7 +300,7 @@
         return 0;
     }
 
-### Lesson 6: Relational and Logical Operators
+#### Lesson 6: Relational and Logical Operators
 
     #include "stdio.h"
 
@@ -320,7 +322,7 @@
         return 0;
     }
 
-### Lesson 7: Type Conversions
+#### Lesson 7: Type Conversions
 
     #include "stdio.h"
 
@@ -339,7 +341,7 @@
         return 0;
     }
 
-### Lesson 8: Increment and Decrement
+#### Lesson 8: Increment and Decrement
 
     #include "stdio.h"
 
@@ -357,7 +359,7 @@
         return 0;
     }
 
-### Lesson 9: Bitwise Operators
+#### Lesson 9: Bitwise Operators
 
     #include "stdio.h"
 
@@ -376,7 +378,7 @@
         return 0;
     }
 
-### Lesson 10: Assignment Operators
+#### Lesson 10: Assignment Operators
 
     #include "stdio.h"
 
@@ -393,7 +395,7 @@
         return 0;
     }
 
-### Lesson 11: Conditional Expressions
+#### Lesson 11: Conditional Expressions
 
     #include "stdio.h"
 
@@ -409,7 +411,7 @@
         return 0;
     }
 
-### Lesson 12: Precedence and Order
+#### Lesson 12: Precedence and Order
 
     #include "stdio.h"
 
@@ -423,25 +425,6 @@
         // Order of eval not specified except && || , ?:
         // Side effects? Use separate statements, moron.
         printf("%d\n", expr);
-        return 0;
-    }
-
-### Lesson 13: Putting It Together
-
-    #include "stdio.h"
-
-    int main() {
-        unsigned int flags = 0x0;
-        // Set bit 2: flags |= (1 << 2);
-        flags |= (1U << 2);  // Bit 2 on.
-        // Check bit 3: if (flags & (1 << 3))
-        if (!(flags & (1U << 3))) {
-            printf("Bit 3 off\n");
-        }
-        // Toggle bit 2: flags ^= (1 << 2);
-        flags ^= (1U << 2);
-        // Clear bit 0: flags &= ~(1 << 0);
-        printf("Flags: %x\n", flags);
         return 0;
     }
 

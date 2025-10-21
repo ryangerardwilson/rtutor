@@ -1,25 +1,12 @@
-# RTutor: A No-Nonsense Typing Tutor
+# RTutor: The Fork in the Road to Escape AI Slop
 
+AI slop is a problem. Inculcating great programming taste is the antidote.
+rtutor is an attempt to disseminate the antidote.
 
-A typing tutor that forces you to type out code snippets from various
-programming courses. Perfect for newbies who need to hammer those syntax keys
-into their fingers or old dogs like me who just want to practice without some
-flashy GUI slowing things down. Built in Python with curses, because who needs
-anything else in a terminal?
-
-## What the Hell Is This?
-
-RTutor parses markdown files in a `courses/` directory, turning them into
-interactive typing lessons. Each course has parts and lessons, which are
-basically code blocks you have to type accurately. Miss too many keys? It makes
-you start over. Finish a sequence? You get some ASCII art explosion as a
-reward. Cute, but effective.
-
-Key features: - Menu to select courses. - Line-by-line typing with real-time
-feedback (correct chars show up, mistakes get blocked with █). - Handles tabs
-as four spaces (because tabs are superior, but whatever). - Accuracy threshold
-(default 90%) to pass lessons. - ESC to quit, Ctrl+R to restart, Ctrl+C to bail
-out entirely. - Supports empty lines, navigation with Enter.
+RTutor parses intentionally curated markdown files in a `courses/` directory,
+turning them into interactive typing lessons. Each course has parts and
+lessons, which are basically code blocks you have to type accurately - with the
+objective of developing good muscle memory.
 
 ## Featured Courses
 
