@@ -218,7 +218,11 @@ class LessonSequencer:
                                 current_line = 0  # Restart lesson
                             elif key == 27:  # ESC
                                 return False
-                            elif key in (curses.KEY_BACKSPACE, 127):  # Backspace
+                            elif key in (
+                                curses.KEY_BACKSPACE,
+                                127,
+                                8,
+                            ):  # Backspace, including Ctrl+H
                                 if user_inputs[current_line]:
                                     user_inputs[current_line].pop()
                             elif key in (curses.KEY_ENTER, 10, 13):  # Enter
