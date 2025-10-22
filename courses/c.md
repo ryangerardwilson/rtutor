@@ -215,21 +215,37 @@ conflict with lib methods
 
 #### Lesson 2: Data Types and Sizes
 
+    # There are only a few basic data types in C: 
+    char: a single byte, capable of holding one character in the local character set
+    int: an integer, typically reflecting the natural size of integers on the host machine
+    float: single-precision floating point
+    double: double-precision floating point
+
+    # Integer Qualifiers
+    short int sh; # atleast 16 bits
+    long int counter; # atleast 32 bits
+
+    # Integer/ Char Qualifiers
+    signed int si; # default, even if signed qualifier is not specified
+    unsigned int usi; # always postive, and hold 2x more postive integers
+    signed char sc; # map the 256 ASCII values to the int range -128 to 127
+    unsigned char usc; # have ASCII decimal values from 0 to 255
+
+    # Float/ Double Qualifiers
+    long double ld; # extended-precision floating point    
+
+    # limits.h and float.h contain symbolic constants for the sizes allocated by types and their qualifiers
     #include "stdio.h"
     #include "limits.h"  // For INT_MAX etc.
     #include "float.h"   // For FLT_MAX etc.
 
     int main() {
-        // Basic types: char (1 byte), int (usually 4 bytes on Omarchy), short, long.
-        // Floats: float (4 bytes), double (8 bytes).
-        // Sizes vary by machine, but on Omarchy (Arch variant), expect sane defaults.
+        // %zu is the C99 specifier for printing size_t (unsigned, from sizeof); use it to avoid UB with %d on large values
         printf("char: %zu bytes\n", sizeof(char));  // 1, always.
         printf("int: %zu bytes\n", sizeof(int));    // 4, probably.
         printf("long: %zu bytes\n", sizeof(long));  // 8 on 64-bit.
-        // Signed vs unsigned: unsigned for positive-only, doubles range.
-        unsigned int u = UINT_MAX;  // Max unsigned int.
-        printf("Unsigned max: %u\n", u);
-        // Don't assume sizes; use sizeof, or your code breaks on other boxes.
+        printf("Unsigned int max: %u\n", UINT_MAX);
+        printf("Float max: %e\n", FLT_MAX);  // Max float value, in scientific notation
         return 0;
     }
 
@@ -259,172 +275,6 @@ conflict with lib methods
         signed char sc = 128;      // Equals -128 due to two's complement.
         unsigned char uc = 128;    // Stays 128.
 
-        return 0;
-    }
-
-#### Lesson 4: Declarations
-
-    #include "stdio.h"
-
-    int global_var;  // Declared global, initialized to 0.
-
-    int main() {
-        int local_var;  // Local, garbage until assigned.
-        local_var = 42;
-        // Multiple on one line: int a, b=5, c;
-        // Qualifiers: const (can't change), volatile (for hardware).
-        const int immutable = 10;
-        // immutable = 20;  // Error, you can't touch this.
-        // Extern for globals from other files, but keep it simple.
-        printf("%d\n", local_var + immutable);
-        return 0;
-    }
-
-#### Lesson 5: Arithmetic Operators
-
-    #include "stdio.h"
-
-    int main() {
-        int a = 10, b = 3;
-        // + - * / % (modulo).
-        int sum = a + b;    // 13
-        int diff = a - b;   // 7
-        int prod = a * b;   // 30
-        int quot = a / b;   // 3 (integer division truncates)
-        int mod = a % b;    // 1
-        // Floats behave differently.
-        double f_quot = 10.0 / 3.0;  // 3.333...
-        // Unary - for negation.
-        int neg = -a;  // -10
-        printf("Mod: %d, Float div: %.2f\n", mod, f_quot);
-        return 0;
-    }
-
-#### Lesson 6: Relational and Logical Operators
-
-    #include "stdio.h"
-
-    int main() {
-        int a = 5, b = 10;
-        // Relational: > < >= <= == !=  (return 1 true, 0 false)
-        if (a < b) {
-            printf("a is smaller\n");
-        }
-        // Logical: && (and), || (or), ! (not)
-        if (a > 0 && b > 0) {
-            printf("Both positive\n");
-        }
-        if (!(a == b)) {
-            printf("Not equal\n");
-        }
-        // Short-circuit: && stops if left false, || if left true.
-        // Useful to avoid crashes, like if (ptr && *ptr > 0)
-        return 0;
-    }
-
-#### Lesson 7: Type Conversions
-
-    #include "stdio.h"
-
-    int main() {
-        int i = 5;
-        double d = 3.14;
-        // Implicit: smaller to larger (int to double)
-        double sum = i + d;  // 8.14, i promoted.
-        // In expressions, chars/shorts to int.
-        char c = 'A';
-        int ci = c + 1;  // 66
-        // Explicit cast: (type)expr
-        int trunc = (int)d;  // 3, chops decimal.
-        // Beware signed/unsigned mixes - can bite.
-        printf("Sum: %.2f, Trunc: %d\n", sum, trunc);
-        return 0;
-    }
-
-#### Lesson 8: Increment and Decrement
-
-    #include "stdio.h"
-
-    int main() {
-        int x = 5;
-        // Postfix: use then inc/dec
-        int post = x++;  // post=5, x=6
-        // Prefix: inc/dec then use
-        int pre = ++x;   // pre=7, x=7
-        // Same for --.
-        x--;  // Back to 6
-        // In expressions: careful with order.
-        int y = x++ * 2;  // y=12 (6*2), x=7
-        printf("Post: %d, Pre: %d, Y: %d\n", post, pre, y);
-        return 0;
-    }
-
-#### Lesson 9: Bitwise Operators
-
-    #include "stdio.h"
-
-    int main() {
-        unsigned int a = 0x0F;  // 00001111
-        unsigned int b = 0xF0;  // 11110000
-        // & (and), | (or), ^ (xor), ~ (not), << (left shift), >> (right shift)
-        int and_op = a & b;  // 00000000
-        int or_op = a | b;   // 11111111
-        int xor_op = a ^ b;  // 11111111
-        int not_a = ~a;      // Inverts bits (all 1s except low 4)
-        int left = a << 4;   // 11110000
-        int right = b >> 4;  // 00001111 (logical shift for unsigned)
-        // Use unsigned for shifts to avoid sign extension crap.
-        printf("And: %x, Or: %x\n", and_op, or_op);
-        return 0;
-    }
-
-#### Lesson 10: Assignment Operators
-
-    #include "stdio.h"
-
-    int main() {
-        int x = 10;
-        // = is assignment, returns value.
-        int y = (x = 5);  // x=5, y=5
-        // Op= shortcuts: += -= *= /= %= &= etc.
-        x += 3;  // x=8
-        x *= 2;  // x=16
-        // Bitwise too: x <<= 1;  // Shift left, x=32
-        // Assignments are expressions: if ((p = getptr()) != NULL)
-        printf("X: %d, Y: %d\n", x, y);
-        return 0;
-    }
-
-#### Lesson 11: Conditional Expressions
-
-    #include "stdio.h"
-
-    int main() {
-        int a = 5, b = 10;
-        // expr ? true_expr : false_expr
-        int max = (a > b) ? a : b;  // 10
-        // Like if-else, but expression.
-        printf("Max: %d\n", max);
-        // Nested: (a > b) ? a : (a < b ? b : 0)
-        // But don't overdo, or code becomes unreadable garbage.
-        // Returns value, so assignable: x = cond ? val1 : val2;
-        return 0;
-    }
-
-#### Lesson 12: Precedence and Order
-
-    #include "stdio.h"
-
-    int main() {
-        // Precedence: * / before + -, etc.
-        int expr = 2 + 3 * 4;  // 14, not 20
-        // Use parens to force: (2 + 3) * 4 = 20
-        // Associativity: left-to-right for most, right for = ++ --
-        int a = 10;
-        a = a++ + ++a;  // Undefined behavior! Don't do this crap.
-        // Order of eval not specified except && || , ?:
-        // Side effects? Use separate statements, moron.
-        printf("%d\n", expr);
         return 0;
     }
 

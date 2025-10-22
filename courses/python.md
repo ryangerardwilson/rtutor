@@ -33,18 +33,8 @@
     z: str = "Hello World"
     a: bool = True
 
-    # An expression is a combination of primitives, names, and operators that produce a value
+    # An expression is a combination of types and operators that produce a value
     result = 2 + 3 * 4  # 14
-
-    # Using variables and expressions together
-    principal = 1000
-    rate = 0.05
-    numyears = 5
-    year = 1
-    while year <= numyears:
-        principal = principal * (1 + rate)
-        print(f"{year:>3d}  {principal:0.2f}")
-        year += 1
 
 ### Lesson 4A: Arithmetic Operators
 
@@ -199,26 +189,44 @@
     with open('data.txt', encoding='latin-1') as file:
         data = file.read()
 
-### Lesson 8: Lists
+### Lesson 8A: Lists
 
-    names = ['Dave', 'Paula', 'Thomas', 'Lewis']
-    names[2] # 'Thomas'
-    names[2] = 'Tom' # Modify
-    names[-1] # 'Lewis'
+    # Lists are an ordered collection of arbitrary objects 
+    names = [] # Empty list
+    names = ['Dave','Paula','Thomas','Lewis']
+    a = [1,'Dave',3.14,['Mark',7,9,[100,101]], 10]
+
+    # CRUD on elements
     names.append('Alex')
-    names.insert(2, 'Aya')
+    names.insert(2, 'Aya') # Inserts at specific position
+    a = names[2] # Indexing operator lets us access and, if required, update value at specific index
+    names[2] = 'Tom'
+
+    # Slicing operator lets us access and, if required, update values at specific index range (from x: till y)
+    b = names[0:2] # ['Dave', 'Paula']
+    c = names[:2] # ['Aya', 'Tom', 'Lewis', 'Alex']
+    names[0:2] = ['Dave', 'Mark', 'Jeff']   
+
+    # Looping over lists
     for name in names: print(name)
-    b = names[0:2]  # ['Dave', 'Paula']
-    names[0:2] = ['Dave', 'Mark', 'Jeff'] # Replace slice
-    combo = ['x', 'y'] + ['z'] # ['x', 'y', 'z']
 
-    empty = []
-    letters = list('Dave') # ['D', 'a', 'v', 'e']
-    mixed = [1, 'Dave', 3.14, ['Mark', 7, 9, [100, 101]], 10]
-    mixed[3][2] # 9
-    mixed[3][3][1] # 101
+    # Concatenation                                      
+    a = ['x','y'] + ['z','z','y']  
 
-    # pcost.py 
+    # String to list
+    letters = list('Dave')  
+
+
+### Lesson 8B: Lists
+
+    # Performing calculations by reading data into lists
+
+    # pcost.py
+    #
+    # Reads input lines of the form 'NAMES,SHARES,PRICE'.
+    # For example:
+    #
+    #   SYM,123,456.78
     import sys
     if len(sys.argv) != 2:
         raise SystemExit(f'Usage: {sys.argv[0]} filename')
@@ -226,36 +234,65 @@
     rows = []
     with open(sys.argv[1], 'rt') as file:
         for line in file:
-            rows.append(line.strip().split(','))
+            rows.append(line.split(','))
 
-    total = sum([int(row[1]) * float(row[2]) for row in rows])
+    # rows is a list of this form
+    # [
+    #   ['SYM','123','456.78']
+    #   ...
+    # ]
+
+    # As a general rule, list comprehensions are a preferred technique for performing simple calculations
+    total = sum([int(row[1]) * float(row[2]) for row in rows]) # sum is a built-in function
     print(f'Total cost: {total:0.2f}')
 
 ### Lesson 9: Tuples
 
-    holding = ('GOOG', 100, 490.10)
-    address = ('www.python.org', 80)
+    # Tuples are immutable objects that help create simple data structures
+    holding = ('GOOG',100,490.10)
+    address = ('www.python.org',80)
+    # 0- and 1-element tuples can be defined, but have special syntax:
+    a = () # 0-tuple (empty tuple)
+    b = (item,) # 1-tuple (note the trailing comma)
 
-    empty = () # 0-tuple
-    single = ('item',) # 1-tuple
+    # Accessinf values
+    name, shares, price = holding
+    host, port = address
 
-    name, shares, price = holding # Unpack
-    portfolio = []
-    with open('portfolio.csv') as file:
-        for line in file:
-            row = line.strip().split(',')
-            name = row[0]
-            shares = int(row[1])
-            price = float(row[2])
-            holding = (name, shares, price)
-            portfolio.append(holding)
+    # Although tuples support most of the same operations as lists (such as indexing, slicing, and concatenation), 
+    # the elements of a tuple cannot be changed after creation- that is, you cannot replace, delete, or append new 
+    # elements to an existing tuple. 
 
-    portfolio[0] # ('AA', 100, 32.2)
-    portfolio[1][1] # 50
-
+    # Looping over tuples
     total = 0.0
-    for name, shares, price in portfolio:
+    for name, shares, prices in portfolio:
         total += shares * price
+    # Alternatively:
+    total = sum([shares * price for _, shares, price in portfolio]) # use _ if you don't need a value
 
-    # Comprehension
-    total = sum([shares * price for _, shares, price in portfolio])
+### Lesson 10: Sets
+
+    # A set is an unordered collection of unique objects. 
+    # Sets are used to find distinct values or to manage problems related to membership. 
+
+    # Create a set
+    es = set() # Empty set
+    names1 = {'IBM', 'MSFT', 'AA}
+    names2 = set(['IBM','MSFT','HPE','IBM','CAT']) # Will store 'IBM' only once
+    # Elements of a set are restricted to immutable objects. You can make a set of numbers, strings, or tuples - however, you
+can't make a set containing lists.
+    names = {s[0] for s in portfolio} # Create set from list, using set
+comprehension
+
+    # Operations
+    a = t | s # Union 
+    b = t & s # Intersection 
+    c = t - s # Difference 
+    d = s - t # Difference 
+    e = t ^ s # Symmetric difference: gives items that are in either s or t but not in both.
+
+    # CRUD on elements
+    t.add('DIS')
+    t.update({'JJ','GE','ACME'})
+    t.remove('IBM')     # Remove 'IBM' or raise KerError if absent
+    s.discard('SCOX')   # Remove 'SCOX' if it exists.
