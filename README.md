@@ -6,7 +6,9 @@ rtutor is an attempt to disseminate the antidote.
 RTutor parses intentionally curated markdown files in a `courses/` directory,
 turning them into interactive typing lessons. Each course has parts and
 lessons, which are basically code blocks you have to type accurately - with the
-objective of developing good muscle memory.
+objective of sequentially embedding taste across the various layers of
+complexity of computer programming. Experienced and new programmers, alike, are
+advised to start ground up from the most basic lessons - for this very reason.
 
 ## Featured Courses
 
