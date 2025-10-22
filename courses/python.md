@@ -27,7 +27,7 @@
 
 ### Lesson 3: Primitives, Variables, and Expressions
 
-    # A type is merely a hint to improve code readability
+    # These built-in types, can be considered 'primitives'. Type hints do nothing, except improve code readability
     x: int = 42  
     y: float = 3.14159
     z: str = "Hello World"
@@ -41,26 +41,26 @@
     x = 10
     y = 3
 
-    x + y    # 13
-    x - y    # 7
-    x * y    # 30
-    x / y    # 3.333...
-    x // y   # 3 (floor)
-    x ** y   # 1000
-    x % y    # 1
-    -x       # -10
-    +x       # 10
+    x + y
+    x - y
+    x * y
+    x / y
+    x // y # 3 (floor)
+    x ** y # 1000
+    x % y # 1
+    -x # -10
+    +x # 10
 
     # Built-in functions
-    abs(-42)              # 42
-    divmod(10, 3)         # (3, 1)
-    pow(2, 3, 5)          # 8 % 5 = 3
-    round(3.14159, 2)     # 3.14
+    abs(-42) # 42
+    divmod(10, 3) # (3, 1)
+    pow(2, 3, 5) # 8 % 5 = 3
+    round(3.14159, 2) # 3.14
 
     # Bit manipulation operators
-    a = 0b11001001  # 201
+    a = 0b11001001 # 201
     mask = 0b11110000
-    (a & mask) >> 4  # 12 (0b1100)
+    (a & mask) >> 4 # 12 (0b1100)
 
 ### Lesson 4B: Arithmetic Operators
 
@@ -185,24 +185,20 @@
     name = input('Enter your name: ')
     print('Hello', name)
 
-    # Encoding
-    with open('data.txt', encoding='latin-1') as file:
-        data = file.read()
-
 ### Lesson 8A: Lists
 
     # Lists are an ordered collection of arbitrary objects 
-    names = [] # Empty list
+    empty_list = [] 
     names = ['Dave','Paula','Thomas','Lewis']
     a = [1,'Dave',3.14,['Mark',7,9,[100,101]], 10]
 
     # CRUD on elements
     names.append('Alex')
     names.insert(2, 'Aya') # Inserts at specific position
-    a = names[2] # Indexing operator lets us access and, if required, update value at specific index
+    a = names[2] # Indexing operator lets us access and, if required, update the value at specific index
     names[2] = 'Tom'
 
-    # Slicing operator lets us access and, if required, update values at specific index range (from x: till y)
+    # Slicing operator lets us access and, if required, update values across a specific index range (from x: till y)
     b = names[0:2] # ['Dave', 'Paula']
     c = names[:2] # ['Aya', 'Tom', 'Lewis', 'Alex']
     names[0:2] = ['Dave', 'Mark', 'Jeff']   
@@ -219,14 +215,7 @@
 
 ### Lesson 8B: Lists
 
-    # Performing calculations by reading data into lists
-
-    # pcost.py
-    #
-    # Reads input lines of the form 'NAMES,SHARES,PRICE'.
-    # For example:
-    #
-    #   SYM,123,456.78
+    # Performing calculations by reading data into lists. Read input lines from file of the form NAMES,SHARES,PRICE
     import sys
     if len(sys.argv) != 2:
         raise SystemExit(f'Usage: {sys.argv[0]} filename')
@@ -235,12 +224,7 @@
     with open(sys.argv[1], 'rt') as file:
         for line in file:
             rows.append(line.split(','))
-
-    # rows is a list of this form
-    # [
-    #   ['SYM','123','456.78']
-    #   ...
-    # ]
+    # rows is a list of this form [['SYM','123','456.78'], ...]
 
     # As a general rule, list comprehensions are a preferred technique for performing simple calculations
     total = sum([int(row[1]) * float(row[2]) for row in rows]) # sum is a built-in function
@@ -255,7 +239,7 @@
     a = () # 0-tuple (empty tuple)
     b = (item,) # 1-tuple (note the trailing comma)
 
-    # Accessinf values
+    # Accessing values
     name, shares, price = holding
     host, port = address
 
@@ -276,13 +260,11 @@
     # Sets are used to find distinct values or to manage problems related to membership. 
 
     # Create a set
-    es = set() # Empty set
-    names1 = {'IBM', 'MSFT', 'AA}
+    empty_set = set() 
+    names1 = {'IBM', 'MSFT', 'AA'}
     names2 = set(['IBM','MSFT','HPE','IBM','CAT']) # Will store 'IBM' only once
-    # Elements of a set are restricted to immutable objects. You can make a set of numbers, strings, or tuples - however, you
-can't make a set containing lists.
-    names = {s[0] for s in portfolio} # Create set from list, using set
-comprehension
+    # Elements of a set are restricted to immutable objects. You can make a set of numbers, strings, or tuples - however, you can't make a set containing lists.
+    names = {s[0] for s in portfolio} # Create set from list, using set comprehension
 
     # Operations
     a = t | s # Union 
@@ -294,5 +276,5 @@ comprehension
     # CRUD on elements
     t.add('DIS')
     t.update({'JJ','GE','ACME'})
-    t.remove('IBM')     # Remove 'IBM' or raise KerError if absent
+    t.remove('IBM')     # Remove 'IBM' or raise KeyError if absent
     s.discard('SCOX')   # Remove 'SCOX' if it exists.
