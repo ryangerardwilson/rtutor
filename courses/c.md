@@ -203,38 +203,39 @@
     #include "stdio.h"
 
     int main() {
-        int valid_best_pracitce_name = 42; // Starts with letter; lower case;
+        int valid_best_practice_name = 42; // Starts with letter; lower case;
 uses underscores
-        int _underscore_start = 43; // OK, but avoid double `__`, as it may
-conflict with lib methods
-        int name_with_digits123 = 44; // Digits fine after first char.
-        int lower_case = 1; // Case matters.
-        int LOWER_CASE = 2; // Different from above.
+        int _underscore_start = 43; // OK, but avoid double `__`, as it may conflict with lib methods
+        int name_with_digits123 = 44; // Digits fine after first char
+        int lower_case = 1; // Case matters
+        int LOWER_CASE = 2; // Different from above
         return 0;
     }
 
-#### Lesson 2: Data Types and Sizes
+#### Lesson 2A: Data Types and Sizes
 
-    # There are only a few basic data types in C: 
-    char: a single byte, capable of holding one character in the local character set
-    int: an integer, typically reflecting the natural size of integers on the host machine
-    float: single-precision floating point
-    double: double-precision floating point
+    // There are only a few basic data types in C: 
+    // char: a single byte, capable of holding one character in the local character set
+    // int: an integer, typically reflecting the natural size of integers on the host machine
+    // float: single-precision floating point
+    // double: double-precision floating point
 
-    # Integer Qualifiers
-    short int sh; # atleast 16 bits
-    long int counter; # atleast 32 bits
+    // Integer Qualifiers
+    short int sh; // atleast 16 bits
+    long int counter; // atleast 32 bits
 
-    # Integer/ Char Qualifiers
-    signed int si; # default, even if signed qualifier is not specified
-    unsigned int usi; # always postive, and hold 2x more postive integers
-    signed char sc; # map the 256 ASCII values to the int range -128 to 127
-    unsigned char usc; # have ASCII decimal values from 0 to 255
+    // Integer/ Char Qualifiers
+    signed int si; // default, even if signed qualifier is not specified
+    unsigned int usi; // always positive, and holds 2x more postive integers
+    signed char sc; // maps the 256 ASCII values to the int range -128 to 127
+    unsigned char usc; // has ASCII decimal values from 0 to 255
 
-    # Float/ Double Qualifiers
-    long double ld; # extended-precision floating point    
+    // Float/ Double Qualifiers
+    long double ld; // extended-precision floating point    
 
-    # limits.h and float.h contain symbolic constants for the sizes allocated by types and their qualifiers
+#### Lesson 2B: Data Types and Sizes
+
+    // limits.h and float.h contain symbolic constants for the sizes allocated by types and their qualifiers
     #include "stdio.h"
     #include "limits.h"  // For INT_MAX etc.
     #include "float.h"   // For FLT_MAX etc.
@@ -258,22 +259,6 @@ conflict with lib methods
         int dec = 42;   
         int oct = 052;  
         int hex = 0x2A; 
-
-        // Type qualifiers for variables: short (usually 16 bits), long (64 bits on x86_64), signed (default), unsigned 
-
-        // Variables are mutable; qualifiers define their storage and behavior.
-        short s1;
-        long s2;
-        unsigned long s3;
-        // For constants, you can simply use 'L' and 'U', instead of long and unsigned 
-        long unsigned l = 1111111111111111111;
-        l = 1111111111111111111UL; // Same as the above 
-        // Use 'LL' for long long or 'ULL' for unsigned long long on even bigger numbers
-        ull = 9223372036854775807ULL;  
-
-        // Best practice: Use unsigned char for extended ASCII to avoid signed negatives.
-        signed char sc = 128;      // Equals -128 due to two's complement.
-        unsigned char uc = 128;    // Stays 128.
 
         return 0;
     }
