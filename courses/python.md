@@ -2,7 +2,9 @@
 
 ## Part I: Python Basics
 
-### Lesson 1: Running the REPL
+### Section 1: Dipping Toes
+
+#### Lesson 1: Running the REPL
 
     $ python3
     >>> print("Hello World")
@@ -14,7 +16,7 @@
     1002.1
     >>> quit()  # Or Ctrl+D to exit
 
-### Lesson 2: Python Programs
+#### Lesson 2: Python Programs
 
     # hello.py
     #!/usr/bin/env python3
@@ -25,7 +27,7 @@
     $ chmod +x hello.py
     $ ./hello.py
 
-### Lesson 3: Primitives, Variables, and Expressions
+#### Lesson 3: Primitives, Variables, and Expressions
 
     # These built-in types, can be considered 'primitives'. Type hints do nothing, except improve code readability
     x: int = 42  
@@ -36,7 +38,7 @@
     # An expression is a combination of types and operators that produce a value
     result = 2 + 3 * 4  # 14
 
-### Lesson 4A: Arithmetic Operators
+#### Lesson 4A: Arithmetic Operators
 
     x = 10
     y = 3
@@ -62,7 +64,7 @@
     mask = 0b11110000
     (a & mask) >> 4 # 12 (0b1100)
 
-### Lesson 4B: Arithmetic Operators
+#### Lesson 4B: Arithmetic Operators
 
     # Comparisons
     x == y   
@@ -81,7 +83,7 @@
     x += 1
     y *= 2 
 
-### Lesson 5: Conditionals and Control Flow
+#### Lesson 5: Conditionals and Control Flow
 
     a = 10
     b = 5
@@ -115,7 +117,7 @@
         print(x)  # 0-4
         x += 1
 
-### Lesson 6A: Text Strings
+#### Lesson 6A: Text Strings
 
     a = 'Hello World'
     b = "Python is groovy"
@@ -144,7 +146,7 @@
     g.strip()             # Trim whitespace
     g.upper()             # 'HELLO CRUEL WORLD'
 
-### Lesson 6B: Text Strings
+#### Lesson 6B: Text Strings
 
     # Concat
     a + 'ly'  # 'Hello Worldly'
@@ -161,7 +163,7 @@
     format(num, '0.2f')     # '12.35'
     f'{num:0.2f}'           # '12.35'
 
-### Lesson 7: File Input and Output
+#### Lesson 7: File Input and Output
 
     # Read line-by-line
     with open('data.txt') as file:
@@ -185,7 +187,9 @@
     name = input('Enter your name: ')
     print('Hello', name)
 
-### Lesson 8A: Lists
+### Section 2: Lists, Tuples, Sets & Dicts
+
+#### Lesson 1A: Lists
 
     # Lists are an ordered collection of arbitrary objects 
     empty_list = [] 
@@ -213,7 +217,7 @@
     letters = list('Dave')  
 
 
-### Lesson 8B: Lists
+#### Lesson 1B: Lists
 
     # Performing calculations by reading data into lists. Read input lines from file of the form NAMES,SHARES,PRICE
     import sys
@@ -230,7 +234,7 @@
     total = sum([int(row[1]) * float(row[2]) for row in rows]) # sum is a built-in function
     print(f'Total cost: {total:0.2f}')
 
-### Lesson 9: Tuples
+#### Lesson 2: Tuples
 
     # Tuples are immutable objects that help create simple data structures
     holding = ('GOOG',100,490.10)
@@ -254,7 +258,7 @@
     # Alternatively:
     total = sum([shares * price for _, shares, price in portfolio]) # use _ if you don't need a value
 
-### Lesson 10: Sets
+#### Lesson 3: Sets
 
     # A set is an unordered collection of unique objects. 
     # Sets are used to find distinct values or to manage problems related to membership. 
@@ -278,3 +282,76 @@
     t.update({'JJ','GE','ACME'})
     t.remove('IBM')     # Remove 'IBM' or raise KeyError if absent
     s.discard('SCOX')   # Remove 'SCOX' if it exists.
+
+#### Lesson 4A: Dictionaries
+
+    # A dictionary is a useful way to define an object that consists of named fields, and performing fast lookups on unordered data.
+    prices = {} # Preferred syntax, but same as empty set, so be careful - as it may impact readability
+    prices = dict() # A more explicit empty dict
+    s = {
+          'name' : 'GOOG',
+          'shares' : 100,    
+          'price' : 490.10
+    }
+    # Using tuples to create dicts with multipart keys
+    prices = { }
+    prices[('IBM','2015-02-03')] = 91.23
+    prices['IBM', '2015-02-04'] = 91.42     # Parens can be omitted
+    # NOTE: Only immutables can be used to create multipart keys, which is why we can't use lists and sets for the above
+
+    # Value lookups
+    name = s['name']
+    cost = s['shares']+ s['price']
+
+    # CRUD on elements
+    s['shares'] = 75
+    s['date'] = '2007-06-07'
+    del s['price'] # Removes price element
+
+#### Lesson 4B: Dictionaries
+
+    prices = { 'GOOG' : 490.1, 'AAPL' : 123.5, 'IBM' : 91.5, 'MSFT' : 52.13 }
+
+    # Extract value if key present 
+    if 'IBM' in prices:
+        p = present['IBM']
+    else:
+        p = 0.0
+    # Alternatively:
+    p = prices.get('IBM',0.0) # prices['IBM'] if it exits, else 0.0
+
+    # Key extraction
+    # Method 1: Convert a dict to a list
+    syms = list(prices)     # syms = ['AAPL', 'MSFT', 'IBM', 'GOOG']
+    # Method 2: Access via the .keys method, which returns a special dict_keys print which actively reflects changes made to the dict  
+    syms = prices.keys()    # dict_keys(['GOOG', 'AAPL', 'IBM', 'MSFT'])
+
+    # Value extraction: .values returns a special dict_values print which actively reflects changes made to the dict
+    vals = prices.values()  # dict_values([490.1, 123.5, 91.5, 52.13]) 
+
+    # Iterating over a dict in a loop
+    for sym, price in prices.items():
+        print(f'{sym} = {price}')
+
+#### Lesson 4C: Dictionaries
+
+    # Used as building blocks in data tabulation problems
+    portfolio = [
+        ('ACME', 50, 92.34),
+        ('IBM', 75, 102.25),
+        ('PHP', 40, 74.50),
+        ('IBM', 40, 124.75)
+    ]
+
+    # Dict comprehension
+    total_shares = { s[0]: 0 for s in portfolio }
+    for name, shares, _ in portfolio:
+        total_shares[name] += shares
+    # total_shares = {'IBM': 125, 'ACME': 50, 'PHP': 40}
+
+    # Alternatively: Using Counter from collections
+    from collections import Counter
+    total_shares = Counter()
+    for name, shares, _ in portfolio:
+        total_shares[name] += shares
+    # total_shares = Counter({'IBM': 125, 'ACME': 50, 'PHP': 40})
