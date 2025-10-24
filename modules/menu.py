@@ -185,7 +185,7 @@ class Menu:
             if need_redraw:
                 stdscr.clear()  # Clear once at start; overwrites after
                 # Course title
-                title = f"Course: {course.name}"
+                title = f"> {course.name}"
                 try:
                     stdscr.addstr(0, 0, title, curses.color_pair(2))
                     stdscr.move(0, len(title))
@@ -306,7 +306,7 @@ class Menu:
             if need_redraw:
                 stdscr.clear()  # Clear once at start; overwrites after
                 # Course and part title
-                title = f"Course: {course.name} | Part: {part.name}"
+                title = f"> {course.name} > {part.name}"
                 try:
                     stdscr.addstr(0, 0, title, curses.color_pair(2))
                     stdscr.move(0, len(title))

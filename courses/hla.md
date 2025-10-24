@@ -1,6 +1,10 @@
-# The Conventional Core of High Level Assembly
+# Assembly
 
-## Lesson 1: Hello World
+## Part I: Hello, World of Assembly Language
+
+### Section 1: High Level Assembly
+
+#### Lesson 1: Hello World
 
     program helloWorld;
     #include("stdlib.hhf");
@@ -9,7 +13,7 @@
         stdout.put("Hello, world!",nl);
     end helloWorld;
 
-## Lesson 2: Variables
+#### Lesson 2: Variables
 
     Program DemoVars;
     #include("stdlib.hhf");

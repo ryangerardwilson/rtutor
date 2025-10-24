@@ -1,4 +1,4 @@
-# The Conventional Core of C
+# C
 
 ## Part I: K&R 2nd Ed Concepts
 

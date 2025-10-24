@@ -1,4 +1,4 @@
-# Unix Tool Mastery
+# Unix
 
 ## Part I: Vim CLI Tools
 

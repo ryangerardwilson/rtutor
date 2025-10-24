@@ -1,4 +1,4 @@
-# The Conventional Core of Python
+# Python
 
 ## Part I: Python Basics
 
