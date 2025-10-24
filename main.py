@@ -19,7 +19,10 @@ def main():
         print("No valid courses found in the courses directory.")
         sys.exit(1)
 
-    menu = Menu(courses)
+    # Doc mode flag
+    doc_mode = ("-d" in sys.argv) or ("--doc" in sys.argv)
+
+    menu = Menu(courses, doc_mode=doc_mode)
     try:
         curses.wrapper(menu.run)
     except KeyboardInterrupt:

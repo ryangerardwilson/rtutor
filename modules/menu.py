@@ -4,9 +4,10 @@ from .ascii import title_ascii_art
 
 
 class Menu:
-    def __init__(self, courses):
+    def __init__(self, courses, doc_mode=False):
         self.courses = courses
         self.title_ascii_art = title_ascii_art
+        self.doc_mode = doc_mode
 
     def run(self, stdscr):
         curses.curs_set(0)
@@ -145,7 +146,7 @@ class Menu:
                             from modules.lesson_sequencer import LessonSequencer
 
                             sequencer = LessonSequencer(
-                                course.name, part.sections[0].lessons
+                                course.name, part.sections[0].lessons, doc_mode=self.doc_mode
                             )
                             sequencer.run(stdscr)
                             stdscr.nodelay(True)  # Reset after lesson
@@ -271,7 +272,7 @@ class Menu:
                         from modules.lesson_sequencer import LessonSequencer
 
                         sequencer = LessonSequencer(
-                            f"{course.name}: {part.name}", part.sections[0].lessons
+                            f"{course.name}: {part.name}", part.sections[0].lessons, doc_mode=self.doc_mode
                         )
                         sequencer.run(stdscr)
                         stdscr.nodelay(True)  # Reset after lesson
@@ -391,7 +392,7 @@ class Menu:
                     from modules.lesson_sequencer import LessonSequencer
 
                     sequencer = LessonSequencer(
-                        f"{course.name}: {part.name}: {section.name}", section.lessons
+                        f"{course.name}: {part.name}: {section.name}", section.lessons, doc_mode=self.doc_mode
                     )
                     sequencer.run(stdscr)
                     stdscr.nodelay(True)  # Reset after lesson

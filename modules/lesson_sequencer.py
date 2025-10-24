@@ -5,9 +5,10 @@ from .ascii import boom_art
 
 
 class LessonSequencer:
-    def __init__(self, name, lessons):
+    def __init__(self, name, lessons, doc_mode=False):
         self.name = name  # Sequence name (e.g., "Basic Typing")
         self.lessons = lessons  # List of Lesson objects
+        self.doc_mode = doc_mode
 
     def run(self, stdscr):
         curses.start_color()
@@ -15,6 +16,10 @@ class LessonSequencer:
         curses.init_pair(1, curses.COLOR_WHITE, -1)
 
         stdscr.bkgd(" ", curses.color_pair(1))
+
+        if self.doc_mode:
+            return self._run_doc_mode(stdscr)
+
         stdscr.nodelay(True)  # Non-blocking input to batch keys
 
         for lesson in self.lessons:
@@ -313,3 +318,123 @@ class LessonSequencer:
         stdscr.getch()  # Wait for keypress to exit
 
         return True
+
+    def _run_doc_mode(self, stdscr):
+        # Read-only viewer with n/p navigation
+        curses.curs_set(0)
+        stdscr.nodelay(True)
+
+        idx = 0
+        need_redraw = True
+
+        while True:
+            if need_redraw:
+                stdscr.clear()
+                try:
+                    title = f"{self.name} | {self.lessons[idx].name}"
+                    stdscr.addstr(0, 0, title, curses.color_pair(1))
+                    stdscr.move(0, len(title))
+                    stdscr.clrtoeol()
+                except curses.error:
+                    pass
+
+                try:
+                    stdscr.move(1, 0)
+                    stdscr.clrtoeol()
+                except curses.error:
+                    pass
+
+                # Draw content
+                lines = self.lessons[idx].content.strip().splitlines()
+                max_y, max_x = stdscr.getmaxyx()
+                row = 2
+                for line in lines:
+                    disp = line.replace("\t", "    ")
+                    # Safely draw within screen width
+                    try:
+                        stdscr.addstr(row, 0, disp[: max_x], curses.color_pair(1))
+                        stdscr.move(row, min(len(disp), max_x))
+                        stdscr.clrtoeol()
+                    except curses.error:
+                        pass
+                    row += 1
+                    if row >= max_y - 2:
+                        break
+
+                # Clear between content and status
+                for r in range(row, max_y - 2):
+                    try:
+                        stdscr.move(r, 0)
+                        stdscr.clrtoeol()
+                    except curses.error:
+                        pass
+
+                # Footer
+                footer_left = f"Lesson {idx + 1}/{len(self.lessons)}"
+                instr = "Doc mode: n-next | p-prev | esc-back"
+                try:
+                    stdscr.addstr(max_y - 2, 0, footer_left, curses.color_pair(1))
+                    stdscr.move(max_y - 2, len(footer_left))
+                    stdscr.clrtoeol()
+                except curses.error:
+                    pass
+                try:
+                    stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
+                    stdscr.move(max_y - 1, len(instr))
+                    stdscr.clrtoeol()
+                except curses.error:
+                    pass
+
+                stdscr.refresh()
+                need_redraw = False
+
+            changed = False
+            while True:
+                try:
+                    key = stdscr.getch()
+                    if key == -1:
+                        break
+                    changed = True
+
+                    if key == 3:  # Ctrl+C
+                        sys.exit(0)
+                    elif key == 27:  # ESC
+                        return False
+                    elif key in (ord("n"), ord("N")):
+                        if idx < len(self.lessons) - 1:
+                            idx += 1
+                        else:
+                            # Finished last lesson -> show boom and exit True
+                            stdscr.clear()
+                            max_y, max_x = stdscr.getmaxyx()
+                            art_lines = boom_art.splitlines()
+                            content_width = max(len(line) for line in art_lines)
+                            start_y = 2
+                            for i, line in enumerate(art_lines):
+                                if line:
+                                    x_pos = (max_x - content_width) // 2
+                                    if x_pos < 0:
+                                        line = line[:max_x]
+                                        x_pos = 0
+                                    try:
+                                        stdscr.addstr(start_y + i, x_pos, line, curses.color_pair(1))
+                                    except curses.error:
+                                        pass
+                            try:
+                                stdscr.addstr(max_y - 1, 0, "Press any key to exit.", curses.color_pair(1))
+                            except curses.error:
+                                pass
+                            stdscr.refresh()
+                            stdscr.nodelay(False)
+                            stdscr.getch()
+                            return True
+                    elif key in (ord("p"), ord("P")):
+                        if idx > 0:
+                            idx -= 1
+                except KeyboardInterrupt:
+                    sys.exit(0)
+                except curses.error:
+                    pass
+
+            if changed:
+                need_redraw = True
