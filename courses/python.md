@@ -291,12 +291,12 @@
     s = {
           'name' : 'GOOG',
           'shares' : 100,    
-          'price' : 490.10
+          'price' : 490
     }
     # Using tuples to create dicts with multipart keys
     prices = { }
-    prices[('IBM','2015-02-03')] = 91.23
-    prices['IBM', '2015-02-04'] = 91.42     # Parens can be omitted
+    prices[('IBM','2015-02-03')] = 91
+    prices['IBM', '2015-02-04'] = 92 # Parens can be omitted
     # NOTE: Only immutables can be used to create multipart keys, which is why we can't use lists and sets for the above
 
     # Value lookups
@@ -310,15 +310,15 @@
 
 #### Lesson 4B: Dictionaries
 
-    prices = { 'GOOG' : 490.1, 'AAPL' : 123.5, 'IBM' : 91.5, 'MSFT' : 52.13 }
+    prices = { 'GOOG' : 490, 'AAPL' : 123, 'IBM' : 91, 'MSFT' : 52 }
 
     # Extract value if key present 
     if 'IBM' in prices:
         p = present['IBM']
     else:
-        p = 0.0
+        p = 0
     # Alternatively:
-    p = prices.get('IBM',0.0) # prices['IBM'] if it exits, else 0.0
+    p = prices.get('IBM',0) # prices['IBM'] if it exits, else 0
 
     # Key extraction
     # Method 1: Convert a dict to a list
@@ -327,7 +327,7 @@
     syms = prices.keys()    # dict_keys(['GOOG', 'AAPL', 'IBM', 'MSFT'])
 
     # Value extraction: .values returns a special dict_values print which actively reflects changes made to the dict
-    vals = prices.values()  # dict_values([490.1, 123.5, 91.5, 52.13]) 
+    vals = prices.values()  # dict_values([490, 123, 91, 52]) 
 
     # Iterating over a dict in a loop
     for sym, price in prices.items():
@@ -355,3 +355,36 @@
     for name, shares, _ in portfolio:
         total_shares[name] += shares
     # total_shares = Counter({'IBM': 125, 'ACME': 50, 'PHP': 40})
+
+### Section 3: Iteration, Looping, Functions, Exceptions & Termination
+
+#### Lesson 1: Iteration & Looping
+
+    # Looping over ranges
+    # The object created by `range(i, j [,step])` is very efficient for looping because it computes the values it represents on demand when lookups are requested
+    a = range(1,4)      # b = 1, 2, 3    
+    b = range(0, 14, 3) # c = 0, 3, 6, 9, 12
+    c = range(5, 1, -1) # d = 5, 4, 3, 2
+
+    for n in range(1,10):
+        print(f'2 to the {n} power is {2**n}')
+
+    # Looping over a string
+    message = 'Hello World'
+    for c in message:
+        print(c)
+
+    # Looping over a list
+    names = ['Dave', 'Mark', 'Ann', 'Phil']
+    for name in names:
+        print(name)
+
+    # Looping over a dict
+    prices = { 'GOOG': 490, 'IBM': 91, 'AAPL': 123 }
+    for key in prices
+        print(key, '=', prices[key])
+
+    # Looping over the lines of a file 
+    with open('foo.txt') as file:
+        for line in file:
+            print(line, end='')
