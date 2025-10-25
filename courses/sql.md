@@ -11,7 +11,8 @@
     hell" in the 1960s hierachial databases:
     - data was duplicated
     - updates caused anomalies
-    - data was accessed by navigating file paths, and ad hoc queries were painful or impossible
+    - data was accessed by navigating file paths, and ad hoc queries were 
+      painful or impossible
     - there was no clean theoretical rooting for integrity or optimization
 
     The relational model provides a rigorous mathematical foundation

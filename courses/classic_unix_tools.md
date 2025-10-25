@@ -12,7 +12,8 @@
     vim file1 file2 # Open specific files as buffers
     vim dir/* # Open all files as buffers
     vim dir/*.md # Open files of specific extensions as buffers
-    vim dir/**/*.md # Same as above, but recursively. The dir should have subdirs
+    vim dir/**/*.md # Same as above, but recursively. 
+                    # The dir should have subdirs
 
 ## Part II: Tmux
 
@@ -98,10 +99,13 @@
     chmod 644 script.sh  # Set octal 
     chmod -R 644 dir/  # Recursive apply
     chmod +x script.sh # Make executable
-    # 600 for private files; 644 for standard files; 700 for private dirs; 755 for letting others peek/run without editing; 777 for all access
+    # 600 for private files; 644 for standard files; 700 for private dirs; 
+    # 755 for letting others peek/run without editing; 777 for all access
     # In unix systems, inside the /home dir, for newly created:
-    # - files: 644 is default because it strikes a balance between you owning the file, the others accessing it without editing.
-    # - dirs: 755 is default because it allows others to cd into your dirs as the cd command needs executable permission
+    # - files:  644 is default because it strikes a balance between you owning 
+    #           the file, the others accessing it without editing.
+    # - dirs:   755 is default because it allows others to cd into your dirs as 
+    #           the cd command needs executable permission
 
     # Delete
     rm file.txt  
@@ -122,17 +126,21 @@
 ### Lesson 1: Check Interace Name
 
     ip link show
-    # NOTE: Network interface is the logical endpoint where your hardware meets the network stack in the kernel. 
-    # It's how the OS refers to your network devices—like eth0 for Ethernet or wlan0 for wireless.
+    # NOTE: Network interface is the logical endpoint where your hardware meets 
+    # the network stack in the kernel. 
+    # It's how the OS refers to your network devices—like eth0 for Ethernet or 
+    # wlan0 for wireless.
 
 ### Lesson 2: Scan for networks
 
     sudo iw dev wlan0 scan | grep SSID
-    # NOTE: SSID stands for Service Set Identifier. It's your WiFi network's human-readable name
+    # NOTE: SSID stands for Service Set Identifier. It's your WiFi network's 
+    # human-readable name
 
 ### Lesson 3: WPA Supplicant
 
-    # wpa_supplicant is a background process that handles the authentication and encryption for wireless networks. 
+    # wpa_supplicant is a background process that handles the authentication 
+    # and encryption for wireless networks. 
 
     # Add login credentials to `wpa_supplicant.conf`
     vi .wpa_supplicant.conf
@@ -147,9 +155,10 @@
 
     # Test connection
     sudo dhcpcd wlan0 
-    # dhcpd is a lightweight DHCP client daemon (hence the 'd' for daemon). DHCP is Dynamic Host Configuration Protocol, 
-    # which automatically grabs an IP address, subnet mask, gateway, DNS servers, and all that crap from your router 
-    # so you don't have to configure it statically
+    # dhcpd is a lightweight DHCP client daemon (hence the 'd' for daemon). 
+    # DHCP is Dynamic Host Configuration Protocol, which automatically grabs an
+    # IP address, subnet mask, gateway, DNS servers, and all that crap from 
+    # your router so you don't have to configure it statically
     ping 8.8.8.8
 
     # Disconnect

@@ -205,7 +205,8 @@
     int main() {
         int valid_best_practice_name = 42; // Starts with letter; lower case;
 uses underscores
-        int _underscore_start = 43; // OK, but avoid double `__`, as it may conflict with lib methods
+        int _underscore_start = 43; // OK, but avoid double `__`, as it may 
+                                    // conflict with lib methods
         int name_with_digits123 = 44; // Digits fine after first char
         int lower_case = 1; // Case matters
         int LOWER_CASE = 2; // Different from above
@@ -215,10 +216,12 @@ uses underscores
 #### Lesson 2A: Data Types and Sizes
 
     // There are only a few basic data types in C: 
-    // char: a single byte, capable of holding one character in the local character set
-    // int: an integer, typically reflecting the natural size of integers on the host machine
-    // float: single-precision floating point
-    // double: double-precision floating point
+    // char:    a single byte, capable of holding one character in the local 
+    //          character set
+    // int:     an integer, typically reflecting the natural size of integers 
+    //          on the host machine
+    // float:   single-precision floating point
+    // double:  double-precision floating point
 
     // Integer Qualifiers
     short int sh; // atleast 16 bits
@@ -235,18 +238,21 @@ uses underscores
 
 #### Lesson 2B: Data Types and Sizes
 
-    // limits.h and float.h contain symbolic constants for the sizes allocated by types and their qualifiers
+    // limits.h and float.h contain symbolic constants for the sizes allocated
+    // by types and their qualifiers
     #include "stdio.h"
     #include "limits.h"  // For INT_MAX etc.
     #include "float.h"   // For FLT_MAX etc.
 
     int main() {
-        // %zu is the C99 specifier for printing size_t (unsigned, from sizeof); use it to avoid UB with %d on large values
+        // %zu is the C99 specifier for printing size_t (unsigned, from 
+        // sizeof); use it to avoid UB with %d on large values
         printf("char: %zu bytes\n", sizeof(char));  // 1, always.
         printf("int: %zu bytes\n", sizeof(int));    // 4, probably.
         printf("long: %zu bytes\n", sizeof(long));  // 8 on 64-bit.
         printf("Unsigned int max: %u\n", UINT_MAX);
-        printf("Float max: %e\n", FLT_MAX);  // Max float value, in scientific notation
+        printf("Float max: %e\n", FLT_MAX);     // Max float value, 
+                                                // in scientific notation
         return 0;
     }
 
@@ -255,7 +261,8 @@ uses underscores
     #include "stdio.h" 
 
     int main() {
-        // Integer constants (literals): decimal by default, octal (0 prefix), hex (0x prefix).
+        // Integer constants (literals): decimal by default, octal (0 prefix), 
+        // hex (0x prefix).
         int dec = 42;   
         int oct = 052;  
         int hex = 0x2A; 
@@ -279,7 +286,8 @@ uses underscores
 
 #### Lesson 2: \c
 
-    // Experiment to find out what happens when printf's argument string contains \c
+    // Experiment to find out what happens when printf's argument string 
+    // contains \c
     #include "stdio.h"
 
     int main(void) {
@@ -289,7 +297,8 @@ uses underscores
 
 #### Lesson 3: Temperature Conversion
 
-    // Modify the temperature conversion program to print a heading above the table.
+    // Modify the temperature conversion program to print a heading above the 
+    // table.
     #include "stdio.h"
 
     int main(void) {
@@ -341,7 +350,8 @@ uses underscores
 
 #### Lesson 5: Temperature Conversion Reversed
 
-    // Modify the temperature conversion program to print the // table in reverse order, that is, from 300 degrees to 0.  
+    // Modify the temperature conversion program to print the table in reverse 
+    // order, that is, from 300 degrees to 0.  
     #include "stdio.h"
 
     int main(void) {
@@ -400,13 +410,16 @@ uses underscores
             else if (c == '\t'){ ++tabs_nr; } 
             else if (c == '\n'){ ++newlines_nr; }
         }
-        printf("blanks_nr: %d\ntabs_nr: %d\nnewlines_nr: %d\n", blanks_nr, tabs_nr, newlines_nr);
+        printf(
+            "blanks_nr: %d\ntabs_nr: %d\nnewlines_nr: %d\n", 
+            blanks_nr, tabs_nr, newlines_nr);
         return 0;
     }
 
 #### Lesson 9: Copy Input to Output I
 
-    // Write a program to copy its input to its output, replacing each string of one or more blanks by a single blank.
+    // Write a program to copy its input to its output, replacing each string 
+    // of one or more blanks by a single blank.
     #include "stdio.h"
 
     int main(void) {
@@ -421,8 +434,9 @@ uses underscores
 
 #### Lesson 10: Copy Input to Output II
 
-    // Write a program to copy its input to its output, replacing each tab by \t, each backspace by \b, and each backslash by \\. 
-    // This makes tabs and backspaces visible in an unambiguous way.
+    // Write a program to copy its input to its output, replacing each tab by 
+    // \t, each backspace by \b, and each backslash by \\. This makes tabs and 
+    // backspaces visible in an unambiguous way.
     #include "stdio.h"
 
     int main(void) {
@@ -438,7 +452,8 @@ uses underscores
 
 #### Lesson 11: Testing the Word Count Program
 
-    // How would you test the word count program? What kinds of input are most likely to uncover bugs if there are any?
+    // How would you test the word count program? What kinds of input are most 
+    // likely to uncover bugs if there are any?
     #include "stdio.h"
     #define IN 1
     #define OUT 0
@@ -483,7 +498,8 @@ uses underscores
 
 #### Lesson 13A: Histogram of Lengths of Input Words
 
-    // Write a program to print a histogram of the lengths of words in its input. It is easy to draw the histogram with the bars horizontal; 
+    // Write a program to print a histogram of the lengths of words in its 
+    // input. It is easy to draw the histogram with the bars horizontal; 
     // a vertical orientation is more challenging.
     #include "stdio.h"
     #define TRUE 1
@@ -497,34 +513,43 @@ uses underscores
         // Initialize the histogram array with 0
         int i;
         for (i = 0; i < BUFFER; ++i) { histogram[i] = 0; }
-        // Count the words length and store in histogram array at the specific index
         char c;
         int word_count_index = 0;
         while ((c = getchar())){
             if (c == ' ' || c == '\t' || c == '\n' || c == EOF){
                 if (word_count_index > 0){
                     ++histogram[word_count_index - 1];
-                    if (histogram[word_count_index - 1] > max_word_count){ max_word_count = histogram[word_count_index - 1]; }
-                    if (histogram_length < word_count_index - 1){ histogram_length = word_count_index - 1; }
+                    if (histogram[word_count_index - 1] > max_word_count) { 
+                        max_word_count = histogram[word_count_index - 1]; 
+                    }
+                    if (histogram_length < word_count_index - 1) { 
+                        histogram_length = word_count_index - 1; 
+                    }
                     word_count_index = 0;
                 }
                 if (c == EOF){ break; }
             } else{ ++word_count_index; }
         }
+        // TBC
+
+#### Lesson 13B: Histogram of Lengths of Input Words (Horizontal)
+
         // Add in the histogram array a end of useful data char
         histogram[histogram_length + 1] = '$';
         putchar('\n');
         int column_index = 0;
         int line_index = 0;
-        // TBC
     
-#### Lesson 13B: Histogram of Lengths of Input Words (Horizontal)
-
         // Print horizontal histogram
         printf("Horizontal Histogram\n--------------------\n");
         while (histogram[column_index] != '$'){
             printf("%3d: \t", column_index + 1);
-            for (line_index = 0; line_index < histogram[column_index]; ++line_index){ putchar('#'); }
+            for (
+                line_index = 0; 
+                line_index < histogram[column_index]; 
+                ++line_index) { 
+                putchar('#'); 
+            }
             putchar('\n');
             ++column_index;
         }
@@ -539,7 +564,9 @@ uses underscores
             column_index = 0;
             while (histogram[column_index] != '$'){
                 if (line_index == 0){ printf("%2d ", column_index + 1); } 
-                else if (histogram[column_index] >= line_index){ printf("## "); } 
+                else if (histogram[column_index] >= line_index) { 
+                    printf("## "); 
+                } 
                 else{ printf("   "); }
                 ++column_index;
             }
@@ -550,7 +577,8 @@ uses underscores
 
 #### Lesson 14: Histogram of Freq of Different Characters
 
-    // Write a program to print a histogram of the frequencies of different characters in its input.
+    // Write a program to print a histogram of the frequencies of different 
+    // characters in its input.
     #include "stdio.h"
     #define ALPHA_NR 26
     #define NUM_NR 10
@@ -559,12 +587,14 @@ uses underscores
         int i;
         char chars_freq[ALPHA_NR + NUM_NR];
         // Initialize the chars_freq array with 0
-        for (i = 0; i < (ALPHA_NR + NUM_NR); ++i){ chars_freq[i] = 0; }
+        for (i = 0; i < (ALPHA_NR + NUM_NR); ++i) { chars_freq[i] = 0; }
         // Count characters from the standard input
         char c;
-        while ((c = getchar()) != EOF){
-            if (c >= 'a' && c <= 'z'){ ++chars_freq[c - 'a']; } 
-            else if (c >= '0' && c <= '9'){ ++chars_freq[c - '0' + ALPHA_NR]; }
+        while ((c = getchar()) != EOF) {
+            if (c >= 'a' && c <= 'z') { ++chars_freq[c - 'a']; } 
+            else if (c >= '0' && c <= '9') { 
+                ++chars_freq[c - '0' + ALPHA_NR]; 
+            }
         }
         // Print horizontal histogram
         for (i = 0; i < (ALPHA_NR + NUM_NR); ++i){
@@ -579,7 +609,8 @@ uses underscores
 
 #### Lesson 15: Functions
 
-    // Rewrite the temperature conversion program of Section 1.2 to use a function for conversion.
+    // Rewrite the temperature conversion program of Section 1.2 to use a 
+    // function for conversion.
     #include "stdio.h"
     int main(void) {
         float celsius, fahr;
@@ -599,13 +630,15 @@ uses underscores
         return 0;
     }
 
-    float celsius_to_fahrenheit(int celsius) { return (9.0 / 5.0) * celsius + 32.0f; }
+    float celsius_to_fahrenheit(int celsius) { 
+        return (9.0 / 5.0) * celsius + 32.0f; 
+    }
 
 #### Lesson 16A: Longest Line
 
-    // Revise the main routine of the longest-line program so it 
-    // will correctly print the length of arbitrary long input 
-    // lines, and as much as possible of the text.
+    // Revise the main routine of the longest-line program so it will correctly
+    // print the length of arbitrary long input lines, and as much as possible 
+    // of the text.
     #include "stdio.h"
     #define MAXLINE 1000
     int get_line(char line[], int maxline);
@@ -628,7 +661,9 @@ uses underscores
     int get_line(char s[], int lim){
         int c, i;
 
-        for (i = 0; i < lim - 1 && (c = getchar()) != EOF && c != '\n'; ++i) { s[i] = c; }
+        for (i = 0; i < lim - 1 && (c = getchar()) != EOF && c != '\n'; ++i) {
+            s[i] = c; 
+        }
         if (c == '\n') { s[i] = c; ++i; }
         s[i] = '\0';
         if (c != EOF && c != '\n') {
@@ -645,7 +680,8 @@ uses underscores
 
 #### Lesson 17: Input Lines > 80 Chars
 
-    // Write a program to print all input lines that are longer than 80 characters.
+    // Write a program to print all input lines that are longer than 80 
+    // characters.
     #include "stdio.h"
     #define MAXLINE 1000
     #define LIMIT 80
@@ -662,7 +698,12 @@ uses underscores
 
     int get_line(char line[], int max_line_len) {
         int c, i;
-        for (i = 0; i < max_line_len - 1 && (c = getchar()) != EOF && c != '\n'; ++i) { line[i] = c; }
+        for (
+            i = 0; 
+            i < max_line_len - 1 && (c = getchar()) != EOF && c != '\n'; 
+            ++i) { 
+            line[i] = c; 
+        }
         if (c == '\n') { line[i] = c; ++i; }
         line[i] = '\0';
         return i;
@@ -670,7 +711,8 @@ uses underscores
 
 #### Lesson 18: Cleaning Input
 
-    // Write a program to remove trailing blanks and tabs from each line of input, and to delete entirely blank lines.
+    // Write a program to remove trailing blanks and tabs from each line of 
+    // input, and to delete entirely blank lines.
     #include "stdio.h"
     #define MAXLINE 1000
     int get_line(char line[], int max_line_len);
@@ -688,7 +730,12 @@ uses underscores
 
     int get_line(char line[], int max_line_len){
         int c, i;
-        for (i = 0; i < max_line_len - 1 && (c = getchar()) != EOF && c != '\n'; ++i){ line[i] = c; }
+        for (
+            i = 0; 
+            i < max_line_len - 1 && (c = getchar()) != EOF && c != '\n'; 
+            ++i){ 
+            line[i] = c; 
+        }
         if (c == '\n') { line[i] = c; ++i; }
         line[i] = '\0';
         return i;
@@ -703,9 +750,8 @@ uses underscores
 
 #### Lesson 19A: Reverse String
 
-    // Write a function reverse(s) that reverses the character 
-    // string s. Use it to write a program that reverses its 
-    // input a line at a time.
+    // Write a function reverse(s) that reverses the character string s. Use 
+    // it to write a program that reverses its input a line at a time.
     #include "stdio.h"
     #define MAXLINE 1000
     int get_line(char line[], int max_line_len);
@@ -715,14 +761,18 @@ uses underscores
     int main(void){
         int len;
         char line[MAXLINE];
-        while ((len = get_line(line, MAXLINE)) > 0) { reverse(line); printf("%s", line); }
+        while ((len = get_line(line, MAXLINE)) > 0) { 
+            reverse(line); printf("%s", line); 
+        }
         return 0;
     }
 
     int get_line(char line[], int max_line_len){
         int c, i;
         i = 0;
-        while (i < max_line_len - 1 && (c = getchar()) != EOF && c != '\n') { line[i] = c; ++i; }
+        while (i < max_line_len - 1 && (c = getchar()) != EOF && c != '\n') { 
+            line[i] = c; ++i; 
+        }
         // flush out input stream if exceeding max_line_len limit
         while (i >= max_line_len - 1 && (c = getchar()) != '\n');
         if (c == '\n') { line[i] = '\n'; ++i; }
@@ -758,10 +808,10 @@ uses underscores
 
 #### Lesson 20: detab
 
-    // Write a program detab that replaces tabs in the input 
-    // with the proper number of blanks to space to the next 
-    // tab stop. Assume a fixed set of tab stops, say every n 
-    // columns.  Should n be a variable or a symbolic parameter? 
+    // Write a program detab that replaces tabs in the input with the proper 
+    // number of blanks to space to the next tab stop. Assume a fixed set of 
+    // tab stops, say every n columns. Should n be a variable or a symbolic 
+    // parameter? 
     #include "stdio.h"
     #define TABINC 8
 
@@ -781,11 +831,10 @@ uses underscores
 
 #### Lesson 21: entab
 
-    // Write a program entab that replaces strings of blanks by 
-    // the minimum number of tabs and blanks to achieve the same 
-    // spacing. Use the same tab stops as for detab. When either 
-    // a tab or a single blank would suffice to reach a tab stop, 
-    // which should be given preference?
+    // Write a program entab that replaces strings of blanks by the minimum 
+    // number of tabs and blanks to achieve the same spacing. Use the same tab
+    // stops as for detab. When either a tab or a single blank would suffice 
+    // to reach a tab stop, which should be given preference?
     #include "stdio.h"
     #define TAB_LENGTH 8
 
@@ -797,7 +846,9 @@ uses underscores
             ++line_pos;
             if (c == ' '){
                 ++nr_of_spaces;
-                if (line_pos % TAB_LENGTH == 0 && nr_of_spaces > 1) { putchar('\t'); nr_of_spaces = 0; }
+                if (line_pos % TAB_LENGTH == 0 && nr_of_spaces > 1) { 
+                    putchar('\t'); nr_of_spaces = 0; 
+                }
             } else{
                 while(nr_of_spaces) { putchar(' '); --nr_of_spaces; }
                 if (c == '\n'){ line_pos = 0; }
@@ -809,11 +860,11 @@ uses underscores
 
 #### Lesson 22A: Fold Long Input Lines
 
-    // Write a program to ``fold'' long input lines into two or 
-    // more shorter lines after the last non-blank character that 
-    // occurs before the n-th column of input. Make sure your 
-    // program does something intelligent with very long lines, 
-    // and if there are no blanks or tabs before the specified column.
+    // Write a program to "fold" long input lines into two or more shorter 
+    // lines after the last non-blank character that occurs before the n-th 
+    // column of input. Make sure your program does something intelligent with 
+    // very long lines, and if there are no blanks or tabs before the specified
+    // column.
     #include "stdio.h"
     #define MAXLINE 10000
     #define TRUE (1 == 1)
@@ -835,7 +886,9 @@ uses underscores
 
     int get_line(char line[], int max_line_len){
         int c, i = 0;
-        while (i < max_line_len - 1 && (c = getchar()) != EOF && c != '\n'){ line[i++] = c; }
+        while (i < max_line_len - 1 && (c = getchar()) != EOF && c != '\n'){ 
+            line[i++] = c; 
+        }
         if (c == '\n'){ line[i++] = c; }
         line[i] = '\0';
         return i;
@@ -853,9 +906,15 @@ uses underscores
             if (fold_str[j] == '\n'){ column = 0; }
             column++;
             if (column == n_break - OFFSET){ split = TRUE; }
-            if (split && (fold_str[j] == ' ' || fold_str[j] == '\t')){ last_blank = j; }
+            if (split && (fold_str[j] == ' ' || fold_str[j] == '\t')){ 
+                last_blank = j; 
+            }
             if (column == n_break){
-                if (last_blank){ fold_str[last_blank] = '\n'; column = j - last_blank; last_blank = 0; }
+                if (last_blank){ 
+                    fold_str[last_blank] = '\n'; 
+                    column = j - last_blank; 
+                    last_blank = 0; 
+                }
                 else { fold_str[j++] = '-'; fold_str[j] = '\n'; column = 0; }
                 split = FALSE;
             }
@@ -865,9 +924,9 @@ uses underscores
 
 #### Lesson 23A: Remove Comments
 
-    // Write a program to remove all comments from a C program. 
-    // Don't forget to handle quoted strings and character constants 
-    // properly. C comments don't nest.
+    // Write a program to remove all comments from a C program. Don't forget to
+    // handle quoted strings and character constants properly. C comments don't 
+    // nest.
     // NOTE: This executes via `./a.out < main.c > out.c`
     #include "stdio.h"
     #define MAXSTR 10000
@@ -914,12 +973,20 @@ uses underscores
             }
 
             if (!in_quote) {
-                if (str[i] == '/' && str[i + 1] == '*' && !line_comment) { block_comment = TRUE; }
-                if (str[i] == '*' && str[i + 1] == '/') { block_comment = FALSE; i += 2; }
-                if (str[i] == '/' && str[i + 1] == '/') { line_comment = TRUE; }
+                if (str[i] == '/' && str[i + 1] == '*' && !line_comment) { 
+                    block_comment = TRUE; 
+                }
+                if (str[i] == '*' && str[i + 1] == '/') { 
+                    block_comment = FALSE; i += 2; 
+                }
+                if (str[i] == '/' && str[i + 1] == '/') { 
+                    line_comment = TRUE; 
+                }
                 if (str[i] == '\n') { line_comment = FALSE; }
                 if (line_comment || block_comment) { ++i; }
-                else if (!line_comment || !block_comment) { no_com_str[j++] = str[i++]; }
+                else if (!line_comment || !block_comment) { 
+                    no_com_str[j++] = str[i++]; 
+                }
             } else { no_com_str[j++] = str[i++]; }
         }
         no_com_str[j] = '\0';
@@ -927,11 +994,10 @@ uses underscores
 
 #### Lesson 24A: Syntax Errors
 
-    // Write a program to check a C program for rudimentary syntax 
-    // errors like unmatched parentheses, brackets and braces. Don't 
-    // forget about quotes, both single and double, escape sequences, 
-    // and comments. This program is hard if you do it in full 
-    // generality.
+    // Write a program to check a C program for rudimentary syntax errors like
+    // unmatched parentheses, brackets and braces. Don't forget about quotes, 
+    // both single and double, escape sequences, and comments. This program is
+    // hard if you do it in full generality.
     // NOTE: This runs via `./a.out < test.c`
     #include "stdio.h"
     #define MAXSTR 10000
@@ -965,8 +1031,10 @@ uses underscores
         int block_comment = FALSE;
         int line_comment = FALSE;
         int i = 0;
-        while (str[i] != '\0' && parentheses >= 0 && brackets >= 0 && braces >= 0){
-            if (!line_comment && !block_comment && !single_quotes && !double_quotes){
+        while ( str[i] != '\0' && parentheses >= 0 && brackets >= 0 
+            && braces >= 0) {
+            if (!line_comment && !block_comment && !single_quotes 
+                && !double_quotes) {
                 if (str[i] == '(') { ++parentheses; }
                 else if (str[i] == ')') { --parentheses; }
                 if (str[i] == '[') { ++brackets; }
@@ -975,22 +1043,31 @@ uses underscores
                 else if (str[i] == '}') { --braces; }
             }
             if (!line_comment && !block_comment) {
-                if (str[i] == '\'' && !single_quotes && !double_quotes) { single_quotes = TRUE; } 
-                else if (single_quotes && str[i] == '\'' && (str[i - 1] != '\\' || str[i - 2] == '\\')) { single_quotes = FALSE; }
-                if (str[i] == '"' && !single_quotes && !double_quotes) { double_quotes = TRUE; }
-                else if (double_quotes && str[i] == '"' && (str[i - 1] != '\\' || str[i - 2] == '\\')) { double_quotes = FALSE; }
+                if (str[i] == '\'' && !single_quotes && !double_quotes) { 
+                    single_quotes = TRUE; } 
+                else if (single_quotes && str[i] == '\'' && (str[i - 1] != '\\' 
+                    || str[i - 2] == '\\')) { single_quotes = FALSE; }
+                if (str[i] == '"' && !single_quotes && !double_quotes) { 
+                    double_quotes = TRUE; }
+                else if (double_quotes && str[i] == '"' && 
+                    (str[i - 1] != '\\' || str[i - 2] == '\\')) { 
+                    double_quotes = FALSE; }
             }
+            // TBC
+
+#### Lesson 24C: Syntax Errors
+
             if (!single_quotes && !double_quotes){
-                if (str[i] == '/' && str[i + 1] == '*' && !line_comment) { block_comment = TRUE; }
-                else if (str[i] == '*' && str[i + 1] == '/') { block_comment = FALSE; }
-                if (str[i] == '/' && str[i + 1] == '/' && !block_comment) { line_comment = TRUE; }
+                if (str[i] == '/' && str[i + 1] == '*' && !line_comment) { 
+                    block_comment = TRUE; }
+                else if (str[i] == '*' && str[i + 1] == '/') { 
+                    block_comment = FALSE; }
+                if (str[i] == '/' && str[i + 1] == '/' && !block_comment) { 
+                    line_comment = TRUE; }
                 else if (str[i] == '\n') { line_comment = FALSE; }
             }
             ++i;
         }
-      // TBC
-
-#### Lesson 24C: Syntax Errors
 
         if (parentheses) { printf("Error: unbalanced parentheses.\n"); }
         if (brackets) { printf("Error: unbalanced brackets.\n"); }

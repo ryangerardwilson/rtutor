@@ -29,13 +29,13 @@
 
 #### Lesson 3: Primitives, Variables, and Expressions
 
-    # These built-in types, can be considered 'primitives'. Type hints do nothing, except improve code readability
+    # Built-in types, considered 'primitives'. Type hints improve readability
     x: int = 42  
     y: float = 3.14159
     z: str = "Hello World"
     a: bool = True
 
-    # An expression is a combination of types and operators that produce a value
+    # An expression is anything that produces a value
     result = 2 + 3 * 4  # 14
 
 #### Lesson 4A: Arithmetic Operators
@@ -199,10 +199,11 @@
     # CRUD on elements
     names.append('Alex')
     names.insert(2, 'Aya') # Inserts at specific position
-    a = names[2] # Indexing operator lets us access and, if required, update the value at specific index
+    a = names[2] # Indexing operator lets us access and, if required, update
     names[2] = 'Tom'
 
-    # Slicing operator lets us access and, if required, update values across a specific index range (from x: till y)
+    # Slicing operator lets us access and, if required, update values across 
+    # a specific index range (from x: till y)
     b = names[0:2] # ['Dave', 'Paula']
     c = names[:2] # ['Aya', 'Tom', 'Lewis', 'Alex']
     names[0:2] = ['Dave', 'Mark', 'Jeff']   
@@ -219,7 +220,8 @@
 
 #### Lesson 1B: Lists
 
-    # Performing calculations by reading data into lists. Read input lines from file of the form NAMES,SHARES,PRICE
+    # Performing calculations by reading data into lists. Read input lines 
+    # from file of the form NAMES,SHARES,PRICE
     import sys
     if len(sys.argv) != 2:
         raise SystemExit(f'Usage: {sys.argv[0]} filename')
@@ -230,8 +232,9 @@
             rows.append(line.split(','))
     # rows is a list of this form [['SYM','123','456.78'], ...]
 
-    # As a general rule, list comprehensions are a preferred technique for performing simple calculations
-    total = sum([int(row[1]) * float(row[2]) for row in rows]) # sum is a built-in function
+    # As a general rule, list comprehensions are a preferred technique for 
+    # performing simple calculations
+    total = sum([int(row[1]) * float(row[2]) for row in rows]) 
     print(f'Total cost: {total:0.2f}')
 
 #### Lesson 2: Tuples
@@ -247,35 +250,39 @@
     name, shares, price = holding
     host, port = address
 
-    # Although tuples support most of the same operations as lists (such as indexing, slicing, and concatenation), 
-    # the elements of a tuple cannot be changed after creation- that is, you cannot replace, delete, or append new 
-    # elements to an existing tuple. 
+    # Although tuples support most of the same operations as lists (such as 
+    # indexing, slicing, and concatenation), the elements of a tuple cannot be 
+    # changed after creation- that is, you cannot replace, delete, or append 
+    # new elements to an existing tuple. 
 
     # Looping over tuples
     total = 0.0
     for name, shares, prices in portfolio:
         total += shares * price
     # Alternatively:
-    total = sum([shares * price for _, shares, price in portfolio]) # use _ if you don't need a value
+    total = sum([shares * price for _, shares, price in portfolio]) 
+    # NOTE: use _ if you don't need a value
 
 #### Lesson 3: Sets
 
-    # A set is an unordered collection of unique objects. 
-    # Sets are used to find distinct values or to manage problems related to membership. 
+    # A set is an unordered collection of unique objects. Sets are used to 
+    # find distinct values or to manage problems related to membership. 
 
     # Create a set
     empty_set = set() 
     names1 = {'IBM', 'MSFT', 'AA'}
     names2 = set(['IBM','MSFT','HPE','IBM','CAT']) # Will store 'IBM' only once
-    # Elements of a set are restricted to immutable objects. You can make a set of numbers, strings, or tuples - however, you can't make a set containing lists.
-    names = {s[0] for s in portfolio} # Create set from list, using set comprehension
+    # Elements of a set are restricted to immutable objects. You can make a set
+    # of numbers, strings, or tuples - but, not of lists. You can, however, 
+    create set 'from' a list, using set comprehension
+    names = {s[0] for s in portfolio} 
 
     # Operations
     a = t | s # Union 
     b = t & s # Intersection 
     c = t - s # Difference 
     d = s - t # Difference 
-    e = t ^ s # Symmetric difference: gives items that are in either s or t but not in both.
+    e = t ^ s # Symmetric difference: items in either s or t but not in both.
 
     # CRUD on elements
     t.add('DIS')
@@ -285,8 +292,10 @@
 
 #### Lesson 4A: Dictionaries
 
-    # A dictionary is a useful way to define an object that consists of named fields, and performing fast lookups on unordered data.
-    prices = {} # Preferred syntax, but same as empty set, so be careful - as it may impact readability
+    # A dictionary is a useful way to define an object that consists of named 
+    # fields, and performing fast lookups on unordered data.
+    prices = {} # Preferred syntax, but same as empty set, so be careful - as 
+                # it may impact readability
     prices = dict() # A more explicit empty dict
     s = {
           'name' : 'GOOG',
@@ -297,7 +306,8 @@
     prices = { }
     prices[('IBM','2015-02-03')] = 91
     prices['IBM', '2015-02-04'] = 92 # Parens can be omitted
-    # NOTE: Only immutables can be used to create multipart keys, which is why we can't use lists and sets for the above
+    # NOTE: Only immutables can be used to create multipart keys, which is why 
+    # we can't use lists and sets for the above
 
     # Value lookups
     name = s['name']
@@ -323,10 +333,12 @@
     # Key extraction
     # Method 1: Convert a dict to a list
     syms = list(prices)     # syms = ['AAPL', 'MSFT', 'IBM', 'GOOG']
-    # Method 2: Access via the .keys method, which returns a special dict_keys print which actively reflects changes made to the dict  
+    # Method 2: Access via the .keys method, which returns a special dict_keys 
+    # print which actively reflects changes made to the dict  
     syms = prices.keys()    # dict_keys(['GOOG', 'AAPL', 'IBM', 'MSFT'])
 
-    # Value extraction: .values returns a special dict_values print which actively reflects changes made to the dict
+    # Value extraction: .values returns a special dict_values print which 
+    # actively reflects changes made to the dict
     vals = prices.values()  # dict_values([490, 123, 91, 52]) 
 
     # Iterating over a dict in a loop
@@ -360,8 +372,9 @@
 
 #### Lesson 1: Iteration & Looping
 
-    # Looping over ranges
-    # The object created by `range(i, j [,step])` is very efficient for looping because it computes the values it represents on demand when lookups are requested
+    # Looping over ranges: The object created by `range(i, j [,step])` is very
+    # efficient for looping because it computes the values it represents on 
+    # demand when lookups are requested
     a = range(1,4)      # b = 1, 2, 3    
     b = range(0, 14, 3) # c = 0, 3, 6, 9, 12
     c = range(5, 1, -1) # d = 5, 4, 3, 2
@@ -391,37 +404,34 @@
 
 #### Lesson 2: Functions
 
-### 1.13. Functions
-
     debug = True # Global variable
 
-    def remainder(int: a, int: b) -> int: # Type annotations improve readability, but are not enforced at runtime
+    # Type annotations improve readability, but are not enforced at runtime
+    def remainder(int: a, int: b) -> int: 
         '''
         Computes the remainder of dividing a by b. This is a docstring, and
         feeds the help() command.
         '''
-        if debug:
-            q = a // b  
-            r = a - q * b
-            return r
+        q = a // b  
+        r = a - q * b
+        if debug: return r 
 
     result = remainder(37, 15)
 
     # Use a tuple to return multiple values from a function.
-    def divide(a, b):
-        q = a // b
-        r = a - q * b
+    def foo(a, b): 
+        ...
         return (q, r)
 
-    quotient, remainder = divide(1456, 33)
+    quotient, remainder = foo(1456, 33)
 
-    # Assigning default values to params - a great way to implement 'optional features'
+    # Assigning default values - a great way to implement 'optional features'
     def connect(hostname, port, timeout=300):
         ...
 
     connect('www.python.org', 80)
     connect('www.python.org', 80, 500)
-    # If there are many defaults, readability can suffer. It's therefore recommended to specify such arguments using keyword arguments. 
+    # If many defaults, readability suffers. Specify such args using keywords. 
     connect('www.python.org', 80, timeout=500)
-    # If you know the names of the arguments, the order in which they are listed doesn't matter. 
+    # Order of args doesn't matter if you know their names.
     connect(port=80, hostname='www.python.org')
