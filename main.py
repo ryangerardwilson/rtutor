@@ -19,7 +19,7 @@ def main():
         print("No valid courses found in the courses directory.")
         sys.exit(1)
 
-    # If -d has args, DocSearcher runs and exits the flow here.
+    # If -d/-c has args, DocSearcher runs and exits the flow here.
     searcher = DocSearcher(courses)
     if searcher.try_run(sys.argv):
         return
@@ -35,4 +35,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

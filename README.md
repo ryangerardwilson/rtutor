@@ -1,14 +1,13 @@
-# RTutor: The Fork in the Road to Escape AI Slop
-
 AI slop is a problem. Inculcating great programming taste is the antidote.
 rtutor is an attempt to disseminate that antidote.
 
 ## Table of Contents
+
 - [Preface](#preface)
 - [Featured Courses](#featured-courses)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Doc mode and fuzzy search](#doc-mode-and-fuzzy-search)
+- [DOC and CAT modes](#doc-and-cat-modes)
 - [Adding Courses](#adding-courses)
 
 ## Preface
@@ -86,16 +85,17 @@ Markdown format:
         code block here
         multiline ok
 
-## Doc mode and fuzzy search
+## DOC and CAT modes 
 
-Read-only doc viewer and direct fuzzy jump that skips menus. Again: invoke with
-rtutor.
+Read-only doc viewer, direct fuzzy jump that skips menus, and a non-interactive
+“cat” that spits content to stdout. Again: invoke with rtutor.
 
 - Launch doc mode:
   - rtutor -d
   - rtutor --doc
+  - -d with no args drops you into doc-mode menus.
 
-- Fuzzy search into doc mode:
+- Fuzzy search into doc mode (interactive):
   - Pass quoted args after -d to filter by titles. Tokens map to:
     - [L] -> lesson
     - [C, L] -> course, lesson
@@ -124,10 +124,38 @@ Examples (from courses/python.md):
     rtutor -d "python" "primitives"
     rtutor -d "python" "dipping toes" "repl"
 
-What you get:
+What you get (-d):
 - Matches open in the doc viewer as a linear list with context like
   “Course > Part > Section > Lesson”.
 - No matches? It says so and exits with code 1.
+
+Cat mode: print the single best match to stdout (non-interactive):
+- Launch cat mode:
+  - rtutor -c <tokens...>
+  - rtutor --cat <tokens...>
+- Same token mapping and fuzzy rules as -d:
+  - [L], [C, L], [C, P, L], [C, P, S, L]
+- Behavior:
+  - Picks one best lesson match (lesson score dominates; course/part/section break ties).
+  - Prints a header and the lesson content to stdout with ANSI colors.
+  - Exits 0 on success.
+  - No match? Prints a “No matching lessons found for -c arguments: …” message and exits 1.
+- Precedence:
+  - If you pass both -c and -d with tokens, -c wins. You asked to print; it prints.
+- Tokens parsing:
+  - Tokens are read after the flag until the next “-” option or end of argv.
+  - -c with no tokens is ignored and you’ll fall back to the normal menus. Don’t do that.
+
+Cat mode examples:
+
+    rtutor -c "repl"
+    # Best single lesson matching "repl" across all courses.
+
+    rtutor -c "python" "repl"
+    # Best match for lesson "repl" inside course "python".
+
+    rtutor -c "python" "dipping toes" "repl"
+    # Best match constrained by course and section.
 
 ## Adding Courses
 
