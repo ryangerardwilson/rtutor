@@ -4,6 +4,7 @@ import sys
 import os
 from modules.menu import Menu
 from modules.course_parser import CourseParser
+from modules.doc_searcher import DocSearcher
 
 
 def main():
@@ -11,17 +12,20 @@ def main():
     script_path = os.path.realpath(__file__)
     script_dir = os.path.dirname(script_path)
     courses_dir = os.path.join(script_dir, "courses")
-    # Initialize CourseParser with the absolute path
+
     parser = CourseParser(courses_dir)
     courses = parser.parse_courses()
-
     if not courses:
         print("No valid courses found in the courses directory.")
         sys.exit(1)
 
-    # Doc mode flag
-    doc_mode = ("-d" in sys.argv) or ("--doc" in sys.argv)
+    # If -d has args, DocSearcher runs and exits the flow here.
+    searcher = DocSearcher(courses)
+    if searcher.try_run(sys.argv):
+        return
 
+    # Otherwise, proceed with menus. -d without args -> doc-mode menus.
+    doc_mode = ("-d" in sys.argv) or ("--doc" in sys.argv)
     menu = Menu(courses, doc_mode=doc_mode)
     try:
         curses.wrapper(menu.run)
@@ -31,3 +35,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -1,93 +1,141 @@
 # RTutor: The Fork in the Road to Escape AI Slop
 
 AI slop is a problem. Inculcating great programming taste is the antidote.
-rtutor is an attempt to disseminate the antidote.
+rtutor is an attempt to disseminate that antidote.
 
-RTutor parses intentionally curated markdown files in a `courses/` directory,
+## Table of Contents
+- [Preface](#preface)
+- [Featured Courses](#featured-courses)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Doc mode and fuzzy search](#doc-mode-and-fuzzy-search)
+- [Adding Courses](#adding-courses)
+
+## Preface
+
+RTutor parses intentionally curated markdown files in a courses/ directory,
 turning them into interactive typing lessons. Each course has parts and
-lessons, which are basically code blocks you have to type accurately - with the
-objective of sequentially embedding taste across the various layers of
-complexity of computer programming. Experienced and new programmers, alike, are
-advised to start ground up from the most basic lessons - for this very reason.
+optional sections. Lessons are code blocks you must type accurately—with the
+objective of embedding taste through repetition. Start from the basics. Yes,
+even you.
 
 ## Featured Courses
 
-Here are the built-in courses, each designed to beat some fundamental
-programming knowledge into your skull through sheer repetition. Don't whine
-about the choices; they're solid starting points.
+Built-ins. Minimal excuses.
 
-1. `hla.md`: This one's for those who want to dip their toes into assembly
-without drowning in registers and opcodes right away. High-Level Assembly (HLA)
-makes it almost readable, like a gateway drug to low-level programming. Covers
-basics like Hello World and variables. If you're scared of real assembly, start
-here—but don't stay too long.
-
-2. `python.md`: Python, the language that's taken over the world because it's
-easy and everyone uses it for everything. This course hits the essentials:
-Hello World, primitive types, loops, operators, functions, and even the walrus
-operator. Great for scripting on Omarchy without compiling headaches. But
-remember, performance matters—don't get too cozy.
-
-3. `c.md`: Ah, C—the mother of all modern languages. This course drills the
-core: Hello World, types, printf formatting, arithmetic, control structures,
-input/output, and constants. It's raw, it's powerful, and it'll teach you how
-computers really work under the hood. Mandatory suffering for any serious
-programmer.
-
-4. `classic_unix_tools.md`: Learn classics like TMUX, grep, find. Many more to
-be added over time.
+1. a.md: High-Level Assembly (HLA). Hello World, variables. Use it to ramp into real assembly.
+2. python.md: Hello World, primitives, loops, operators, functions, I/O. Great for scripting, not an excuse to ignore performance.
+3. c.md: printf, types, control flow, IO, constants. The metal is cold. Learn it anyway.
+4. unix.md: tmux, grep, find. More coming.
 
 ## Installation
 
-On Omarchy (or any Arch-based distro worth its salt):
+On Omarchy (or any Arch derivative):
 
-1. Make sure you've got Python 3 installed. It's Omarchy, so `pacman -S python`
-if you're living under a rock.
+1. Install Python 3:
+   - pacman -S python
 
-2. Curses is built-in with Python's standard library on Linux, so no extra
-packages needed. If it whines, check your Python setup.
+2. Put the repo somewhere sane:
+   - git clone <this-repo> ~/Apps/rtutor
 
-3. Clone or copy the repo to `~/Apps/rtutor` (as per your path).
+3. Make a proper launcher. Symlink init.sh into your PATH as rtutor:
+   - chmod +x ~/Apps/rtutor/init.sh
+   - mkdir -p ~/.local/bin
+   - ln -sf ~/Apps/rtutor/init.sh ~/.local/bin/rtutor
 
-4. That's it. No pip crap, no virtualenvs—pure Python scripts.
+4. Ensure ~/.local/bin is on PATH (fix your shell if it isn’t):
+   - echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+   - source ~/.bashrc
+   - command -v rtutor || echo "PATH not set right"
 
-If you're on some other distro, figure it out. This ain't Windows.
+Use /usr/local/bin with sudo if you want it system-wide. Own the consequences.
+
+Why the symlink? Because init.sh sets TERM correctly (tmux/odd terminals) so
+curses doesn’t puke colors. Use it.
+
+If you’re on some other distro, figure it out. This ain’t Windows.
 
 ## Usage
 
-Fire it up from the terminal:
+You made the symlink—use it.
 
-    cd ~/Apps/rtutor
-    ./main.py
+- Start interactive tutor:
+  - rtutor
 
-If you're one of those tmux weirdos, use ./init.sh instead to set the damn TERM
-variable right and avoid curses screwing up the colors.
+- Menus:
+  - Scans courses/ for .md files.
+  - Navigate with arrows; Enter selects.
+  - Type exactly. Backspace works. Tab inserts spaces if it matches indentation.
+  - Enter submits lines or skips blanks.
+  - Accuracy < 90%? You restart. Cope.
+  - Finish a sequence? You get ASCII art. Press any key to exit.
 
-Or make it executable and symlink it somewhere in your PATH if you're lazy.
+If no courses are found, it tells you and exits. Put .md files in courses/.
 
-- It scans courses/ for .md files.
-- Picks courses, parts, lessons via a curses menu (arrow keys, Enter).
-- Type the code exactly. Backspace works, Tab inserts spaces if it matches.
-- Hit Enter to submit lines or skip blanks.
-- Accuracy below 90%? Restart the lesson. Deal with it.
-- Finish all lessons in a sequence? Boom—ASCII art. Press any key to exit.
+If you insist on bypassing the init script (don’t):
+- ./init.sh
+- ./main.py
+But the supported, recommended way is: rtutor
 
-If no courses found, it bitches and quits. Add more .md files to courses/ in
-the format:
+Markdown format:
 
     # Course Name
-
     ## Part Name
-
-    ### Lesson Name
-
+    ### Section Name (optional)
+    #### Lesson Name
         code block here
         multiline ok
 
+## Doc mode and fuzzy search
+
+Read-only doc viewer and direct fuzzy jump that skips menus. Again: invoke with
+rtutor.
+
+- Launch doc mode:
+  - rtutor -d
+  - rtutor --doc
+
+- Fuzzy search into doc mode:
+  - Pass quoted args after -d to filter by titles. Tokens map to:
+    - [L] -> lesson
+    - [C, L] -> course, lesson
+    - [C, P, L] -> course, part, lesson
+    - [C, P, S, L] -> course, part, section, lesson
+  - Matching is fuzzy, case-insensitive, and punctuation-insensitive. Threshold is 70%.
+
+Fuzzy rules:
+- Single-word token matches individual words in the target title with 70%+ similarity.
+- Multi-word token uses a sliding window of the same word count over the target title; any consecutive n-word window scoring 70%+ is a match.
+
+Examples (from courses/python.md):
+
+    rtutor -d "repl"
+    # Matches lessons with a word fuzzy-matching "repl", e.g., "Lesson 1: Running the REPL"
+    # under: Python > Part I: Python Basics > Section 1: Dipping Toes.
+    # Also matches with: Unix > Part III: Search Utils > Main > Lesson 1: Grep, Find & Locate
+
+    rtutor -d "python" "repl"
+    # [C, L] -> Course "Python", Lesson "Lesson 1: Running the REPL".
+    # Only matches with: Python > Part I: Python Basics > Section 1: Dipping Toes > Lesson 1: Running the REPL
+
+    # Likewise, we have:
+    # [C, P, L]
+    # [C, P, S, L]
+    rtutor -d "python" "primitives"
+    rtutor -d "python" "dipping toes" "repl"
+
+What you get:
+- Matches open in the doc viewer as a linear list with context like
+  “Course > Part > Section > Lesson”.
+- No matches? It says so and exits with code 1.
+
 ## Adding Courses
 
-Just drop markdown files into courses/. Structure like the examples. Lessons
-are code blocks under ### headers. Parts under ##. Course name from # top
-header.
+Drop markdown files into courses/. Keep it simple:
 
-No fancy parsing—keeps it simple and fast.
+- Top-level: # Course
+- Parts: ## Part
+- Optional sections: ### Section
+- Lessons: #### Lesson with an indented code block underneath
+
+No fancy parsing—fast and predictable. Add content, not fluff.
