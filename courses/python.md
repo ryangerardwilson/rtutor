@@ -388,3 +388,40 @@
     with open('foo.txt') as file:
         for line in file:
             print(line, end='')
+
+#### Lesson 2: Functions
+
+### 1.13. Functions
+
+    debug = True # Global variable
+
+    def remainder(int: a, int: b) -> int: # Type annotations improve readability, but are not enforced at runtime
+        '''
+        Computes the remainder of dividing a by b. This is a docstring, and
+        feeds the help() command.
+        '''
+        if debug:
+            q = a // b  
+            r = a - q * b
+            return r
+
+    result = remainder(37, 15)
+
+    # Use a tuple to return multiple values from a function.
+    def divide(a, b):
+        q = a // b
+        r = a - q * b
+        return (q, r)
+
+    quotient, remainder = divide(1456, 33)
+
+    # Assigning default values to params - a great way to implement 'optional features'
+    def connect(hostname, port, timeout=300):
+        ...
+
+    connect('www.python.org', 80)
+    connect('www.python.org', 80, 500)
+    # If there are many defaults, readability can suffer. It's therefore recommended to specify such arguments using keyword arguments. 
+    connect('www.python.org', 80, timeout=500)
+    # If you know the names of the arguments, the order in which they are listed doesn't matter. 
+    connect(port=80, hostname='www.python.org')
