@@ -292,7 +292,7 @@
 
 #### Lesson 4A: Dictionaries
 
-    # A dictionary is a useful way to define an object that consists of named 
+    # A dict is a useful way to define an object that consists of named 
     # fields, and performing fast lookups on unordered data.
     prices = {} # Preferred syntax, but same as empty set, so be careful - as 
                 # it may impact readability
@@ -328,7 +328,7 @@
     else:
         p = 0
     # Alternatively:
-    p = prices.get('IBM',0) # prices['IBM'] if it exits, else 0
+    p = prices.get('IBM',0) # prices['IBM'] if it exists, else 0
 
     # Key extraction
     # Method 1: Convert a dict to a list
