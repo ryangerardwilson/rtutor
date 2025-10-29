@@ -163,3 +163,22 @@
 
     # Disconnect
     sudo killall wpa_supplicant
+
+## Part VI: Media Utils
+
+### Lesson 1: Figlet
+
+    figlet "Hello, World"
+    figlet "Hello, World" > out.txt
+
+    # List all fonts
+    figlist
+
+    # Invoke a specific font
+    figlet -f smslant "Hello, World"
+
+    # Use magick to convert to png
+    # - point size governs how HD it is
+    # - fill governs the font color
+    # - backgroung governs the background color
+    magick -font DejaVu-Sans-Mono -pointsize 50 -background black -fill white label:@t.txt t.png
