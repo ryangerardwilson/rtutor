@@ -12,6 +12,10 @@
     df[['mac', 'plan_id', 'mobile']].nunique()
     df.columns = df.columns.str.lower()
     df.columns.tolist()
+    df['key'] = df['mac'].astype(str) + '_' + df['mobile'].astype(str) + '_' + df['plan_id'].astype(str)
+    df['key'].nunique()
+    df['plan_duration'].value_counts()
+    df.head()
 
 #### Lesson 2: Handling Datetimes and Calculations
 
@@ -19,10 +23,8 @@
     df['plan_end_time'] = pd.to_datetime(df['plan_end_time'], errors='coerce')
     df['plan_duration'] = (df['plan_end_time'] - df['plan_start_time']).dt.days
     df['plan_duration'].value_counts()
-    df['key'] = df['mac'].astype(str) + '_' + df['mobile'].astype(str) + '_' + df['plan_id'].astype(str)
-    df['key'].nunique()
 
-#### Lesson 3: Cutting into Bins
+#### Lesson 3: Bins & Aggregation
 
     from math import inf
     bins = [0, 10, 20, 28, 35, float('inf')]
@@ -39,8 +41,6 @@
     group = df.groupby(['plan_id', 'mobile'])['number_days'].max().reset_index()
     group['days_rng'] = pd.cut(group['number_days'], bins=bins, labels=False) + 1
     group.groupby('days_rng').agg(freq=('mobile', 'count'), min_days=('number_days', 'min'), max_days=('number_days', 'max'), mean_days=('number_days', 'mean')).reset_index()
-
-#### Lesson 4: Advanced Aggregations
 
     group = df.groupby(['plan_id', 'mobile']).agg(nmbr_mac=('mac', 'count')).reset_index()
     group.head()
