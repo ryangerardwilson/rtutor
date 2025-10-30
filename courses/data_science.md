@@ -37,8 +37,8 @@
     # Get diff of days as integer
     df['plan_duration'] = (df['plan_end_time'] - df['plan_start_time']).dt.days
     # NOTE:
-    # - (end - start) yields a Timedelta;
-    # - .dt.days gives the integer day component;
+    # - (end - start) yields a Timedelta
+    # - .dt.days gives the integer day component
     # - NaT propagates to NaN after .dt.days. Thus, if any NaT, all become float
 
 #### Lesson 3: Group By
@@ -74,14 +74,14 @@
 	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
 
     df['util_range'] = pd.qcut(df['utilisation'], q=10, labels=False, duplicates='drop')
-    # NOTE: pd.qcut gives quantile / equal-frequency bins — cut by data quantiles so bins 
+    # NOTE: pd.qcut gives quantile / equal-frequency bins cut by data quantiles so bins 
     # have ~equal counts
     # - q -> number of bins. Bin edges are data-derived and therefore unevenly spaced.
     # - labels=False -> integer bin codes 0..n_bins-1 (0 = lowest decile)
-    # - duplicates='drop' tells qcut to drop duplicate bin edges that arise when quantile cut points are identical
-    #   (this happens when many values are tied). That reduces the number of bins below q; 
-    #   it does NOT remove duplicate rows or values.
-    # - right=True makes the intervals right-closed (a, b] — intervals include the upper endpoint and exclude the lower.
+    # - duplicates='drop' does NOT remove duplicate rows or values. It tells qcut to drop 
+    #   duplicate bin edges that arise when quantile cut points are identical (this happens 
+    #   when many values are tied). That reduces the number of bins below q
+    # - right=True makes the intervals right-closed (a, b] 
 
 #### Lesson 4B: Feature Engineering
 
