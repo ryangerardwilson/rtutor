@@ -56,7 +56,6 @@
     total_uniques = df['mobile'].nunique()
     summary['pct_of_unique_mobiles_all'] = (summary['count_all'] / total_uniques) * 100
 
-
 #### Lesson 4A: Feature Engineering
 
     # Feature engineering: Discretizing continuous variable columns into bins
@@ -69,15 +68,10 @@
 	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0)
 	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
 
-    df['util_range'] = pd.qcut(df['utilisation'], q=10, labels=False, duplicates='drop')
-    # NOTE: pd.qcut gives quantile / equal-frequency bins cut by data quantiles so bins 
-    # have ~equal counts
-    # - q -> number of bins. Bin edges are data-derived and therefore unevenly spaced.
-    # - labels=False -> integer bin codes 0..n_bins-1 (0 = lowest decile)
-    # - duplicates='drop' does NOT remove duplicate rows or values. It tells qcut to drop 
-    #   duplicate bin edges that arise when quantile cut points are identical (this happens 
-    #   when many values are tied). That reduces the number of bins below q
-    # - right=True makes the intervals right-closed (a, b] 
+    df['util_range'] = pd.qcut(df['utilisation'], q=10)
+    # NOTE: pd.qcut gives quantile / equal-frequency bins cut by data quantiles so bins have ~equal counts
+    # Lets now check the freq of rows across all bins
+    df.groupby('util_range',observed=True).size().reset_index()
 
 #### Lesson 4B: Feature Engineering
 
