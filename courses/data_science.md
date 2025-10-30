@@ -23,23 +23,23 @@
 	# Lowercase all column names
 	df.columns = df.columns.str.lower()
 
-	# Create composite key string, turns missing to their string form
-	# float NaN -> 'nan', pandas <NA> -> '<NA>', None -> 'None'
+	# Create composite key string
 	df['key'] = df['mac'].astype(str) + '_' + df['mobile'].astype(str) + '_' + df['plan_id'].astype(str)
 
 #### Lesson 2: Handling Datetimes and Calculations
 
-    # Pandas does not store stuff as bulky Python datetime objects
-    # - Instead, it parses str time columns as the numpy type datetime64[ns]
-    # - invalids -> NaT
     df['plan_start_time'] = pd.to_datetime(df['plan_start_time'], errors='coerce')
     df['plan_end_time'] = pd.to_datetime(df['plan_end_time'], errors='coerce')
+    # Pandas does not store stuff as bulky Python datetime objects
+    # - Instead, it parses str time columns as the numpy type datetime64[ns]
+    # - coerce makes invalids -> NaT
 
-    # Get diff of days as integer; NaT -> NaN
+    # Get diff of days as integer
+    df['plan_duration'] = (df['plan_end_time'] - df['plan_start_time']).dt.days
+    # NOTE:
     # - (end - start) yields a Timedelta;
     # - .dt.days gives the integer day component;
     # - NaT propagates to NaN after .dt.days. Thus, if any NaT, all become float
-    df['plan_duration'] = (df['plan_end_time'] - df['plan_start_time']).dt.days
 
 #### Lesson 3: Group By
 
@@ -62,17 +62,19 @@
 
     # Feature engineering: Discretizing continuous variable columns into bins
 	bins = [0, 10, 20, 28, 35, float('inf')]
-	# pd.cut: fixed, value-based bins (use your explicit edges, mapping them to
-	# indices: 0 -> (0,10], 1 -> (10,20] ... 
-    # where ( -> inclusive, ] -> exclusive
 	df['days_rng'] = pd.cut(df['number_days'], bins=bins, labels=False)
 	df['days_rng'].value_counts()
+	# NOTE: pd.cut gives fixed, value-based bins (use your explicit edges, mapping them to
+	# indices: 0 -> (0,10], 1 -> (10,20] ... 
+    # where ( -> inclusive, ] -> exclusive
+
 
 	df['utilisation'] = df['number_days'] / df['plan_duration']
 	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0)
 	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
 
-    # pd.qcut: quantile / equal-frequency bins — cut by data quantiles so bins 
+    df['util_range'] = pd.qcut(df['utilisation'], q=10, labels=False, duplicates='drop')
+    # NOTE: pd.qcut gives quantile / equal-frequency bins — cut by data quantiles so bins 
     # have ~equal counts
     # - q -> number of bins. Bin edges are data-derived and therefore unevenly spaced.
     # - labels=False -> integer bin codes 0..n_bins-1 (0 = lowest decile)
@@ -80,7 +82,6 @@
     #   (this happens when many values are tied). That reduces the number of bins below q; 
     #   it does NOT remove duplicate rows or values.
     # - right=True makes the intervals right-closed (a, b] — intervals include the upper endpoint and exclude the lower.
-    df['util_range'] = pd.qcut(df['utilisation'], q=10, labels=False, duplicates='drop')
 
 #### Lesson 4B: Feature Engineering
 
@@ -96,11 +97,11 @@
 								mean_days=('number_days', 'mean')).reset_index()
 
     # Change 'Primary Key' (plan_id+mobile), the re-bin & re-summarize
-    # Note: In data science, the 'Primary Key' of a Relation, is essentially its
-    # 'Unit of Analysis'
 	group = df.groupby(['plan_id', 'mobile'])['number_days'].max().reset_index()
 	group['days_rng'] = pd.cut(group['number_days'], bins=bins, labels=False) + 1
 	group.groupby('days_rng').agg(freq=('mobile', 'count'),
 								  min_days=('number_days', 'min'),
 								  max_days=('number_days', 'max'),
 								  mean_days=('number_days', 'mean')).reset_index()
+    # Note: In data science, the 'Primary Key' of a Relation, is essentially its
+    # 'Unit of Analysis'
