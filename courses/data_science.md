@@ -17,7 +17,7 @@
 
 	# Get count of distinct non-null values
 	df['mac'].nunique()
-	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts exl. NaNs
+	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts excluding NaNs
 	df['plan_duration'].value_counts() # Returns Pandas series instead
 
 	# Lowercase all column names
@@ -64,10 +64,7 @@
 	bins = [0, 10, 20, 28, 35, float('inf')]
 	df['days_rng'] = pd.cut(df['number_days'], bins=bins, labels=False)
 	df['days_rng'].value_counts()
-	# NOTE: pd.cut gives fixed, value-based bins (use your explicit edges, mapping them to
-	# indices: 0 -> (0,10], 1 -> (10,20] ... 
-    # where ( -> inclusive, ] -> exclusive
-
+	# NOTE: pd.cut gives fixed, value-based bins, mapping them to indices: 0 -> (0,10], 1 -> (10,20] ... 
 
 	df['utilisation'] = df['number_days'] / df['plan_duration']
 	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0)
@@ -96,7 +93,7 @@
 								max_days=('number_days', 'max'),
 								mean_days=('number_days', 'mean')).reset_index()
 
-    # Change 'Primary Key' (plan_id+mobile), the re-bin & re-summarize
+    # Change 'Primary Key' (plan_id+mobile), then re-bin & re-summarize
 	group = df.groupby(['plan_id', 'mobile'])['number_days'].max().reset_index()
 	group['days_rng'] = pd.cut(group['number_days'], bins=bins, labels=False) + 1
 	group.groupby('days_rng').agg(freq=('mobile', 'count'),
