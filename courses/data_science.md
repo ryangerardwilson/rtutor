@@ -61,9 +61,9 @@
     # Feature engineering: Discretizing continuous variable columns into bins
 	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
     # Inspect what we've labelled
-	df['days_rng'].value_counts().sort_index()
+	df['days_rng_bc'].value_counts().sort_index()
     # Filter out junk, based on inspection
-    df[df['days_rng'].astype(str) != "(35.0, inf]"]
+    df[df['days_rng_bc'].astype(str) != "(35.0, inf]"]
     # NOTE: labels=False gives us the index number of the label (which can
     # directly be used as a numeric feature), instead of the label itself. Don't
     # add this param if you want the col to be more human readable, instead.
@@ -81,6 +81,8 @@
 	df['util_range_qbc'].value_counts().sort_index()
     # NOTE: pd.qcut gives quantile / equal-frequency bins cut by data 
     # quantiles so bins have ~equal counts. 
+
+    # For detailed analysis use .groupby to analyze by pivoting the pk: pk_util_range_qbc_df, pk_days_rng_bc_df
 
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
