@@ -76,11 +76,12 @@
 	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
 
     # Append quantile bin classification column
-    df['util_range_qbc'] = pd.qcut(df['utilisation'], q=10, labels=False)
+    df['util_range_qbc'] = pd.qcut(df['utilisation'],q=10,duplicates='drop',labels=False)
     # Inspect what we've labelled
 	df['util_range_qbc'].value_counts().sort_index()
     # NOTE: pd.qcut gives quantile / equal-frequency bins cut by data 
-    # quantiles so bins have ~equal counts. 
+    # quantiles so bins have ~equal counts. Here, we drop duplicates to
+    # merge duplicate bins caused by too many duplicate values  
 
     # For detailed analysis use .groupby to analyze by pivoting the pk: pk_util_range_qbc_df, pk_days_rng_bc_df
 
