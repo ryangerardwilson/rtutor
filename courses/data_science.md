@@ -6,18 +6,19 @@
 
 #### Lesson 1: Inspecting Dataframes
 
-	# Get columns as list
-	df.columns.tolist()
-
+	# Get columns
+	df.columns
 	# Get tuple showing (row_count, col_count)
 	df.shape
-
 	# Preview first 5 rows
 	df.head()
 
 	# Get count of distinct non-null values
 	df['mac'].nunique()
 	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts excluding NaNs
+
+    # Get count of rows of each distinct value of that column
+    # (a quick way to group by column)
 	df['plan_duration'].value_counts().sort_index() # Returns Pandas series 
 
 	# Lowercase all column names
