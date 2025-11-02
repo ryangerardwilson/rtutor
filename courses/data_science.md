@@ -89,7 +89,37 @@
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-#### Lesson 4: Pivot & Simplify for Stakeholders
+#### Lesson 4: Pivot Table
+
+    import pandas as pd
+
+    df = pd.DataFrame({
+            'region': ['N', 'N', 'S', 'S', 'E', 'E'],
+            'prod': ['A', 'B', 'A', 'B', 'A', 'B'],
+            'Q1': [100, 150, 200, 250, 300, 350],
+            'Q2': [110, 160, 210, 260, np.nan, 360],
+            'Q3': [120, np.nan, 220, 270, 320, 370],
+        })
+
+    pivot = pd.pivot_table(
+        df,
+        index='region',
+        columns='prod',
+        values=['Q1', 'Q2', 'Q3'],
+        aggfunc="mean",
+        fill_value=0,
+    )
+    pivot = pivot.sort_index(axis=1)
+    print(pivot)
+
+    # quarter     Q1            Q2            Q3
+    # prod         A      B      A      B      A      B
+    # region
+    # E        300.0  350.0    0.0  360.0  320.0  370.0
+    # N        100.0  150.0  110.0  160.0  120.0    0.0
+    # S        200.0  250.0  210.0  260.0  220.0  270.0
+
+#### Lesson 5: Pivot & Simplify for Stakeholders
 
     # Goal: 3x3 table -> motivation (col), high_ability, med_ability, low_ability
 
