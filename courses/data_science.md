@@ -105,7 +105,7 @@
         columns='prod',
         values=['Q1', 'Q2', 'Q3'],
         aggfunc="mean",
-        fill_value=0,
+        fill_value=0, # considers NaN values to be 0
     )
     pivot = pivot.sort_index(axis=1)
     print(pivot)
