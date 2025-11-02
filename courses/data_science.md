@@ -91,7 +91,7 @@
 
 #### Lesson 4: Pivot & Simplify for Stakeholders
 
-    # Goal: 3×3 table → motivation (col), high_ability, med_ability, low_ability
+    # Goal: 3x3 table -> motivation (col), high_ability, med_ability, low_ability
 
     # Assume df has:
     #   - util_rng_qc     : 1–10 (utilisation quantile, 10 = highest usage)
