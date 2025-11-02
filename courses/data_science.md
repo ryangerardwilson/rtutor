@@ -1,8 +1,8 @@
 # Data Science
 
-## Part I: Pandas
+## Part I: Replace Excel with Python
 
-### Section 1: Crash Course
+### Section 1: Vanilla Numpy & Pandas
 
 #### Lesson 1: Inspecting Dataframes
 
@@ -94,32 +94,29 @@
     # Goal: 3x3 table -> motivation (col), high_ability, med_ability, low_ability
 
     # Assume df has:
-    #   - util_rng_qc     : 1–10 (utilisation quantile, 10 = highest usage)
-    #   - churn_risk_qc   : 1–10 (churn risk quantile, 10 = highest risk)
+    #   - util_rng_qc     : 1-10 (utilisation quantile, 10 = highest usage)
+    #   - churn_risk_qc   : 1-10 (churn risk quantile, 10 = highest risk)
 
     df["motivation"] = np.where(
-        df["churn_risk_qc"] <= 3, "high",
+        df["churn_risk_qc"] <= 3, "high", 
         np.where(df["churn_risk_qc"] <= 7, "med", "low")
     )
 
-    df["ability"] = np.where(
+    df["ability"] = np.where( 
         df["util_rng_qc"] >= 9, "high_ability",
-        np.where(df["util_rng_qc"] >= 4, "med_ability", "low_ability")
+        np.where(df["util_rng_qc"] >= 4, "med_ability", "low_ability"),
     )
 
     pk_motivation_df = (
         df.groupby(["motivation", "ability"])
         .agg(users=("plan_id", "nunique"))
         .reset_index()
-        .pivot_table(
-            index="motivation",
-            columns="ability",
-            values="users",
-            fill_value=0
-        )
-        .reindex(["high", "med", "low"])
-        [["high_ability", "med_ability", "low_ability"]]
+        .pivot_table(index="motivation", columns="ability", values="users", fill_value=0)
+        .reindex(["high", "med", "low"])  # rows
+        .reindex(["high_ability", "med_ability", "low_ability"], axis=1)  # columns
         .reset_index()
     )
 
+    # Flatten the columns so "ability" doesn't sit on top
+    pk_motivation_df.columns.name = None  
     print(pk_motivation_df)
