@@ -1,6 +1,41 @@
 # Unix
 
-## Part I: Vim CLI Tools
+## Part I: Terminal Shortcuts
+
+### Lesson 1: Cursor Control
+
+    Ctrl+A: Move cursor to the beginning of the line
+    Ctrl+E: Move cursor to the endo of the end
+    Alt+F: Move cursor forward by one word
+    Alt+B: Move cursor backwards by one word
+
+### Lesson 2: Text Control
+
+    Ctrl+U: Clear the line before the cursor
+    Ctrl+K: Clear the line after the cursor
+    Ctrl+W: Remove one word to the left
+    Alt+D: Remove one word to the right
+    Ctrl+H: Remove one char to the left
+    Tab: Auto-complete
+
+### Lesson 3: Job Control
+
+    Ctrl+C: Abort a foreground job by sending a SIGINT signal
+    Ctrl+Z: Stop a foreground job by sending a SIGSTOP signal
+
+### Lesson 4: Session Control
+
+    Ctrl+L: Clear current terminal session
+    Ctrl+D: Exit the current terminal session
+
+### Lesson 5: History Search
+
+    Ctrl+R: Reverse search
+    Ctrl+P: Previous command
+    Ctrl+N: Next command
+    !!: Run the last command again
+
+## Part II: Vim CLI Tools
 
 ### Lesson 1: Toggle vim normal mode in Alacrity
 
@@ -15,7 +50,7 @@
     vim dir/**/*.md # Same as above, but recursively. 
                     # The dir should have subdirs
 
-## Part II: Tmux
+## Part III: Tmux
 
 ### Lesson 1: Sessions
 
@@ -39,7 +74,7 @@
     Space # Initiate selection Mode
     ESc # Quit selection mode 
 
-## Part III: Search Utils
+## Part IV: Search Utils
 
 ### Lesson 1: Grep, Find & Locate
 
@@ -71,7 +106,7 @@
     git diff HEAD  # All changes since last commit.
     git diff branch1 branch2  # Compare two branches.
 
-## Part IV: File & Directory Management
+## Part V: File & Directory Management
 
 ### Lesson 1: File & Dir CRUD
 
@@ -121,7 +156,7 @@
     cd ~  
     cd -  # Back to previous directory
 
-## Part V: Internet
+## Part VI: Internet
 
 ### Lesson 1: iwctl
 
@@ -139,7 +174,7 @@
     # To exit iwctl cli
     exit
 
-## Part VI: Media Utils
+## Part VII: Media Utils
 
 ### Lesson 1: Figlet
 
