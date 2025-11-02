@@ -91,8 +91,6 @@
 
 #### Lesson 4: Pivot Table
 
-    import pandas as pd
-
     df = pd.DataFrame({
             'region': ['N', 'N', 'S', 'S', 'E', 'E'],
             'prod': ['A', 'B', 'A', 'B', 'A', 'B'],
