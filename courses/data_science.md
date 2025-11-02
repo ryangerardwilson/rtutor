@@ -42,8 +42,8 @@
     ).reset_index()
     # Inspect what we've aggregated
     pk_plan_id_mobile_df['nmbr_mac'].value_counts().sort_index()
-    NOTE: Available aggs: count, nunique, min, max, first, last, sum, mean,
-    median, mode
+    # NOTE: Available aggs: count, nunique, min, max, first, last, sum, mean,
+    # median, mode
 
     pk_number_days_df = df.groupby('number_days').agg(
         count_all=('mobile', 'count'),
