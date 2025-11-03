@@ -1,8 +1,8 @@
 # Unix
 
-## Part I: Terminal Shortcuts
+## Part I: Typing in the Terminal
 
-### Lesson 1: Typing Multiline stings
+### Lesson 1: Multiline stings
 
     # Option A: Use `fc`. It loads the last command into vim, and executes when
     # you :wq
@@ -48,7 +48,7 @@
 
 ### Lesson 6: History Search
 
-    Ctrl+R: Reverse search
+    Ctrl+R: Reverse search. Keep hitting Ctrl+R to cycle through older matches
     Ctrl+P: Previous command
     Ctrl+N: Next command
     !!: Run the last command again
