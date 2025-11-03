@@ -2,14 +2,32 @@
 
 ## Part I: Terminal Shortcuts
 
-### Lesson 1: Cursor Control
+### Lesson 1: Typing Multiline stings
+
+    # Option A: Use `fc`. It loads the last command into vim, and executes when
+    # you :wq
+
+    # Option B: Use `\`. The `\` is ignored, and the below is executed as if it
+    # were one line
+    bash$ cd \
+    > Apps/\
+    > rtutor/\
+    > courses\
+    > && pwd
+    /home/ryan/Apps/rtutor/courses
+    # NOTE: The below will not print 'hello world' in one line because single 
+    # quotes tell bash to treat everything inside '' as a string literal
+    bash$ echo 'hello\
+    > world'
+
+### Lesson 2: Cursor Control
 
     Ctrl+A: Move cursor to the beginning of the line
     Ctrl+E: Move cursor to the endo of the end
     Alt+F: Move cursor forward by one word
     Alt+B: Move cursor backwards by one word
 
-### Lesson 2: Text Control
+### Lesson 3: Text Control
 
     Ctrl+U: Clear the line before the cursor
     Ctrl+K: Clear the line after the cursor
@@ -18,17 +36,17 @@
     Ctrl+H: Remove one char to the left
     Tab: Auto-complete
 
-### Lesson 3: Job Control
+### Lesson 4: Job Control
 
     Ctrl+C: Abort a foreground job by sending a SIGINT signal
     Ctrl+Z: Stop a foreground job by sending a SIGSTOP signal
 
-### Lesson 4: Session Control
+### Lesson 5: Session Control
 
     Ctrl+L: Clear current terminal session
     Ctrl+D: Exit the current terminal session
 
-### Lesson 5: History Search
+### Lesson 6: History Search
 
     Ctrl+R: Reverse search
     Ctrl+P: Previous command
