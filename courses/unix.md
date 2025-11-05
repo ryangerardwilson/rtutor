@@ -100,6 +100,8 @@
     ls build*.c build*.h
     # Search files not starting with 'build', have specific extension
     ls !(build*).c
+    # Search files not starting with 'foo' or 'bar', but having specific extension
+    ls !(@(foo|bar)*).c
 
 ### Lesson 2: Grep, Find & Locate
 
