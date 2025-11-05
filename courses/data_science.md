@@ -17,8 +17,7 @@
 	df['mac'].nunique()
 	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts excluding NaNs
 
-    # Get count of rows of each distinct value of that column
-    # (a quick way to group by column)
+    # Quick way to group by column
 	df['plan_duration'].value_counts().sort_index() # Returns Pandas series 
 
 	# Lowercase all column names
@@ -27,7 +26,32 @@
 	# Create composite key string
 	df['key'] = df['mac'].astype(str) + '_' + df['mobile'].astype(str) + '_' + df['plan_id'].astype(str)
 
-#### Lesson 2: Handling Datetimes & Group 
+#### Lesson 2: Filter & Mask
+
+    # Using the [] operator 
+    df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
+    df[~df['plan_id'].isin([4, 5])] # exclude those plan_ids
+    df = df[df['plan_duration'] > 12] # Mutates the df
+    filtered_df = df[df['plan_duration'] > 12].copy() # Get explicit copy
+    df[df['mac'].notna()] # keep rows with mac present
+
+    # Using .dropna (which ises .isna internally) 
+    # What pandas treats as NA: np.nan, pandas.NaT, None, pd.NA (and other
+    # dtype-specific NA representations). isna() returns True for those.
+    df.dropna(subset=['mac', 'mobile']) # drop rows missing mac or mobile
+
+    # Using masks: a mask is a boolean Series whose elements are True where condition satisfied 
+    mask = (df['plan_duration'] > 12) & (df['plan_id'] == 3)
+    # select rows where mask is True and only these columns
+    df.loc[mask, ['mac', 'mobile', 'plan_id']]
+    # set plan_duration to 0 for masked rows 
+    df.loc[mask, 'plan_duration'] = 0
+
+    # String filters (always set na=False)
+    df[df['mobile'].str.contains('555', na=False)]   
+    df[df['mac'].str.startswith('aa', na=False)] 
+
+#### Lesson 3: Handling Datetimes & Group 
 
     # Handle datetimes
     df['plan_start_time'] = pd.to_datetime(df['plan_start_time'], errors='coerce')
@@ -57,7 +81,7 @@
     # NOTE: It is good practice to use pk_{primary_keys}_df as indicators for 
     # the primary keys of the df
 
-#### Lesson 3: Feature Engineering Workflow
+#### Lesson 4: Feature Engineering Workflow
 
     # Feature engineering: Discretizing continuous variable columns into bins
 	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
@@ -89,7 +113,7 @@
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-#### Lesson 4A: Pivot Table Definition
+#### Lesson 5A: Pivot Table Definition
 
     df = pd.DataFrame({
             'region': ['N', 'N', 'S', 'S', 'E', 'E'],
@@ -125,7 +149,7 @@
     # N        100.0  150.0  110.0  160.0  120.0    0.0
     # S        200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 4B: Pivot Table (Formatting)
+#### Lesson 5B: Pivot Table (Formatting)
 
     # Now, lets format the pivot table to use useful relational df
     pk_region_df = pivot.copy()
@@ -138,7 +162,7 @@
     # 1      N  100.0  150.0  110.0  160.0  120.0    0.0
     # 2      S  200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 4C: Pivot Table (Practical Application)
+#### Lesson 5C: Pivot Table (Practical Application)
 
     # Goal: 3x3 table -> motivation (col), high_ability, med_ability, low_ability
 
@@ -156,14 +180,21 @@
         np.where(df['util_rng_qc'] >= 4, 'med_ability', 'low_ability'),
     )
 
-    pk_motivation_df = (
+    pk_motivation_ability_df = ( 
         df.groupby(['motivation', 'ability'])
-        .agg(users=('plan_id', 'nunique'))
-        .reset_index()
-        .pivot_table(index='motivation', columns='ability', values='users', fill_value=0)
-        .reindex(['high', 'med', 'low'])  # rows
-        .reindex(['high_ability', 'med_ability', 'low_ability'], axis=1)  # columns
-        .reset_index()
+          .agg(users=('plan_id', 'nunique'))
+          .reset_index()  
+    )
+    # NOTE: We wrap it in a (), to allow us to indent each .method on a separate line
+
+    # Pivot so abilities become columns and motivations become rows; fill missing with 0 and force desired order
+    pk_motivation_df = ( 
+        pk_motivation_ability_df
+          .pivot(index='motivation', columns='ability', values='users')
+          .fillna(0)  # missing combos -> 0 users
+          .reindex(['high', 'med', 'low'])  # enforce row order
+          .reindex(['high_ability', 'med_ability', 'low_ability'], axis=1)  # enforce column order/names
+          .reset_index()  # turn 'motivation' back into a column
     )
 
     # Flatten the columns so "ability" doesn't sit on top
