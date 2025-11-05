@@ -89,7 +89,7 @@
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-#### Lesson 4: Pivot Table
+#### Lesson 4A: Pivot Table Definition
 
     df = pd.DataFrame({
             'region': ['N', 'N', 'S', 'S', 'E', 'E'],
@@ -99,25 +99,46 @@
             'Q3': [120, np.nan, 220, 270, 320, 370],
         })
 
+    # Definition of a Pivot Table in Relational Calculus
+    # Given a relation (table) T with attributes {R_attrs} (row keys), 
+    # {C_attrs} (column keys), and {V} (value(s)), and an aggregation function 
+    # agg, the pivot table P is the function:
+    #   P(r, c) = agg({ t.V | t in T and t.R_attrs = r and t.C_attrs = c }),
+    #   where r ranges over unique values of R_attrs and c over unique values
+    #   of C_attrs.
+
     pivot = pd.pivot_table(
-        df,
-        index='region',
-        columns='prod',
-        values=['Q1', 'Q2', 'Q3'],
-        aggfunc='mean',
+        df, # T
+        index='region', # {R_attrs}
+        columns='prod', # {C_attrs}
+        values=['Q1', 'Q2', 'Q3'], # {V}
+        aggfunc='mean', # agg
         fill_value=0, # considers NaN values to be 0
     )
     pivot = pivot.sort_index(axis=1)
     print(pivot)
 
-    # quarter     Q1            Q2            Q3
+    #             Q1            Q2            Q3
     # prod         A      B      A      B      A      B
     # region
     # E        300.0  350.0    0.0  360.0  320.0  370.0
     # N        100.0  150.0  110.0  160.0  120.0    0.0
     # S        200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 5: Pivot & Simplify for Stakeholders
+#### Lesson 4B: Pivot Table (Formatting)
+
+    # Now, lets format the pivot table to use useful relational df
+    pk_region_df = pivot.copy()
+    pk_region_df.columns = [f"{val}_{col}" for val, col in pk_region_df.columns]
+    pk_region_df = pivot.reset_index()
+    print(pk_region_df)
+
+    #   region  Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
+    # 0      E  300.0  350.0    0.0  360.0  320.0  370.0
+    # 1      N  100.0  150.0  110.0  160.0  120.0    0.0
+    # 2      S  200.0  250.0  210.0  260.0  220.0  270.0
+
+#### Lesson 4C: Pivot Table (Practical Application)
 
     # Goal: 3x3 table -> motivation (col), high_ability, med_ability, low_ability
 
