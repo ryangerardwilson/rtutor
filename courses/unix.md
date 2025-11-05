@@ -94,7 +94,14 @@
 
 ## Part IV: Search Utils
 
-### Lesson 1: Grep, Find & Locate
+### Lesson 1: ls
+
+    # Search files starting with 'build', having specific extension
+    ls build*.c build*.h
+    # Search files not starting with 'build', have specific extension
+    ls !(build*).c
+
+### Lesson 2: Grep, Find & Locate
 
     # Grep searches text within files
     grep "error" system.log
@@ -111,7 +118,7 @@
     # Locate: While find seaches below ~/, locate seaches above 
     sudo updatedb && locate "nginx"
 
-### Lesson 2: Diff and Git Diff
+### Lesson 3: Diff and Git Diff
 
     # Diff compares two files line by line
     diff file1.txt file2.txt  
