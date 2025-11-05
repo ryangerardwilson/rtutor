@@ -4,7 +4,28 @@
 
 ### Section 1: Vanilla Numpy & Pandas
 
-#### Lesson 1: Inspecting Dataframes
+#### Lesson 1: Relational Calculus Thinking
+
+    # A table/dataframe is a way to represent an n-ary mathematical relation, where
+    # - n represents the number of columns,
+    # - columns represent attributes of tuple indices, and
+    # - rows represent tuples.
+    # Table = { (c1, c2, ..., cn) | each ci in `domain_i`, for i=1 to n }
+
+    # Define the domains implicitly through data types and values
+    table = {
+        'ID': [1, 2, 3],  # Domain: positive integers
+        'Name': ['Alice', 'Bob', 'Charlie'],  # Domain: strings
+        'Salary': [100000.0, 120000.0, 90000.0]  # Domain: non-negative floats
+    }
+
+    # Create the dataframe (table) representing the 3-ary relation
+    pk_id_df = pd.DataFrame(table)
+    n = len(pk_id_df.columns)
+    columns = pk_id_df.columns
+
+
+#### Lesson 2: Inspecting Dataframes
 
 	# Get columns
 	df.columns
@@ -26,7 +47,7 @@
 	# Create composite key string
 	df['key'] = df['mac'].astype(str) + '_' + df['mobile'].astype(str) + '_' + df['plan_id'].astype(str)
 
-#### Lesson 2: Filter & Mask
+#### Lesson 3A: Filter & Mask
 
     # Using the [] operator 
     df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
@@ -35,12 +56,12 @@
     filtered_df = df[df['plan_duration'] > 12].copy() # Get explicit copy
     df[df['mac'].notna()] # keep rows with mac present
 
-    # Using .dropna (which ises .isna internally) 
+    # Using .dropna (which uses .isna internally) 
     # What pandas treats as NA: np.nan, pandas.NaT, None, pd.NA (and other
     # dtype-specific NA representations). isna() returns True for those.
     df.dropna(subset=['mac', 'mobile']) # drop rows missing mac or mobile
 
-    # Using masks: a mask is a boolean Series whose elements are True where condition satisfied 
+    # Using masks: a mask is a boolean Series whose elements are True where the mask condition is satisfied 
     mask = (df['plan_duration'] > 12) & (df['plan_id'] == 3)
     # select rows where mask is True and only these columns
     df.loc[mask, ['mac', 'mobile', 'plan_id']]
@@ -51,7 +72,33 @@
     df[df['mobile'].str.contains('555', na=False)]   
     df[df['mac'].str.startswith('aa', na=False)] 
 
-#### Lesson 3: Handling Datetimes & Group 
+#### Lesson 3B: Filter & Mask (Datetime Columns)
+
+    # Ensure real datetimes — coerce bad input to NaT, then handle
+    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  # Don't guess types; coerce invalid -> NaT
+    df = df[df['ts'].notna()] # Drop bad dates explicitly
+
+    # Range comparisons / between — readable and vectorized
+    df[df['ts'] >= pd.Timestamp('2020-01-01')] # single-side
+    df[df['ts'].between('2020-01-01', '2020-01-31')] # inclusive range (clean)
+
+    # DatetimeIndex slicing — fastest and very readable
+    df = df.set_index('ts') # set index once for time ops
+    df.loc['2020-01-01':'2020-01-31'] # inclusive index slice
+    df.between_time('08:00', '17:00') # time-of-day filter on index
+
+    # Component masks with .dt — year/month/weekday/time
+    df[df['ts'].dt.year == 2020] # filter by year
+    df[df['ts'].dt.month.isin([1,2,3])] # filter months
+    df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
+    df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())]  # time-only mask
+
+    # Masking & assignment — use .loc or .copy() to avoid SettingWithCopy
+    mask = df['ts'] < pd.Timestamp('2020-01-01')
+    df.loc[mask, 'status'] = 'expired' # safe assignment
+    sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
+
+#### Lesson 4: Handling Datetimes & Group 
 
     # Handle datetimes
     df['plan_start_time'] = pd.to_datetime(df['plan_start_time'], errors='coerce')
@@ -81,7 +128,7 @@
     # NOTE: It is good practice to use pk_{primary_keys}_df as indicators for 
     # the primary keys of the df
 
-#### Lesson 4: Feature Engineering Workflow
+#### Lesson 5: Feature Engineering (Creating Helper Columns)
 
     # Feature engineering: Discretizing continuous variable columns into bins
 	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
@@ -97,7 +144,7 @@
 	df['utilisation'] = df['number_days'] / df['plan_duration']
 
     # Append boolean attribute columns
-	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0)
+	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0) # The first param is basically a Boolean Series mask
 	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
 
     # Append quantile bin classification column
@@ -113,7 +160,7 @@
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-#### Lesson 5A: Pivot Table Definition
+#### Lesson 6A: Pivot Table Definition
 
     df = pd.DataFrame({
             'region': ['N', 'N', 'S', 'S', 'E', 'E'],
@@ -149,9 +196,12 @@
     # N        100.0  150.0  110.0  160.0  120.0    0.0
     # S        200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 5B: Pivot Table (Formatting)
+#### Lesson 6B: Pivot Table (Formatting)
 
-    # Now, lets format the pivot table to use useful relational df
+    # Now, because the Relation Model mandates that all relational functions
+    # output a relation, lets format the pivot table to be a useful relational df
+    # consistent with the indexing of its input for subsequent processing
+
     pk_region_df = pivot.copy()
     pk_region_df.columns = [f"{val}_{col}" for val, col in pk_region_df.columns]
     pk_region_df = pivot.reset_index()
@@ -162,7 +212,7 @@
     # 1      N  100.0  150.0  110.0  160.0  120.0    0.0
     # 2      S  200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 5C: Pivot Table (Practical Application)
+#### Lesson 5C: Pivot Table (Motivation x Ability Grid)
 
     # Goal: 3x3 table -> motivation (col), high_ability, med_ability, low_ability
 
@@ -170,7 +220,7 @@
     #   - util_rng_qc     : 1-10 (utilisation quantile, 10 = highest usage)
     #   - churn_risk_qc   : 1-10 (churn risk quantile, 10 = highest risk)
 
-    df["motivation"] = np.where(
+    df['motivation'] = np.where(
         df['churn_risk_qc'] <= 3, 'high', 
         np.where(df['churn_risk_qc'] <= 7, 'med', 'low')
     )
