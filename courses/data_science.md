@@ -217,18 +217,11 @@
     # Goal: 3x3 table with cols: motivation, high_ability, med_ability, low_ability
 
     # Assume df has:
-    #   - util_rng_qc     : 1-10 (utilisation quantile, 10 = highest usage)
-    #   - churn_risk_qc   : 1-10 (churn risk quantile, 10 = highest risk)
+    # - util_rng_qc: 1-10 (utilisation quantile, 10 = highest usage)
+    # - churn_risk_qc: 1-10 (churn risk quantile, 10 = highest risk)
 
-    df['motivation'] = np.where(
-        df['churn_risk_qc'] <= 3, 'high', 
-        np.where(df['churn_risk_qc'] <= 7, 'med', 'low')
-    )
-
-    df['ability'] = np.where( 
-        df['util_rng_qc'] >= 9, 'high_ability',
-        np.where(df['util_rng_qc'] >= 4, 'med_ability', 'low_ability'),
-    )
+    df['motivation'] = np.where(df['churn_risk_qc'] <= 3, 'high', np.where(df['churn_risk_qc'] <= 7, 'med', 'low'))
+    df['ability'] = np.where(df['util_rng_qc'] >= 9, 'high_ability', np.where(df['util_rng_qc'] >= 4, 'med_ability', 'low_ability'))
 
     pk_motivation_ability_df = ( 
         df.groupby(['motivation', 'ability'])
