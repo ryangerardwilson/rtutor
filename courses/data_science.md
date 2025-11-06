@@ -52,6 +52,9 @@
 	# Create composite key string
 	df['key'] = df['mac'].astype(str) + '_' + df['mobile'].astype(str) + '_' + df['plan_id'].astype(str)
 
+    # Sorting column
+    df.sort_values(by='sum_cnts',ascending=False)
+
 #### Lesson 3A: Filter & Mask
 
     # Using the [] operator 
