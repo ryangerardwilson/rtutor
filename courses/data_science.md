@@ -9,21 +9,23 @@
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
     # - n represents the number of columns,
     # - columns represent attributes of tuple indices, and
-    # - rows represent tuples.
+    # - rows represent a set of {tuples}.
     # Table = { (c1, c2, ..., cn) | each ci in `domain_i`, for i=1 to n }
 
     # Define the domains implicitly through data types and values
     table = {
-        'ID': [1, 2, 3],  # Domain: positive integers
-        'Name': ['Alice', 'Bob', 'Charlie'],  # Domain: strings
-        'Salary': [100000.0, 120000.0, 90000.0]  # Domain: non-negative floats
+        'ID': [1, 2, 3, 3], # Domain: positive integers
+        'Name': ['Alice', 'Bob', 'Charlie', 'Charlie'], # Domain: strings
+        'Salary': [100000.0, 120000.0, 90000.0, 90000.0] # Domain: non-negative floats
     }
 
-    # Create the dataframe (table) representing the 3-ary relation
+    # While a df, can accomodate duplicate rows - we cannot call such a table a
+    # relational table because, rows MUST represent a set of {tuples}. A
+    # df representing a relation must have at least 1 key candidate.
+    relational_table = table.drop_duplicates()
     pk_id_df = pd.DataFrame(table)
     n = len(pk_id_df.columns)
     columns = pk_id_df.columns
-
 
 #### Lesson 2: Inspecting Dataframes
 
