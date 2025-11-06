@@ -235,7 +235,7 @@
           .agg(users=('plan_id', 'nunique'))
           .reset_index()  
     )
-    # NOTE: We wrap it in a (), to allow us to indent each .method on a separate line
+    # NOTE: We wrap it in a (), to allow us to indent each .method on a seperate line
 
     # Pivot so abilities become columns and motivations become rows; fill missing with 0 and force desired order
     pk_motivation_df = ( 
