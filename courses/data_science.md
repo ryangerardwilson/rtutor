@@ -237,7 +237,8 @@
     )
     # NOTE: We wrap it in a (), to allow us to indent each .method on a seperate line
 
-    # Pivot so abilities become columns and motivations become rows; fill missing with 0 and force desired order
+    # Pivot so abilities become columns and motivations become rows; fill 
+    # missing with 0 and force desired order
     pk_motivation_df = ( 
         pk_motivation_ability_df
           .pivot(index='motivation', columns='ability', values='users')
