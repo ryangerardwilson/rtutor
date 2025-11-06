@@ -95,7 +95,7 @@
     df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
     df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
 
-    # Masking & assignment - use .loc or .copy() to avoid SettingWithCopy
+    # Masking & assignment 
     mask = df['ts'] < pd.Timestamp('2020-01-01')
     df.loc[mask, 'status'] = 'expired' # safe assignment
     sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
