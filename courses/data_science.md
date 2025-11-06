@@ -212,7 +212,7 @@
     # 1      N  100.0  150.0  110.0  160.0  120.0    0.0
     # 2      S  200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 5C: Pivot Table (Motivation x Ability Grid)
+#### Lesson 6C: Pivot Table (Motivation x Ability Grid)
 
     # Goal: 3x3 table -> motivation (col), high_ability, med_ability, low_ability
 
