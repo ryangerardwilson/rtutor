@@ -198,7 +198,7 @@
 
 #### Lesson 6B: Pivot Table (Formatting)
 
-    # Now, because the Relation Model mandates that all relational functions
+    # Now, because the Relational Model mandates that all relational functions
     # output a relation, lets format the pivot table to be a useful relational df
     # consistent with the indexing of its input for subsequent processing
 
