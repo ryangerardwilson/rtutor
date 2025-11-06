@@ -214,7 +214,7 @@
 
 #### Lesson 6C: Pivot Table (Motivation x Ability Grid)
 
-    # Goal: 3x3 table -> motivation (col), high_ability, med_ability, low_ability
+    # Goal: 3x3 table with cols: motivation, high_ability, med_ability, low_ability
 
     # Assume df has:
     #   - util_rng_qc     : 1-10 (utilisation quantile, 10 = highest usage)
