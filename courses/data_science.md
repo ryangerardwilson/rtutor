@@ -40,6 +40,9 @@
 	df['mac'].nunique()
 	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts excluding NaNs
 
+    # Get count of null/NaN values in a column
+    df['col'].isna().sum()
+
     # Quick way to group by column
 	df['plan_duration'].value_counts().sort_index() # Returns Pandas series 
 
