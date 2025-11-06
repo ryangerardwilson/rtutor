@@ -76,26 +76,26 @@
 
 #### Lesson 3B: Filter & Mask (Datetime Columns)
 
-    # Ensure real datetimes — coerce bad input to NaT, then handle
-    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  # Don't guess types; coerce invalid -> NaT
-    df = df[df['ts'].notna()] # Drop bad dates explicitly
+    # Ensure real datetimes - coerce bad input to NaT, then drop
+    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
+    df = df[df['ts'].notna()] 
 
-    # Range comparisons / between — readable and vectorized
+    # Range comparisons / between - readable and vectorized
     df[df['ts'] >= pd.Timestamp('2020-01-01')] # single-side
     df[df['ts'].between('2020-01-01', '2020-01-31')] # inclusive range (clean)
 
-    # DatetimeIndex slicing — fastest and very readable
+    # DatetimeIndex slicing - fastest and very readable
     df = df.set_index('ts') # set index once for time ops
     df.loc['2020-01-01':'2020-01-31'] # inclusive index slice
     df.between_time('08:00', '17:00') # time-of-day filter on index
 
-    # Component masks with .dt — year/month/weekday/time
+    # Component masks with .dt - year/month/weekday/time
     df[df['ts'].dt.year == 2020] # filter by year
     df[df['ts'].dt.month.isin([1,2,3])] # filter months
     df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
-    df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())]  # time-only mask
+    df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
 
-    # Masking & assignment — use .loc or .copy() to avoid SettingWithCopy
+    # Masking & assignment - use .loc or .copy() to avoid SettingWithCopy
     mask = df['ts'] < pd.Timestamp('2020-01-01')
     df.loc[mask, 'status'] = 'expired' # safe assignment
     sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
@@ -243,12 +243,12 @@
     pk_motivation_df = ( 
         pk_motivation_ability_df
           .pivot(index='motivation', columns='ability', values='users')
-          .fillna(0)  # missing combos -> 0 users
-          .reindex(['high', 'med', 'low'])  # enforce row order
-          .reindex(['high_ability', 'med_ability', 'low_ability'], axis=1)  # enforce column order/names
-          .reset_index()  # turn 'motivation' back into a column
+          .fillna(0) # missing combos -> 0 users
+          .reindex(['high', 'med', 'low']) # enforce row order
+          .reindex(['high_ability', 'med_ability', 'low_ability'], axis=1) # enforce column order/names
+          .reset_index() # turn 'motivation' back into a column
     )
 
-    # Flatten the columns so "ability" doesn't sit on top
+    # Flatten the columns so 'ability' doesn't sit on top
     pk_motivation_df.columns.name = None  
     print(pk_motivation_df)
