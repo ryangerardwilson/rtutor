@@ -100,12 +100,10 @@
     df.loc[mask, 'status'] = 'expired' # safe assignment
     sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
 
-#### Lesson 4: Handling Datetimes & Group 
+#### Lesson 4: Group 
 
-    # Handle datetimes
-    df['plan_start_time'] = pd.to_datetime(df['plan_start_time'], errors='coerce')
-    df['plan_end_time'] = pd.to_datetime(df['plan_end_time'], errors='coerce')
-    # Get a new derived attribute by calculating the diff of days as integer
+    # Assuming datetime type columns, create a 'helper attribute' that stores 
+    # the plan_duration
     df['plan_duration'] = (df['plan_end_time'] - df['plan_start_time']).dt.days
 
     # Group and peek
