@@ -4,7 +4,83 @@
 
 ### Section 1: Vanilla Numpy & Pandas
 
-#### Lesson 1A: Using Python to Implement the Relational Model
+#### Lesson 1: Inspecting Dataframes (basics)
+
+	# Get columns
+	df.columns
+	# Get tuple showing (row_count, col_count)
+	df.shape
+	# Preview first 5 rows
+	df.head()
+
+	# Get count of distinct non-null values
+	df['mac'].nunique()
+	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts excluding NaNs
+
+    # Get count of null/NaN values in a column
+    df['col'].isna().sum()
+
+    # Quick way to group by column
+	df['plan_duration'].value_counts().sort_index() # Returns Pandas series 
+
+	# Lowercase all column names
+	df.columns = df.columns.str.lower()
+
+    # Sort by column
+    df.sort_values(by='sum_cnts',ascending=False)
+
+#### Lesson 1B: Inspecting Dataframs (filter & mask) 
+
+    # Using the [] operator 
+    df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
+    df[~df['plan_id'].isin([4, 5])] # exclude those plan_ids
+    df = df[df['plan_duration'] > 12] # Mutates the df
+    filtered_df = df[df['plan_duration'] > 12].copy() # Get explicit copy
+    df[df['mac'].notna()] # keep rows with mac present
+
+    # Using .dropna (which uses .isna internally) 
+    # What pandas treats as NA: np.nan, pandas.NaT, None, pd.NA (and other
+    # dtype-specific NA representations). isna() returns True for those.
+    df.dropna(subset=['mac', 'mobile']) # drop rows missing mac or mobile
+
+    # Using masks: a mask is a boolean Series whose elements are True where the mask condition is satisfied 
+    mask = (df['plan_duration'] > 12) & (df['plan_id'] == 3)
+    # select rows where mask is True and only these columns
+    df.loc[mask, ['mac', 'mobile', 'plan_id']]
+    # set plan_duration to 0 for masked rows 
+    df.loc[mask, 'plan_duration'] = 0
+
+    # String filters (always set na=False)
+    df[df['mobile'].str.contains('555', na=False)]   
+    df[df['mac'].str.startswith('aa', na=False)] 
+
+#### Lesson 1C: Inspecting Dataframes (datetime filter & datetime mask)
+
+    # Ensure real datetimes - coerce bad input to NaT, then drop
+    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
+    df = df[df['ts'].notna()] 
+
+    # Range comparisons / between - readable and vectorized
+    df[df['ts'] >= pd.Timestamp('2020-01-01')] # single-side
+    df[df['ts'].between('2020-01-01', '2020-01-31')] # inclusive range (clean)
+
+    # DatetimeIndex slicing - fastest and very readable
+    df = df.set_index('ts') # set index once for time ops
+    df.loc['2020-01-01':'2020-01-31'] # inclusive index slice
+    df.between_time('08:00', '17:00') # time-of-day filter on index
+
+    # Component masks with .dt - year/month/weekday/time
+    df[df['ts'].dt.year == 2020] # filter by year
+    df[df['ts'].dt.month.isin([1,2,3])] # filter months
+    df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
+    df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
+
+    # Masking & assignment 
+    mask = df['ts'] < pd.Timestamp('2020-01-01')
+    df.loc[mask, 'status'] = 'expired' # safe assignment
+    sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
+
+#### Lesson 2A: Using Python to Implement the Relational Model
 
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
     # - n represents the number of columns,
@@ -27,7 +103,7 @@
     n = len(pk_id_df.columns)
     columns = pk_id_df.columns
 
-#### Lesson 1B: Using Pyhton to Implement the Relational Model (set and reset index)
+#### Lesson 2B: Using Pyhton to Implement the Relational Model (set and reset index)
 
     #! data = {
     #!     'employee_id': [101, 102, 101, 103],
@@ -59,7 +135,7 @@
     # Go back to the default integer index
     df.reset_index(inplace=True)
 
-#### Lesson 1C: Using Pyhton to Implement the Relational Model (fast lookups, slicing, group by)
+#### Lesson 2C: Using Pyhton to Implement the Relational Model (fast lookups, slicing, group by)
 
     #!                             name  salary
     #! employee_id department
@@ -89,7 +165,7 @@
     #! HR           60000.0
     #! Sales        70000.0
 
-#### Lesson 1D: Using Pyhton to Implement the Relational Model (union join aka full outer join)
+#### Lesson 2D: Using Pyhton to Implement the Relational Model (union join aka full outer join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -114,7 +190,7 @@
     #! 103         Sales          David  70000.0      NaN
     #! 104         Marketing        NaN      NaN  12000.0
 
-#### Lesson 1E: Using Pyhton to Implement the Relational Model (left join)
+#### Lesson 2E: Using Pyhton to Implement the Relational Model (left join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -139,7 +215,7 @@
     #! 101         Engineering  Charlie   75000  10000.0
     #! 103         Sales          David   70000      NaN
 
-#### Lesson 1F: Using Pyhton to Implement the Relational Model (inner join)
+#### Lesson 2F: Using Pyhton to Implement the Relational Model (inner join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -162,86 +238,7 @@
     #! 101         HR             Alice   60000   5000
     #!             Engineering  Charlie   75000  10000
 
-#### Lesson 2: Inspecting Dataframes
-
-	# Get columns
-	df.columns
-	# Get tuple showing (row_count, col_count)
-	df.shape
-	# Preview first 5 rows
-	df.head()
-
-	# Get count of distinct non-null values
-	df['mac'].nunique()
-	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts excluding NaNs
-
-    # Get count of null/NaN values in a column
-    df['col'].isna().sum()
-
-    # Quick way to group by column
-	df['plan_duration'].value_counts().sort_index() # Returns Pandas series 
-
-	# Lowercase all column names
-	df.columns = df.columns.str.lower()
-
-	# Create composite key string
-	df['key'] = df['mac'].astype(str) + '_' + df['mobile'].astype(str) + '_' + df['plan_id'].astype(str)
-
-    # Sorting column
-    df.sort_values(by='sum_cnts',ascending=False)
-
-#### Lesson 3A: Filter & Mask
-
-    # Using the [] operator 
-    df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
-    df[~df['plan_id'].isin([4, 5])] # exclude those plan_ids
-    df = df[df['plan_duration'] > 12] # Mutates the df
-    filtered_df = df[df['plan_duration'] > 12].copy() # Get explicit copy
-    df[df['mac'].notna()] # keep rows with mac present
-
-    # Using .dropna (which uses .isna internally) 
-    # What pandas treats as NA: np.nan, pandas.NaT, None, pd.NA (and other
-    # dtype-specific NA representations). isna() returns True for those.
-    df.dropna(subset=['mac', 'mobile']) # drop rows missing mac or mobile
-
-    # Using masks: a mask is a boolean Series whose elements are True where the mask condition is satisfied 
-    mask = (df['plan_duration'] > 12) & (df['plan_id'] == 3)
-    # select rows where mask is True and only these columns
-    df.loc[mask, ['mac', 'mobile', 'plan_id']]
-    # set plan_duration to 0 for masked rows 
-    df.loc[mask, 'plan_duration'] = 0
-
-    # String filters (always set na=False)
-    df[df['mobile'].str.contains('555', na=False)]   
-    df[df['mac'].str.startswith('aa', na=False)] 
-
-#### Lesson 3B: Filter & Mask (Datetime Columns)
-
-    # Ensure real datetimes - coerce bad input to NaT, then drop
-    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
-    df = df[df['ts'].notna()] 
-
-    # Range comparisons / between - readable and vectorized
-    df[df['ts'] >= pd.Timestamp('2020-01-01')] # single-side
-    df[df['ts'].between('2020-01-01', '2020-01-31')] # inclusive range (clean)
-
-    # DatetimeIndex slicing - fastest and very readable
-    df = df.set_index('ts') # set index once for time ops
-    df.loc['2020-01-01':'2020-01-31'] # inclusive index slice
-    df.between_time('08:00', '17:00') # time-of-day filter on index
-
-    # Component masks with .dt - year/month/weekday/time
-    df[df['ts'].dt.year == 2020] # filter by year
-    df[df['ts'].dt.month.isin([1,2,3])] # filter months
-    df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
-    df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
-
-    # Masking & assignment 
-    mask = df['ts'] < pd.Timestamp('2020-01-01')
-    df.loc[mask, 'status'] = 'expired' # safe assignment
-    sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
-
-#### Lesson 4: Group 
+#### Lesson 3: Group 
 
     # Assuming datetime type columns, create a 'helper attribute' that stores 
     # the plan_duration
@@ -269,7 +266,7 @@
     # NOTE: It is good practice to use pk_{primary_keys}_df as indicators for 
     # the primary keys of the df
 
-#### Lesson 5: Feature Engineering (Creating Helper Columns)
+#### Lesson 4: Feature Engineering (Creating Helper Columns)
 
     # Feature engineering: Discretizing continuous variable columns into bins
 	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
@@ -301,7 +298,7 @@
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-#### Lesson 6A: Pivot Table Definition
+#### Lesson 5A: Pivot Table Definition
 
     #! table = {
     #!     'region': ['N', 'N', 'S', 'S', 'E', 'E'],
@@ -338,7 +335,7 @@
     #! N        100.0  150.0  110.0  160.0  120.0    0.0
     #! S        200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 6B: Pivot Table (Formatting)
+#### Lesson 5B: Pivot Table (Formatting)
 
     # Now, because the Relational Model mandates that all relational functions
     # output a relation, lets format the pivot table to be a useful relational df
@@ -354,7 +351,7 @@
     #! 1      N  100.0  150.0  110.0  160.0  120.0    0.0
     #! 2      S  200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 6C: Pivot Table (Motivation x Ability Grid)
+#### Lesson 5C: Pivot Table (Motivation x Ability Grid)
 
     # Goal: 3x3 table with cols: motivation, high_ability, med_ability, low_ability
 
