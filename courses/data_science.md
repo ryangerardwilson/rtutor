@@ -31,15 +31,6 @@
     # Sort by column
     df.sort_values(by='sum_cnts',ascending=False)
 
-#### Lesson 1B: Inspecting Dataframes (quickly identify candidate keys)
-
-    for c in df.columns:
-        unique_count_str = f'\nATTRIBUTE: {c} (unique : {df[c].nunique()})'
-        if df[c].nunique() and df[c].nunique() < 10: 
-            print(f"{unique_count_str}\nVAL CNTS:") 
-            print(df[c].value_counts().sort_index()) 
-            print()
-
 #### Lesson 2: Filter & Mask (basics)
 
 
