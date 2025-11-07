@@ -4,26 +4,77 @@
 
 ### Section 1: Vanilla Numpy & Pandas
 
-#### Lesson 1: Inspecting Dataframes (basics)
+#### Lesson 1A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-5) 
 
-	# Get columns
-	df.columns
-	# Get tuple showing (row_count, col_count)
-	df.shape
-	# Preview first 5 rows
-	df.head()
+    # 1. Columns, Data types, schema, and sampling
+    df.columns
+    df.dtypes
+    df.info()
+    df.shape
+    df.head()
+    df.sample(5)
+    df.tail()
 
-	# Get count of distinct non-null values
-	df['mac'].nunique()
-	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts excluding NaNs
-    # Unique coung for all columns
-    for c in df.columns: print(f'{c}: {df[c].nunique()}')
+    # 2. Unique values per column, and candidate keys
+    print("Unique values per column:")
+    for col in df.columns:
+        uniques = df[col].unique()
+        print(f"{col}: {uniques}")
 
-    # Get count of null/NaN values in a column
-    df['col'].isna().sum()
+    # 3. Candidate keys
+    candidate_keys = [col for col in df.columns if df[col].nunique() == len(df)]
+    print("Candidate keys:", candidate_keys)
 
-    # Quick way to group by column
-	df['plan_duration'].value_counts().sort_index() # Returns Pandas series 
+    # 4. Missing values
+    df.isnull().sum()
+    df.isnull().mean() * 100  # % missing
+
+    # 5. Summary stats - look for impossible values (e.g., negative age),
+    # extreme outliers, or unexpected categories.
+    df.describe(include='all')
+
+#### Lesson 1B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
+
+    # 6. Duplicate rows & subset
+    df.duplicated().sum()
+    df.duplicated(subset=['id', 'date']).sum()
+
+    # 7. Value distributions
+    df['category_col'].value_counts().sort_index()
+    df['num_col'].hist() 
+    plt.savefig('histogram.png')
+    bash.execute('xdg-open histogram.png')
+    plt.close() # clears the plt state
+
+    # 8. Outliers & Anomalies (IQR method)
+    Q1 = df[num_cols].quantile(0.25)
+    Q3 = df[num_cols].quantile(0.75)
+    IQR = Q3 - Q1
+    outliers = ((df[num_cols] < (Q1 - 1.5 * IQR)) | (df[num_cols] > (Q3 + 1.5 * IQR))).sum()
+
+    # 9. Correlations & Multicollinearity
+
+    corr_matrix = df.corr(numeric_only=True)  
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm')
+    plt.savefig('heatmap.png')
+    bash.execute('xdg-open heatmap.png')
+    plt.close()
+
+    # 10. Domain Consistency & Business Logic Checks
+    assert (df['age'] >= 0).all(), "Negative ages found!"
+
+#### Lesson 2: Modifications / Cleaning Based on Initial Inspection 
+
+    df.info()
+
+    # Convert object android_version column from object to int
+    df['android_version'] = pd.to_numeric(df['android_version'], errors='coerce').astype('Int64')
+
+    # Convert string columns with timestamps to datetime
+    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
+
+    # Convert int64 column with unix timestamp to datetime
+    df['unix_ts_to_ts'] = pd.to_datetime(df['unix_ts_to_ts'], unit='ms')
 
 	# Lowercase all column names
 	df.columns = df.columns.str.lower()
@@ -31,8 +82,10 @@
     # Sort by column
     df.sort_values(by='sum_cnts',ascending=False)
 
-#### Lesson 2: Filter & Mask (basics)
+    # Filter out rows where a specific col has null values
+    df = df[df['datetime_col'].notna()] 
 
+#### Lesson 3A: Filter & Mask (basics)
 
     # Boolean filter
     df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
@@ -59,12 +112,7 @@
     df[df['mobile'].str.contains('555', na=False)]
     df[df['mac'].str.startswith('aa', na=False)]
 
-#### Lesson 2: Filter & Mask (datetime)
-
-    # Ensure real datetimes - coerce bad input to NaT, then drop
-    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
-    df['unix_ts_to_ts'] = pd.to_datetime(df['unix_ts_to_ts'], unit='ms')
-    df = df[df['ts'].notna()] 
+#### Lesson 3B: Filter & Mask (datetime)
 
     # Range comparisons / between - readable and vectorized
     df[df['ts'] >= pd.Timestamp('2020-01-01')] # single-side
@@ -86,7 +134,7 @@
     df.loc[mask, 'status'] = 'expired' # safe assignment
     sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
 
-#### Lesson 3A: Using Python to Implement the Relational Model
+#### Lesson 4A: Using Python to Implement the Relational Model
 
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
     # - n represents the number of columns,
@@ -110,7 +158,7 @@
     n = len(df.columns)
     columns = df.columns
 
-#### Lesson 3B: Using Pyhton to Implement the Relational Model (set and reset index)
+#### Lesson 4B: Using Pyhton to Implement the Relational Model (set and reset index)
 
     #! data = {
     #!     'employee_id': [101, 102, 101, 103],
@@ -142,7 +190,7 @@
     # Go back to the default integer index
     df.reset_index(inplace=True)
 
-#### Lesson 3C: Using Pyhton to Implement the Relational Model (fast lookups, slicing, group by)
+#### Lesson 4C: Using Pyhton to Implement the Relational Model (fast lookups, slicing, group by)
 
     #!                             name  salary
     #! employee_id department
@@ -172,7 +220,7 @@
     #! HR           60000.0
     #! Sales        70000.0
 
-#### Lesson 3D: Using Pyhton to Implement the Relational Model (union join aka full outer join)
+#### Lesson 4D: Using Pyhton to Implement the Relational Model (union join aka full outer join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -197,7 +245,7 @@
     #! 103         Sales          David  70000.0      NaN
     #! 104         Marketing        NaN      NaN  12000.0
 
-#### Lesson 3E: Using Pyhton to Implement the Relational Model (left join)
+#### Lesson 4E: Using Pyhton to Implement the Relational Model (left join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -222,7 +270,7 @@
     #! 101         Engineering  Charlie   75000  10000.0
     #! 103         Sales          David   70000      NaN
 
-#### Lesson 3F: Using Pyhton to Implement the Relational Model (inner join)
+#### Lesson 4F: Using Pyhton to Implement the Relational Model (inner join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -245,7 +293,7 @@
     #! 101         HR             Alice   60000   5000
     #!             Engineering  Charlie   75000  10000
 
-#### Lesson 4: Group 
+#### Lesson 5: Group 
 
     df = df.set_index(['plan_id', 'mobile'])
     df = df.groupby(level=['plan_id', 'mobile']).agg(
@@ -259,7 +307,7 @@
     # - Available aggs: count, nunique, min, max, first, last, sum, mean,
     #   median, mode
 
-#### Lesson 5: Feature Engineering (Creating Helper Columns)
+#### Lesson 6: Feature Engineering (Creating Helper Columns)
 
     # Feature engineering: Discretizing continuous variable columns into bins
 	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
@@ -285,7 +333,7 @@
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-#### Lesson 6A: Pivot Table Definition
+#### Lesson 7A: Pivot Table Definition
 
     df
     #!   region prod   Q1     Q2     Q3
@@ -323,7 +371,7 @@
     #! N        100.0  150.0  110.0  160.0  120.0    0.0
     #! S        200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 6B: Pivot Table (Formatting)
+#### Lesson 7B: Pivot Table (Formatting)
 
     # Now, because the Relational Model mandates that all relational functions
     # output a relation, lets format the pivot table to be a useful relational df
@@ -338,7 +386,7 @@
     #! N       100.0  150.0  110.0  160.0  120.0    0.0
     #! S       200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 6C: Pivot Table (Motivation x Ability Grid)
+#### Lesson 7C: Pivot Table (Motivation x Ability Grid)
 
     # Goal: 3x3 table with cols: motivation, high_ability, med_ability, low_ability
 
