@@ -33,11 +33,14 @@ class LessonSequencer:
             # For each line, store non-tab characters and tab positions
             processed_lines = []
             tab_positions = []  # List of lists, each containing tab indices for a line
+            is_skip = []
             for line in lines:
                 non_tabs = [c for c in line if c != "\t"]  # Characters to type
                 tabs = [i for i, c in enumerate(line) if c == "\t"]  # Tab indices
                 processed_lines.append(non_tabs)
                 tab_positions.append(tabs)
+                is_skip.append(line.lstrip().startswith(("#!", "//!")))
+
             current_line = 0
             user_inputs = [[] for _ in lines]  # Store input for non-tab chars
             completed = False  # Track lesson completion
@@ -143,7 +146,15 @@ class LessonSequencer:
                             pass
 
                     # Display stats at bottom - 2
-                    stats = f"Typed {sum(len(user_inputs[i]) for i in range(len(lines)) if processed_lines[i])}/{sum(len(line) for line in processed_lines if line)} chars"
+                    typed_count = sum(
+                        len(user_inputs[i]) for i in range(len(lines)) if not is_skip[i]
+                    )
+                    total_count = sum(
+                        len(processed_lines[i])
+                        for i in range(len(lines))
+                        if not is_skip[i]
+                    )
+                    stats = f"Typed {typed_count}/{total_count} chars"
                     try:
                         stdscr.addstr(
                             max_y - 2,
@@ -223,52 +234,65 @@ class LessonSequencer:
                             if key == 18:  # Ctrl+R
                                 user_inputs = [[] for _ in lines]  # Reset inputs
                                 current_line = 0  # Restart lesson
+                                lesson_finished = False
                             elif key == 27:  # ESC
                                 return False
-                            elif key in (
-                                curses.KEY_BACKSPACE,
-                                127,
-                                8,
-                            ):  # Backspace, including Ctrl+H
-                                if user_inputs[current_line]:
-                                    user_inputs[current_line].pop()
-                            elif key in (curses.KEY_ENTER, 10, 13):  # Enter
-                                if (
-                                    user_inputs[current_line]
-                                    == processed_lines[current_line]
-                                ):
+                            elif is_skip[current_line]:
+                                if key in (curses.KEY_ENTER, 10, 13):
                                     if current_line < len(lines) - 1:
                                         current_line += 1
-                            elif key == 9:  # Tab key
-                                if processed_lines[
-                                    current_line
-                                ]:  # Only allow input on non-empty lines
-                                    required_len = len(processed_lines[current_line])
-                                    current_len = len(user_inputs[current_line])
-                                    if current_len >= required_len:
-                                        pass  # Ignore if at or beyond required
-                                    else:
-                                        # Append four spaces for Tab key
-                                        next_chars = "".join(
-                                            processed_lines[current_line][current_len:]
+                                # Ignore other keys
+                            else:
+                                if key in (
+                                    curses.KEY_BACKSPACE,
+                                    127,
+                                    8,
+                                ):  # Backspace, including Ctrl+H
+                                    if user_inputs[current_line]:
+                                        user_inputs[current_line].pop()
+                                elif key in (curses.KEY_ENTER, 10, 13):  # Enter
+                                    if (
+                                        user_inputs[current_line]
+                                        == processed_lines[current_line]
+                                    ):
+                                        if current_line < len(lines) - 1:
+                                            current_line += 1
+                                elif key == 9:  # Tab key
+                                    if processed_lines[
+                                        current_line
+                                    ]:  # Only allow input on non-empty lines
+                                        required_len = len(
+                                            processed_lines[current_line]
                                         )
-                                        if next_chars.startswith(
-                                            "    "
-                                        ):  # Check if next four chars are spaces
-                                            user_inputs[current_line].extend(
-                                                [" ", " ", " ", " "]
+                                        current_len = len(user_inputs[current_line])
+                                        if current_len >= required_len:
+                                            pass  # Ignore if at or beyond required
+                                        else:
+                                            # Append four spaces for Tab key
+                                            next_chars = "".join(
+                                                processed_lines[current_line][
+                                                    current_len:
+                                                ]
                                             )
-                            else:  # Handle printable characters
-                                typed_char = None
-                                if 32 <= key <= 126:  # Printable ASCII
-                                    typed_char = chr(key)
-                                if typed_char:
-                                    required_len = len(processed_lines[current_line])
-                                    current_len = len(user_inputs[current_line])
-                                    if current_len >= required_len:
-                                        pass  # Ignore extras
-                                    else:
-                                        user_inputs[current_line].append(typed_char)
+                                            if next_chars.startswith(
+                                                "    "
+                                            ):  # Check if next four chars are spaces
+                                                user_inputs[current_line].extend(
+                                                    [" ", " ", " ", " "]
+                                                )
+                                else:  # Handle printable characters
+                                    typed_char = None
+                                    if 32 <= key <= 126:  # Printable ASCII
+                                        typed_char = chr(key)
+                                    if typed_char:
+                                        required_len = len(
+                                            processed_lines[current_line]
+                                        )
+                                        current_len = len(user_inputs[current_line])
+                                        if current_len >= required_len:
+                                            pass  # Ignore extras
+                                        else:
+                                            user_inputs[current_line].append(typed_char)
 
                     except KeyboardInterrupt:
                         sys.exit(0)
@@ -277,7 +301,8 @@ class LessonSequencer:
 
                 # Check if lesson is finished after batch processing
                 all_lines_typed = all(
-                    user_inputs[i] == processed_lines[i] for i in range(len(lines))
+                    is_skip[i] or user_inputs[i] == processed_lines[i]
+                    for i in range(len(lines))
                 )
                 if all_lines_typed:
                     lesson_finished = True

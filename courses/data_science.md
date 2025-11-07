@@ -4,6 +4,24 @@
 
 ### Section 1: Vanilla Numpy & Pandas
 
+#### Lesson 0: Test
+
+    hhh
+
+    #!   region  Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
+    #! 0      E  300.0  350.0    0.0  360.0  320.0  370.0
+    #! 1      N  100.0  150.0  110.0  160.0  120.0    0.0
+    #! 2      S  200.0  250.0  210.0  260.0  220.0  270.0
+
+    ggg
+
+    //!   region  Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
+    //! 0      E  300.0  350.0    0.0  360.0  320.0  370.0
+    //! 1      N  100.0  150.0  110.0  160.0  120.0    0.0
+    //! 2      S  200.0  250.0  210.0  260.0  220.0  270.0
+    aaa
+    lll
+
 #### Lesson 1: Relational Calculus Thinking
 
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
@@ -195,12 +213,12 @@
     pivot = pivot.sort_index(axis=1)
     print(pivot)
 
-    #             Q1            Q2            Q3
-    # prod         A      B      A      B      A      B
-    # region
-    # E        300.0  350.0    0.0  360.0  320.0  370.0
-    # N        100.0  150.0  110.0  160.0  120.0    0.0
-    # S        200.0  250.0  210.0  260.0  220.0  270.0
+    #!             Q1            Q2            Q3
+    #! prod         A      B      A      B      A      B
+    #! region
+    #! E        300.0  350.0    0.0  360.0  320.0  370.0
+    #! N        100.0  150.0  110.0  160.0  120.0    0.0
+    #! S        200.0  250.0  210.0  260.0  220.0  270.0
 
 #### Lesson 6B: Pivot Table (Formatting)
 

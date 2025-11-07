@@ -20,11 +20,13 @@ class RoteMode:
         lines = self.lesson.content.strip().splitlines()
         processed_lines = []
         tab_positions = []
+        is_skip = []
         for line in lines:
             non_tabs = [c for c in line if c != "\t"]
             tabs = [i for i, c in enumerate(line) if c == "\t"]
             processed_lines.append(non_tabs)
             tab_positions.append(tabs)
+            is_skip.append(line.lstrip().startswith(("#!", "//!")))
 
         while reps_completed < ROTE_TARGET:
             stdscr.clear()
@@ -125,7 +127,15 @@ class RoteMode:
                         except curses.error:
                             pass
 
-                    stats = f"Typed {sum(len(user_inputs[i]) for i in range(len(lines)) if processed_lines[i])}/{sum(len(line) for line in processed_lines if line)} chars"
+                    typed_count = sum(
+                        len(user_inputs[i]) for i in range(len(lines)) if not is_skip[i]
+                    )
+                    total_count = sum(
+                        len(processed_lines[i])
+                        for i in range(len(lines))
+                        if not is_skip[i]
+                    )
+                    stats = f"Typed {typed_count}/{total_count} chars"
                     try:
                         stdscr.addstr(max_y - 2, 0, stats, curses.color_pair(1))
                         stdscr.move(max_y - 2, len(stats))
@@ -193,41 +203,53 @@ class RoteMode:
                                 lesson_finished = False  # Reset if restart
                             elif key == 27:  # ESC
                                 return False
-                            elif key in (curses.KEY_BACKSPACE, 127, 8):
-                                if user_inputs[current_line]:
-                                    user_inputs[current_line].pop()
-                            elif key in (curses.KEY_ENTER, 10, 13):
-                                if (
-                                    user_inputs[current_line]
-                                    == processed_lines[current_line]
-                                ):
+                            elif is_skip[current_line]:
+                                if key in (curses.KEY_ENTER, 10, 13):
                                     if current_line < len(lines) - 1:
                                         current_line += 1
-                            elif key == 9:  # Tab
-                                if processed_lines[current_line]:
-                                    required_len = len(processed_lines[current_line])
-                                    current_len = len(user_inputs[current_line])
-                                    if current_len < required_len:
-                                        next_chars = "".join(
-                                            processed_lines[current_line][current_len:]
-                                        )
-                                        if next_chars.startswith("    "):
-                                            user_inputs[current_line].extend(
-                                                [" ", " ", " ", " "]
-                                            )
+                                # Ignore backspace, tab, typing, etc.
                             else:
-                                typed_char = None
-                                if 32 <= key <= 126:
-                                    typed_char = chr(key)
-                                if typed_char:
-                                    required_len = len(processed_lines[current_line])
-                                    current_len = len(user_inputs[current_line])
-                                    if current_len < required_len:
-                                        user_inputs[current_line].append(typed_char)
+                                if key in (curses.KEY_BACKSPACE, 127, 8):
+                                    if user_inputs[current_line]:
+                                        user_inputs[current_line].pop()
+                                elif key in (curses.KEY_ENTER, 10, 13):
+                                    if (
+                                        user_inputs[current_line]
+                                        == processed_lines[current_line]
+                                    ):
+                                        if current_line < len(lines) - 1:
+                                            current_line += 1
+                                elif key == 9:  # Tab
+                                    if processed_lines[current_line]:
+                                        required_len = len(
+                                            processed_lines[current_line]
+                                        )
+                                        current_len = len(user_inputs[current_line])
+                                        if current_len < required_len:
+                                            next_chars = "".join(
+                                                processed_lines[current_line][
+                                                    current_len:
+                                                ]
+                                            )
+                                            if next_chars.startswith("    "):
+                                                user_inputs[current_line].extend(
+                                                    [" ", " ", " ", " "]
+                                                )
+                                else:
+                                    typed_char = None
+                                    if 32 <= key <= 126:
+                                        typed_char = chr(key)
+                                    if typed_char:
+                                        required_len = len(
+                                            processed_lines[current_line]
+                                        )
+                                        current_len = len(user_inputs[current_line])
+                                        if current_len < required_len:
+                                            user_inputs[current_line].append(typed_char)
 
                             # Check if lesson is finished after typing key
                             all_lines_typed = all(
-                                user_inputs[i] == processed_lines[i]
+                                is_skip[i] or user_inputs[i] == processed_lines[i]
                                 for i in range(len(lines))
                             )
                             if all_lines_typed:
