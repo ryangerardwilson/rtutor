@@ -40,32 +40,35 @@
             print(df[c].value_counts().sort_index()) 
             print()
 
-#### Lesson 1C: Inspecting Dataframs (filter & mask) 
+#### Lesson 2: Filter & Mask (basics)
 
-    # Using the [] operator 
+
+    # Boolean filter
     df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
-    df[~df['plan_id'].isin([4, 5])] # exclude those plan_ids
-    df = df[df['plan_duration'] > 12] # Mutates the df
-    filtered_df = df[df['plan_duration'] > 12].copy() # Get explicit copy
-    df[df['mac'].notna()] # keep rows with mac present
 
-    # Using .dropna (which uses .isna internally) 
-    # What pandas treats as NA: np.nan, pandas.NaT, None, pd.NA (and other
-    # dtype-specific NA representations). isna() returns True for those.
-    df.dropna(subset=['mac', 'mobile']) # drop rows missing mac or mobile
+    # Exclusion
+    df[~df['plan_id'].isin([4, 5])]
 
-    # Using masks: a mask is a boolean Series whose elements are True where the mask condition is satisfied 
+    # Mutate/ Copy
+    df = df[df['plan_duration'] > 12]
+    filtered_df = df[df['plan_duration'] > 12].copy()
+
+    # Notna
+    df[df['mac'].notna()]
+
+    # Dropna
+    df.dropna(subset=['mac', 'mobile'])
+
+    # Mask example
     mask = (df['plan_duration'] > 12) & (df['plan_id'] == 3)
-    # select rows where mask is True and only these columns
     df.loc[mask, ['mac', 'mobile', 'plan_id']]
-    # set plan_duration to 0 for masked rows 
     df.loc[mask, 'plan_duration'] = 0
 
-    # String filters (always set na=False)
-    df[df['mobile'].str.contains('555', na=False)]   
-    df[df['mac'].str.startswith('aa', na=False)] 
+    # String filters
+    df[df['mobile'].str.contains('555', na=False)]
+    df[df['mac'].str.startswith('aa', na=False)]
 
-#### Lesson 1D: Inspecting Dataframes (datetime filter & datetime mask)
+#### Lesson 2: Filter & Mask (datetime)
 
     # Ensure real datetimes - coerce bad input to NaT, then drop
     df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
@@ -92,7 +95,7 @@
     df.loc[mask, 'status'] = 'expired' # safe assignment
     sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
 
-#### Lesson 2A: Using Python to Implement the Relational Model
+#### Lesson 3A: Using Python to Implement the Relational Model
 
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
     # - n represents the number of columns,
@@ -110,12 +113,13 @@
     # While a df, can accomodate duplicate rows - we cannot call such a table a
     # relational table because, rows MUST represent a set of {tuples}. A
     # df representing a relation must have at least 1 key candidate.
-    relational_table = table.drop_duplicates()
-    pk_id_df = pd.DataFrame(table)
-    n = len(pk_id_df.columns)
-    columns = pk_id_df.columns
+    df = pd.DataFrame(table)
+    df.drop_duplicates()
+    df.set_index('id')
+    n = len(df.columns)
+    columns = df.columns
 
-#### Lesson 2B: Using Pyhton to Implement the Relational Model (set and reset index)
+#### Lesson 3B: Using Pyhton to Implement the Relational Model (set and reset index)
 
     #! data = {
     #!     'employee_id': [101, 102, 101, 103],
@@ -147,7 +151,7 @@
     # Go back to the default integer index
     df.reset_index(inplace=True)
 
-#### Lesson 2C: Using Pyhton to Implement the Relational Model (fast lookups, slicing, group by)
+#### Lesson 3C: Using Pyhton to Implement the Relational Model (fast lookups, slicing, group by)
 
     #!                             name  salary
     #! employee_id department
@@ -177,7 +181,7 @@
     #! HR           60000.0
     #! Sales        70000.0
 
-#### Lesson 2D: Using Pyhton to Implement the Relational Model (union join aka full outer join)
+#### Lesson 3D: Using Pyhton to Implement the Relational Model (union join aka full outer join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -202,7 +206,7 @@
     #! 103         Sales          David  70000.0      NaN
     #! 104         Marketing        NaN      NaN  12000.0
 
-#### Lesson 2E: Using Pyhton to Implement the Relational Model (left join)
+#### Lesson 3E: Using Pyhton to Implement the Relational Model (left join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -227,7 +231,7 @@
     #! 101         Engineering  Charlie   75000  10000.0
     #! 103         Sales          David   70000      NaN
 
-#### Lesson 2F: Using Pyhton to Implement the Relational Model (inner join)
+#### Lesson 3F: Using Pyhton to Implement the Relational Model (inner join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -250,42 +254,25 @@
     #! 101         HR             Alice   60000   5000
     #!             Engineering  Charlie   75000  10000
 
-#### Lesson 3: Group 
+#### Lesson 4: Group 
 
-    # Assuming datetime type columns, create a 'helper attribute' that stores 
-    # the plan_duration
-    df['plan_duration'] = (df['plan_end_time'] - df['plan_start_time']).dt.days
-
-    # Group and peek
-    pk_plan_id_mobile_df = df.groupby(['plan_id', 'mobile']).agg(
+    df = df.set_index(['plan_id', 'mobile'])
+    df = df.groupby(level=['plan_id', 'mobile']).agg(
         nmbr_mac=('mac', 'count'),
         # other aggs, if any
-    ).reset_index()
+    )
     # Inspect what we've aggregated
-    pk_plan_id_mobile_df['nmbr_mac'].value_counts().sort_index()
-    # NOTE: Available aggs: count, nunique, min, max, first, last, sum, mean,
-    # median, mode
+    df['nmbr_mac'].value_counts().sort_index()
 
-    pk_number_days_df = df.groupby('number_days').agg(
-        count_all=('mobile', 'count'),
-        median_total_time_spent_all=('total_time_spent', 'median')
-    ).reset_index()
+    # NOTE: 
+    # - Available aggs: count, nunique, min, max, first, last, sum, mean,
+    #   median, mode
 
-    # Append additional derived continuous variable column
-    total_uniques = df['mobile'].nunique()
-    pk_number_days_df['pct_of_unique_mobiles'] = (pk_number_days_df['count_all'] / total_uniques) * 100
-
-    # NOTE: It is good practice to use pk_{primary_keys}_df as indicators for 
-    # the primary keys of the df
-
-#### Lesson 4: Feature Engineering (Creating Helper Columns)
+#### Lesson 5: Feature Engineering (Creating Helper Columns)
 
     # Feature engineering: Discretizing continuous variable columns into bins
 	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
-    # Inspect what we've labelled
 	df['days_rng_bc'].value_counts().sort_index()
-    # Filter out junk, based on inspection
-    df[df['days_rng_bc'].astype(str) != "(35.0, inf]"]
     # NOTE: labels=False gives us the index number of the label (which can
     # directly be used as a numeric feature), instead of the label itself. Don't
     # add this param if you want the col to be more human readable, instead.
@@ -294,23 +281,20 @@
 	df['utilisation'] = df['number_days'] / df['plan_duration']
 
     # Append boolean attribute columns
-	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0) # The first param is basically a Boolean Series mask
+	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0) 
 	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
 
     # Append quantile bin classification column
     df['util_range_qbc'] = pd.qcut(df['utilisation'],q=10,duplicates='drop',labels=False)
-    # Inspect what we've labelled
 	df['util_range_qbc'].value_counts().sort_index()
     # NOTE: pd.qcut gives quantile / equal-frequency bins cut by data 
     # quantiles so bins have ~equal counts. Here, we drop duplicates to
     # merge duplicate bins caused by too many duplicate values  
 
-    # For detailed analysis use .groupby to analyze by pivoting the pk: pk_util_range_qbc_df, pk_days_rng_bc_df
-
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-#### Lesson 5A: Pivot Table Definition
+#### Lesson 6A: Pivot Table Definition
 
     df
     #!   region prod   Q1     Q2     Q3
@@ -330,12 +314,14 @@
 
     pivot = pd.pivot_table(
         df, # T
-        index='region', # {R_attrs}
+        index='region', # {R_attrs}; 
         columns='prod', # {C_attrs}
         values=['Q1', 'Q2', 'Q3'], # {V}
         aggfunc='mean', # agg
         fill_value=0, # considers NaN values to be 0
     )
+    # NOTE: Also - whether or not you set_index from before doesn't affect the
+    # .pivot_table method. You need to specify the index param nevertheless.
     pivot = pivot.sort_index(axis=1)
     print(pivot)
 
@@ -346,23 +332,22 @@
     #! N        100.0  150.0  110.0  160.0  120.0    0.0
     #! S        200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 5B: Pivot Table (Formatting)
+#### Lesson 6B: Pivot Table (Formatting)
 
     # Now, because the Relational Model mandates that all relational functions
     # output a relation, lets format the pivot table to be a useful relational df
     # consistent with the indexing of its input for subsequent processing
 
-    pk_region_df = pivot.copy()
-    pk_region_df.columns = [f"{val}_{col}" for val, col in pk_region_df.columns]
-    pk_region_df = pivot.reset_index()
-    print(pk_region_df)
+    pivot.columns = [f"{val}_{col}" for val, col in pivot.columns]
+    print(pivot)
 
-    #!   region  Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
-    #! 0      E  300.0  350.0    0.0  360.0  320.0  370.0
-    #! 1      N  100.0  150.0  110.0  160.0  120.0    0.0
-    #! 2      S  200.0  250.0  210.0  260.0  220.0  270.0
+    #!          Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
+    #! region
+    #! E       300.0  350.0    0.0  360.0  320.0  370.0
+    #! N       100.0  150.0  110.0  160.0  120.0    0.0
+    #! S       200.0  250.0  210.0  260.0  220.0  270.0
 
-#### Lesson 5C: Pivot Table (Motivation x Ability Grid)
+#### Lesson 6C: Pivot Table (Motivation x Ability Grid)
 
     # Goal: 3x3 table with cols: motivation, high_ability, med_ability, low_ability
 
@@ -373,12 +358,14 @@
     df['motivation'] = np.where(df['churn_risk_qc'] <= 3, 'high', np.where(df['churn_risk_qc'] <= 7, 'med', 'low'))
     df['ability'] = np.where(df['util_rng_qc'] >= 9, 'high_ability', np.where(df['util_rng_qc'] >= 4, 'med_ability', 'low_ability'))
 
-    pk_motivation_ability_df = ( 
+    df = ( 
         df.groupby(['motivation', 'ability'])
           .agg(users=('plan_id', 'nunique'))
-          .reset_index()  
+          .reset_index() 
     )
-    # NOTE: We wrap it in a (), to allow us to indent each .method on a seperate line
+    # NOTE: 
+    # - We wrap it in a (), to allow us to indent each .method on a seperate line
+    # - We need to reset index here, so that the pivot operation that follows can access the ability column values 
 
     # Pivot so abilities become columns and motivations become rows; fill 
     # missing with 0 and force desired order
