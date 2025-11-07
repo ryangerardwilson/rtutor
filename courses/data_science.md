@@ -31,7 +31,16 @@
     # Sort by column
     df.sort_values(by='sum_cnts',ascending=False)
 
-#### Lesson 1B: Inspecting Dataframs (filter & mask) 
+#### Lesson 1B: Inspecting Dataframes (quickly identify candidate keys)
+
+    for c in df.columns:
+        unique_count_str = f'\nATTRIBUTE: {c} (unique : {df[c].nunique()})'
+        if df[c].nunique() and df[c].nunique() < 10: 
+            print(f"{unique_count_str}\nVAL CNTS:") 
+            print(df[c].value_counts().sort_index()) 
+            print()
+
+#### Lesson 1C: Inspecting Dataframs (filter & mask) 
 
     # Using the [] operator 
     df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
@@ -56,10 +65,11 @@
     df[df['mobile'].str.contains('555', na=False)]   
     df[df['mac'].str.startswith('aa', na=False)] 
 
-#### Lesson 1C: Inspecting Dataframes (datetime filter & datetime mask)
+#### Lesson 1D: Inspecting Dataframes (datetime filter & datetime mask)
 
     # Ensure real datetimes - coerce bad input to NaT, then drop
     df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
+    df['unix_ts_to_ts'] = pd.to_datetime(df['unix_ts_to_ts'], unit='ms')
     df = df[df['ts'].notna()] 
 
     # Range comparisons / between - readable and vectorized
