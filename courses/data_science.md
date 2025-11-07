@@ -130,6 +130,7 @@
     #!             Engineering  10000
     #! 104         Marketing    12000
 
+    # Keep all from left df, add matches from right
     left_joined_df = df.join(other_df, how='left')
     #!                             name  salary    bonus
     #! employee_id department
@@ -154,6 +155,7 @@
     #!             Engineering  10000
     #! 104         Marketing    12000
 
+    # Only where keys overlap in both
     inner_joined_df = df.join(other_df, how='inner')
     #!                             name  salary  bonus
     #! employee_id department
