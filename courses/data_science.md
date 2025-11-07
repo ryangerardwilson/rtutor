@@ -4,25 +4,7 @@
 
 ### Section 1: Vanilla Numpy & Pandas
 
-#### Lesson 0: Test
-
-    hhh
-
-    #!   region  Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
-    #! 0      E  300.0  350.0    0.0  360.0  320.0  370.0
-    #! 1      N  100.0  150.0  110.0  160.0  120.0    0.0
-    #! 2      S  200.0  250.0  210.0  260.0  220.0  270.0
-
-    ggg
-
-    //!   region  Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
-    //! 0      E  300.0  350.0    0.0  360.0  320.0  370.0
-    //! 1      N  100.0  150.0  110.0  160.0  120.0    0.0
-    //! 2      S  200.0  250.0  210.0  260.0  220.0  270.0
-    aaa
-    lll
-
-#### Lesson 1: Relational Calculus Thinking
+#### Lesson 1A: Using Python to Implement the Relational Model
 
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
     # - n represents the number of columns,
@@ -31,11 +13,11 @@
     # Table = { (c1, c2, ..., cn) | each ci in `domain_i`, for i=1 to n }
 
     # Define the domains implicitly through data types and values
-    table = {
-        'ID': [1, 2, 3, 3], # Domain: positive integers
-        'Name': ['Alice', 'Bob', 'Charlie', 'Charlie'], # Domain: strings
-        'Salary': [100000.0, 120000.0, 90000.0, 90000.0] # Domain: non-negative floats
-    }
+    #! table = {
+    #!     'ID': [1, 2, 3, 3], # Domain: positive integers
+    #!     'Name': ['Alice', 'Bob', 'Charlie', 'Charlie'], # Domain: strings
+    #!     'Salary': [100000.0, 120000.0, 90000.0, 90000.0] # Domain: non-negative floats
+    #! }
 
     # While a df, can accomodate duplicate rows - we cannot call such a table a
     # relational table because, rows MUST represent a set of {tuples}. A
@@ -44,6 +26,142 @@
     pk_id_df = pd.DataFrame(table)
     n = len(pk_id_df.columns)
     columns = pk_id_df.columns
+
+#### Lesson 1B: Using Pyhton to Implement the Relational Model (set and reset index)
+
+    #! data = {
+    #!     'employee_id': [101, 102, 101, 103],
+    #!     'department': ['HR', 'Engineering', 'Engineering', 'Sales'],
+    #!     'name': ['Alice', 'Bob', 'Charlie', 'David'],
+    #!     'salary': [60000, 80000, 75000, 70000]
+    #! }
+    df = pd.DataFrame(data)
+
+    # Before setting index: It's just a pile of rows
+    print(df)
+    #!    employee_id   department     name  salary
+    #! 0          101           HR    Alice   60000
+    #! 1          102  Engineering      Bob   80000
+    #! 2          101  Engineering  Charlie   75000
+    #! 3          103        Sales    David   70000
+
+    # Set the primary key columns as a MultiIndex. Use verify_integrity to 
+    # catch duplicates. If there are duplicates, it'll yell at you, because 
+    # primary keys shouldn't repeat.
+    df.set_index(['employee_id', 'department'], inplace=True, verify_integrity=True)
+    #!                             name  salary
+    #! employee_id department
+    #! 101         HR             Alice   60000
+    #! 102         Engineering      Bob   80000
+    #! 101         Engineering  Charlie   75000
+    #! 103         Sales          David   70000
+
+    # Go back to the default integer index
+    df.reset_index(inplace=True)
+
+#### Lesson 1C: Using Pyhton to Implement the Relational Model (fast lookups, slicing, group by)
+
+    #!                             name  salary
+    #! employee_id department
+    #! 101         HR             Alice   60000
+    #! 102         Engineering      Bob   80000
+    #! 101         Engineering  Charlie   75000
+    #! 103         Sales          David   70000
+
+    # 1: Fast lookups. Grab the row for employee 101 in Engineering
+    print(df.loc[(101, 'Engineering')])
+    #! name      Charlie
+    #! salary      75000
+    #! Name: (101, Engineering), dtype: object
+
+    # 2: Slicing on partial keys. All rows for employee 101 across departments
+    print(df.loc[101])
+    #!                 name  salary
+    #! department
+    #! HR             Alice   60000
+    #! Engineering  Charlie   75000
+
+    # 3: Groupby on index levels. Average salary per department
+    print(df.groupby(level=1).mean(numeric_only=True))
+    #!                   salary
+    #! department
+    #! Engineering  77500.0
+    #! HR           60000.0
+    #! Sales        70000.0
+
+#### Lesson 1D: Using Pyhton to Implement the Relational Model (union join aka full outer join)
+
+    #! print(df, other_df)
+    #!                             name  salary
+    #! employee_id department
+    #! 101         HR             Alice   60000
+    #! 102         Engineering      Bob   80000
+    #! 101         Engineering  Charlie   75000
+    #! 103         Sales          David   70000
+    #!
+    #!                          bonus
+    #! employee_id department
+    #! 101         HR            5000
+    #!             Engineering  10000
+    #! 104         Marketing    12000
+
+    union_joined_df = df.join(other_df, how='outer')
+    print(union_joined_df)
+    #!                             name   salary    bonus
+    #! employee_id department
+    #! 101         Engineering  Charlie  75000.0  10000.0
+    #!             HR             Alice  60000.0   5000.0
+    #! 102         Engineering      Bob  80000.0      NaN
+    #! 103         Sales          David  70000.0      NaN
+    #! 104         Marketing        NaN      NaN  12000.0
+
+#### Lesson 1E: Using Pyhton to Implement the Relational Model (left join)
+
+    #! print(df, other_df)
+    #!                             name  salary
+    #! employee_id department
+    #! 101         HR             Alice   60000
+    #! 102         Engineering      Bob   80000
+    #! 101         Engineering  Charlie   75000
+    #! 103         Sales          David   70000
+    #!
+    #!                          bonus
+    #! employee_id department
+    #! 101         HR            5000
+    #!             Engineering  10000
+    #! 104         Marketing    12000
+
+    left_joined_df = df.join(other_df, how='left')
+    print(left_joined_df)
+    #!                             name  salary    bonus
+    #! employee_id department
+    #! 101         HR             Alice   60000   5000.0
+    #! 102         Engineering      Bob   80000      NaN
+    #! 101         Engineering  Charlie   75000  10000.0
+    #! 103         Sales          David   70000      NaN
+
+#### Lesson 1F: Using Pyhton to Implement the Relational Model (inner join)
+
+    #! print(df, other_df)
+    #!                             name  salary
+    #! employee_id department
+    #! 101         HR             Alice   60000
+    #! 102         Engineering      Bob   80000
+    #! 101         Engineering  Charlie   75000
+    #! 103         Sales          David   70000
+    #!
+    #!                          bonus
+    #! employee_id department
+    #! 101         HR            5000
+    #!             Engineering  10000
+    #! 104         Marketing    12000
+
+    inner_joined_df = df.join(other_df, how='inner')
+    print(inner_joined_df)
+    #!                             name  salary  bonus
+    #! employee_id department
+    #! 101         HR             Alice   60000   5000
+    #!             Engineering  Charlie   75000  10000
 
 #### Lesson 2: Inspecting Dataframes
 
@@ -186,13 +304,14 @@
 
 #### Lesson 6A: Pivot Table Definition
 
-    df = pd.DataFrame({
-            'region': ['N', 'N', 'S', 'S', 'E', 'E'],
-            'prod': ['A', 'B', 'A', 'B', 'A', 'B'],
-            'Q1': [100, 150, 200, 250, 300, 350],
-            'Q2': [110, 160, 210, 260, np.nan, 360],
-            'Q3': [120, np.nan, 220, 270, 320, 370],
-        })
+    #! table = {
+    #!     'region': ['N', 'N', 'S', 'S', 'E', 'E'],
+    #!     'prod': ['A', 'B', 'A', 'B', 'A', 'B'],
+    #!     'Q1': [100, 150, 200, 250, 300, 350],
+    #!     'Q2': [110, 160, 210, 260, np.nan, 360],
+    #!     'Q3': [120, np.nan, 220, 270, 320, 370],
+    #! }
+    df = pd.DataFrame(table)
 
     # Definition of a Pivot Table in Relational Calculus
     # Given a relation (table) T with attributes {R_attrs} (row keys), 
@@ -231,10 +350,10 @@
     pk_region_df = pivot.reset_index()
     print(pk_region_df)
 
-    #   region  Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
-    # 0      E  300.0  350.0    0.0  360.0  320.0  370.0
-    # 1      N  100.0  150.0  110.0  160.0  120.0    0.0
-    # 2      S  200.0  250.0  210.0  260.0  220.0  270.0
+    #!   region  Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
+    #! 0      E  300.0  350.0    0.0  360.0  320.0  370.0
+    #! 1      N  100.0  150.0  110.0  160.0  120.0    0.0
+    #! 2      S  200.0  250.0  210.0  260.0  220.0  270.0
 
 #### Lesson 6C: Pivot Table (Motivation x Ability Grid)
 
