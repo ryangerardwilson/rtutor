@@ -16,6 +16,8 @@
 	# Get count of distinct non-null values
 	df['mac'].nunique()
 	df[['mac', 'plan_id', 'mobile']].nunique() # per-column counts excluding NaNs
+    # Unique coung for all columns
+    for c in df.columns: print(f'{c}: {df[c].nunique()}')
 
     # Get count of null/NaN values in a column
     df['col'].isna().sum()
