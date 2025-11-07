@@ -300,16 +300,15 @@
 
 #### Lesson 5A: Pivot Table Definition
 
-    #! table = {
-    #!     'region': ['N', 'N', 'S', 'S', 'E', 'E'],
-    #!     'prod': ['A', 'B', 'A', 'B', 'A', 'B'],
-    #!     'Q1': [100, 150, 200, 250, 300, 350],
-    #!     'Q2': [110, 160, 210, 260, np.nan, 360],
-    #!     'Q3': [120, np.nan, 220, 270, 320, 370],
-    #! }
-    df = pd.DataFrame(table)
+    df
+    #!   region prod   Q1     Q2     Q3
+    #! 0      N    A  100  110.0  120.0
+    #! 1      N    B  150  160.0    NaN
+    #! 2      S    A  200  210.0  220.0
+    #! 3      S    B  250  260.0  270.0
+    #! 4      E    A  300    NaN  320.0
+    #! 5      E    B  350  360.0  370.0
 
-    # Definition of a Pivot Table in Relational Calculus
     # Given a relation (table) T with attributes {R_attrs} (row keys), 
     # {C_attrs} (column keys), and {V} (value(s)), and an aggregation function 
     # agg, the pivot table P is the function:
