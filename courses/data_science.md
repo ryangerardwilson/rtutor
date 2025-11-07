@@ -69,20 +69,20 @@
     #! 103         Sales          David   70000
 
     # 1: Fast lookups. Grab the row for employee 101 in Engineering
-    print(df.loc[(101, 'Engineering')])
+    df.loc[(101, 'Engineering')]
     #! name      Charlie
     #! salary      75000
     #! Name: (101, Engineering), dtype: object
 
     # 2: Slicing on partial keys. All rows for employee 101 across departments
-    print(df.loc[101])
+    df.loc[101]
     #!                 name  salary
     #! department
     #! HR             Alice   60000
     #! Engineering  Charlie   75000
 
     # 3: Groupby on index levels. Average salary per department
-    print(df.groupby(level=1).mean(numeric_only=True))
+    df.groupby(level=1).mean(numeric_only=True)
     #!                   salary
     #! department
     #! Engineering  77500.0
@@ -106,7 +106,6 @@
     #! 104         Marketing    12000
 
     union_joined_df = df.join(other_df, how='outer')
-    print(union_joined_df)
     #!                             name   salary    bonus
     #! employee_id department
     #! 101         Engineering  Charlie  75000.0  10000.0
@@ -132,7 +131,6 @@
     #! 104         Marketing    12000
 
     left_joined_df = df.join(other_df, how='left')
-    print(left_joined_df)
     #!                             name  salary    bonus
     #! employee_id department
     #! 101         HR             Alice   60000   5000.0
@@ -157,7 +155,6 @@
     #! 104         Marketing    12000
 
     inner_joined_df = df.join(other_df, how='inner')
-    print(inner_joined_df)
     #!                             name  salary  bonus
     #! employee_id department
     #! 101         HR             Alice   60000   5000
