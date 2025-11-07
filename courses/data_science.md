@@ -314,7 +314,7 @@
     # agg, the pivot table P is the function:
     #   P(r, c) = agg({ t.V | t in T and t.R_attrs = r and t.C_attrs = c }),
     #   where r ranges over unique values of R_attrs and c over unique values
-    #   of C_attrs.
+    #   of C_attrs
 
     pivot = pd.pivot_table(
         df, # T
