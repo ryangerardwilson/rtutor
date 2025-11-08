@@ -53,14 +53,14 @@
     df.tail()
 
     # 2. Unique values per column, and candidate keys
-    print("Unique values per column:")
+    print('Unique values per column:')
     for col in df.columns:
         uniques = df[col].unique()
-        print(f"{col}: {uniques}")
+        print(f'{col}: {uniques}')
 
     # 3. Candidate keys
     candidate_keys = [col for col in df.columns if df[col].nunique() == len(df)]
-    print("Candidate keys:", candidate_keys)
+    print('Candidate keys:', candidate_keys)
 
     # 4. Missing values
     df.isnull().sum()
@@ -97,7 +97,7 @@
     plt.close()
 
     # 10. Domain Consistency & Business Logic Checks
-    assert (df['age'] >= 0).all(), "Negative ages found!"
+    assert (df['age'] >= 0).all(), 'Negative ages found!'
 
 #### Lesson 2: Modifications / Cleaning Based on Initial Inspection 
 
@@ -214,16 +214,14 @@
 
 #### Lesson 5: Filtering by Index 
 
-    df
     #!    employee_id   department  hire_date     name  salary
     #! 0          101           HR 2023-01-01    Alice   60000
     #! 1          102  Engineering 2023-01-04      Bob   80000
     #! 2          101  Engineering 2023-01-02  Charlie   75000
     #! 3          103        Sales 2023-01-03    David   70000
 
-    df = df.set_index(["employee_id", "department", "hire_date"])
+    df = df.set_index(['employee_id', 'department', 'hire_date'])
     df = df.sort_index()  # Sorts rows in the order of the index 
-
     #!                                        name  salary
     #! employee_id department  hire_date
     #! 101         Engineering 2023-01-02  Charlie   75000
@@ -232,12 +230,12 @@
     #! 103         Sales       2023-01-03    David   70000
 
     # 1. Fast lookups. Grab the row for employee 101 in Engineering on 2023-01-02
-    df.loc[(101, "Engineering", "2023-01-02")]
+    df.loc[(101, 'Engineering', '2023-01-02')]
     #! name      Charlie
     #! salary      75000
 
     # 2. Datetime index slicing by temporarily setting hire_date as the single index
-    temp_df = df.reset_index().set_index("hire_date").sort_index().loc["2023-01-01":"2023-01-03"]
+    temp_df = df.reset_index().set_index('hire_date').sort_index().loc['2023-01-01':'2023-01-03']
     #!             employee_id   department     name  salary
     #! hire_date
     #! 2023-01-01          101           HR    Alice   60000
@@ -245,13 +243,11 @@
     #! 2023-01-03          103        Sales    David   70000
 
     # 3. Partial string slicing (e.g., all of January 2023)
-    print(temp_df.loc["2023-01"])
+    temp_df.loc['2023-01']
     #!             employee_id   department     name  salary
     #! hire_date
     #! 2023-01-01          101           HR    Alice   60000
     #! 2023-01-02          101  Engineering  Charlie   75000
-    #! 2023-01-03          103        Sales    David   70000
-    #! 2023-01-04          102  Engineering      Bob   80000
 
 #### Lesson 6A: Joins (union join aka full outer join)
 
@@ -395,7 +391,7 @@
     #! two        7
     #! Index(['baz_sum'], dtype='object')
 
-    multi_index_pivot = df.groupby(['foo','bar']).agg(baz_sum=("baz", "sum"))
+    multi_index_pivot = df.groupby(['foo','bar']).agg(baz_sum=('baz', 'sum'))
     print(multi_index_pivot, multi_index_pivot.columns)
     #!          baz_sum
     #! foo bar
@@ -442,20 +438,20 @@
     # - util_rng_qc: 1-10 (utilisation quantile, 10 = highest usage)
     # - churn_risk_qc: 1-10 (churn risk quantile, 10 = highest risk)
 
-    df["motivation"] = np.where(
-        df["churn_risk_qc"] <= 3,
-        "3_high",
-        np.where(df["churn_risk_qc"] <= 7, "2_med", "1_low"),
+    df['motivation'] = np.where(
+        df['churn_risk_qc'] <= 3,
+        '3_high',
+        np.where(df['churn_risk_qc'] <= 7, '2_med', '1_low'),
     )
-    df["ability"] = np.where(
-        df["util_rng_qc"] >= 9,
-        "3_high",
-        np.where(df["util_rng_qc"] >= 4, "2_med", "1_low"),
+    df['ability'] = np.where(
+        df['util_rng_qc'] >= 9,
+        '3_high',
+        np.where(df['util_rng_qc'] >= 4, '2_med', '1_low'),
     )
 
     pk_motivation_df = (
-        df.groupby(["motivation", "ability"])
-        .agg(users=("plan_id", "nunique"))
+        df.groupby(['motivation', 'ability'])
+        .agg(users=('plan_id', 'nunique'))
         .unstack()
         .fillna(0)
     )
