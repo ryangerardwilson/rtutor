@@ -51,6 +51,9 @@
     df.index.names
     #! FrozenList(['id','model'])
 
+    # Go back to default RangeIndex
+    df = df.reset_index()
+
 #### Lesson 2A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-5) 
 
     # 1. Columns, Data types, schema, and sampling
@@ -160,7 +163,7 @@
     df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
     df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
 
-#### Lesson 4A: Using Python to Implement the Relational Model
+#### Lesson 4: Using Python to Implement the Relational Model
 
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
     # - n represents the number of columns,
@@ -183,38 +186,6 @@
     df.set_index('id')
     n = len(df.columns)
     columns = df.columns
-
-#### Lesson 4B: Using Pyhton to Implement the Relational Model (set and reset index)
-
-    #! data = {
-    #!     'employee_id': [101, 102, 101, 103],
-    #!     'department': ['HR', 'Engineering', 'Engineering', 'Sales'],
-    #!     'name': ['Alice', 'Bob', 'Charlie', 'David'],
-    #!     'salary': [60000, 80000, 75000, 70000]
-    #! }
-    df = pd.DataFrame(data)
-
-    # Before setting index: It's just a pile of rows
-    print(df)
-    #!    employee_id   department     name  salary
-    #! 0          101           HR    Alice   60000
-    #! 1          102  Engineering      Bob   80000
-    #! 2          101  Engineering  Charlie   75000
-    #! 3          103        Sales    David   70000
-
-    # Set the primary key columns as a MultiIndex. Use verify_integrity to 
-    # catch duplicates. If there are duplicates, it'll yell at you, because 
-    # primary keys shouldn't repeat.
-    df.set_index(['employee_id', 'department'], inplace=True, verify_integrity=True)
-    #!                             name  salary
-    #! employee_id department
-    #! 101         HR             Alice   60000
-    #! 102         Engineering      Bob   80000
-    #! 101         Engineering  Charlie   75000
-    #! 103         Sales          David   70000
-
-    # Go back to the default integer index
-    df.reset_index(inplace=True)
 
 #### Lesson 5: Filtering by Index 
 
