@@ -4,7 +4,47 @@
 
 ### Section 1: Vanilla Numpy & Pandas
 
-#### Lesson 1A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-5) 
+#### Lession 1: Disecting a DataFrame Like a Cockroach
+
+    # Columns are an Index object
+    df.columns
+    #! Index(['id', 'to_number', 'model', 'call_type'], dtype='object')
+
+    # By default, the index is a RangeIndex from 0 to n
+    df.index
+    #! RangeIndex(start=0, stop=356540, step=1)
+
+    # This RangeIndex has names and values properties
+    df.index.names
+    #! FrozenList([None])
+    df.index.values
+    #! array([     0,      1,      2, ..., 356537, 356538, 356539], shape=(356540,))
+
+    # When we set a specific index, it is added to the df.index.names and removed from df.columns (default drop=True)
+    df2 = df.set_index(['id','model'])
+    df2.index.names
+    #! FrozenList(['id','model'])
+    df2.columns
+    #! Index(['to_number', 'call_type'], dtype='object')  # 'id' and 'model' are gone from columns!
+
+    # If you want to keep them in columns too (redundant and stupid), use drop=False
+    df_keep = df.set_index(['id','model'], drop=False)
+    df_keep.columns
+    #! Index(['id', 'to_number', 'model', 'call_type'], dtype='object')  # Now they're duplicated
+
+    # When we set index (using set_index or groupby), the RangeIndex gets replaced by an Index object or a
+    # MultiIndex object
+    df2 = df.set_index(['id']).index
+    #! Index([7937748, 7938517, 7938562, 7938486, ...], dtype='int32', name='id', length=356540)
+    df2 = df.set_index(['id','model']).index
+    #! MultiIndex([(7937748,              '23090RA98I'),
+    #!             (7938077,    'motorola edge 50 neo'),
+    #!             (7937542, 'motorola edge 50 fusion'),
+    #!             ...
+    #!             (7839768,                   'V2307')],
+    #!            names=['id', 'model'], length=356540)
+
+#### Lesson 2A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-5) 
 
     # 1. Columns, Data types, schema, and sampling
     df.columns
@@ -33,7 +73,7 @@
     # extreme outliers, or unexpected categories.
     df.describe(include='all')
 
-#### Lesson 1B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
+#### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
 
     # 6. Duplicate rows & subset
     df.duplicated().sum()
@@ -53,7 +93,6 @@
     outliers = ((df[num_cols] < (Q1 - 1.5 * IQR)) | (df[num_cols] > (Q3 + 1.5 * IQR))).sum()
 
     # 9. Correlations & Multicollinearity
-
     corr_matrix = df.corr(numeric_only=True)  
     sns.heatmap(corr_matrix, annot=True, cmap='coolwarm')
     plt.savefig('heatmap.png')
@@ -67,14 +106,14 @@
 
     df.info()
 
-    # Convert object android_version column from object to int
+    # Convert int parseable object column to int64 (not int32 because it is non-nullable)
     df['android_version'] = pd.to_numeric(df['android_version'], errors='coerce').astype('Int64')
 
-    # Convert string columns with timestamps to datetime
+    # Convert datetime parseable string columns to datetime
     df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
 
-    # Convert int64 column with unix timestamp to datetime
-    df['unix_ts_to_ts'] = pd.to_datetime(df['unix_ts_to_ts'], unit='ms')
+    # Convert datetime parseable int64 unix column to datetime
+    df['unix'] = pd.to_datetime(df['unix'], unit='ms')
 
 	# Lowercase all column names
 	df.columns = df.columns.str.lower()
@@ -85,7 +124,7 @@
     # Filter out rows where a specific col has null values
     df = df[df['datetime_col'].notna()] 
 
-#### Lesson 3A: Filter & Mask (basics)
+#### Lesson 3: Filtering by Columns
 
     # Boolean filter
     df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
@@ -93,15 +132,9 @@
     # Exclusion
     df[~df['plan_id'].isin([4, 5])]
 
-    # Mutate/ Copy
-    df = df[df['plan_duration'] > 12]
-    filtered_df = df[df['plan_duration'] > 12].copy()
-
-    # Notna
+    # isna and notna
+    df[df['mac'].isna()]
     df[df['mac'].notna()]
-
-    # Dropna
-    df.dropna(subset=['mac', 'mobile'])
 
     # Mask example
     mask = (df['plan_duration'] > 12) & (df['plan_id'] == 3)
@@ -112,27 +145,19 @@
     df[df['mobile'].str.contains('555', na=False)]
     df[df['mac'].str.startswith('aa', na=False)]
 
-#### Lesson 3B: Filter & Mask (datetime)
+    # Mutate/ Copy
+    df = df[df['plan_duration'] > 12]
+    filtered_df = df[df['plan_duration'] > 12].copy()
 
     # Range comparisons / between - readable and vectorized
     df[df['ts'] >= pd.Timestamp('2020-01-01')] # single-side
     df[df['ts'].between('2020-01-01', '2020-01-31')] # inclusive range (clean)
-
-    # DatetimeIndex slicing - fastest and very readable
-    df = df.set_index('ts') # set index once for time ops
-    df.loc['2020-01-01':'2020-01-31'] # inclusive index slice
-    df.between_time('08:00', '17:00') # time-of-day filter on index
 
     # Component masks with .dt - year/month/weekday/time
     df[df['ts'].dt.year == 2020] # filter by year
     df[df['ts'].dt.month.isin([1,2,3])] # filter months
     df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
     df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
-
-    # Masking & assignment 
-    mask = df['ts'] < pd.Timestamp('2020-01-01')
-    df.loc[mask, 'status'] = 'expired' # safe assignment
-    sub = df[df['ts'] > pd.Timestamp('2021-01-01')].copy() # copy before mutating slice
 
 #### Lesson 4A: Using Python to Implement the Relational Model
 
@@ -190,37 +215,48 @@
     # Go back to the default integer index
     df.reset_index(inplace=True)
 
-#### Lesson 4C: Using Pyhton to Implement the Relational Model (fast lookups, slicing, group by)
+#### Lesson 5: Filtering by Index 
 
-    #!                             name  salary
-    #! employee_id department
-    #! 101         HR             Alice   60000
-    #! 102         Engineering      Bob   80000
-    #! 101         Engineering  Charlie   75000
-    #! 103         Sales          David   70000
+    df
+    #!    employee_id   department  hire_date     name  salary
+    #! 0          101           HR 2023-01-01    Alice   60000
+    #! 1          102  Engineering 2023-01-04      Bob   80000
+    #! 2          101  Engineering 2023-01-02  Charlie   75000
+    #! 3          103        Sales 2023-01-03    David   70000
 
-    # 1: Fast lookups. Grab the row for employee 101 in Engineering
-    df.loc[(101, 'Engineering')]
+    df = df.set_index(["employee_id", "department", "hire_date"])
+    df = df.sort_index()  # Sorts rows in the order of the index 
+
+    #!                                        name  salary
+    #! employee_id department  hire_date
+    #! 101         Engineering 2023-01-02  Charlie   75000
+    #!             HR          2023-01-01    Alice   60000
+    #! 102         Engineering 2023-01-04      Bob   80000
+    #! 103         Sales       2023-01-03    David   70000
+
+    # 1. Fast lookups. Grab the row for employee 101 in Engineering on 2023-01-02
+    df.loc[(101, "Engineering", "2023-01-02")]
     #! name      Charlie
     #! salary      75000
-    #! Name: (101, Engineering), dtype: object
 
-    # 2: Slicing on partial keys. All rows for employee 101 across departments
-    df.loc[101]
-    #!                 name  salary
-    #! department
-    #! HR             Alice   60000
-    #! Engineering  Charlie   75000
+    # 2. Datetime index slicing by temporarily setting hire_date as the single index
+    temp_df = df.reset_index().set_index("hire_date").sort_index().loc["2023-01-01":"2023-01-03"]
+    #!             employee_id   department     name  salary
+    #! hire_date
+    #! 2023-01-01          101           HR    Alice   60000
+    #! 2023-01-02          101  Engineering  Charlie   75000
+    #! 2023-01-03          103        Sales    David   70000
 
-    # 3: Groupby on index levels. Average salary per department
-    df.groupby(level=1).mean(numeric_only=True)
-    #!                   salary
-    #! department
-    #! Engineering  77500.0
-    #! HR           60000.0
-    #! Sales        70000.0
+    # 3. Partial string slicing (e.g., all of January 2023)
+    print(temp_df.loc["2023-01"])
+    #!             employee_id   department     name  salary
+    #! hire_date
+    #! 2023-01-01          101           HR    Alice   60000
+    #! 2023-01-02          101  Engineering  Charlie   75000
+    #! 2023-01-03          103        Sales    David   70000
+    #! 2023-01-04          102  Engineering      Bob   80000
 
-#### Lesson 4D: Using Pyhton to Implement the Relational Model (union join aka full outer join)
+#### Lesson 6A: Joins (union join aka full outer join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -245,7 +281,7 @@
     #! 103         Sales          David  70000.0      NaN
     #! 104         Marketing        NaN      NaN  12000.0
 
-#### Lesson 4E: Using Pyhton to Implement the Relational Model (left join)
+#### Lesson 6B: Joins (left join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -270,7 +306,7 @@
     #! 101         Engineering  Charlie   75000  10000.0
     #! 103         Sales          David   70000      NaN
 
-#### Lesson 4F: Using Pyhton to Implement the Relational Model (inner join)
+#### Lesson 6C: Joins (inner join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -293,21 +329,25 @@
     #! 101         HR             Alice   60000   5000
     #!             Engineering  Charlie   75000  10000
 
-#### Lesson 5: Group 
+#### Lesson 7: Group 
 
-    df = df.set_index(['plan_id', 'mobile'])
-    df = df.groupby(level=['plan_id', 'mobile']).agg(
+    # Group by column
+    df = df.groupby(['plan_id', 'mobile']).agg(
         nmbr_mac=('mac', 'count'),
         # other aggs, if any
     )
-    # Inspect what we've aggregated
-    df['nmbr_mac'].value_counts().sort_index()
-
     # NOTE: 
     # - Available aggs: count, nunique, min, max, first, last, sum, mean,
     #   median, mode
 
-#### Lesson 6: Feature Engineering (Creating Helper Columns)
+    # If you have just a single agg to do, you can shorten the syntax like this
+    df.groupby(level=['plan_id', 'mobile']).mean(numeric_only=True)
+
+    # Group by index
+    df = df.set_index(['plan_id', 'mobile'])
+    df.groupby(level=['plan_id', 'mobile']).mean(numeric_only=True)
+
+#### Lesson 8: Feature Engineering (Creating Helper Columns)
 
     # Feature engineering: Discretizing continuous variable columns into bins
 	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
@@ -333,90 +373,103 @@
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-#### Lesson 7A: Pivot Table Definition
+#### Lesson 9A: Pivot (single index and multi index)
 
-    df
-    #!   region prod   Q1     Q2     Q3
-    #! 0      N    A  100  110.0  120.0
-    #! 1      N    B  150  160.0    NaN
-    #! 2      S    A  200  210.0  220.0
-    #! 3      S    B  250  260.0  270.0
-    #! 4      E    A  300    NaN  320.0
-    #! 5      E    B  350  360.0  370.0
-
-    # Given a relation (table) T with attributes {R_attrs} (row keys), 
-    # {C_attrs} (column keys), and {V} (value(s)), and an aggregation function 
+    # We don't really need the .pivot and .pivot_table methods to pivot a dataframe. This is because, 
+    # the below mathematical definition of a pivot table, makes it possible to pivot simply by unstacking a grouped aggregate
+    # DEF: Given a relation (table) T with attributes {R_attrs} (row keys), {C_attrs} (column keys), and {V} (value(s)), and an aggregation function 
     # agg, the pivot table P is the function:
     #   P(r, c) = agg({ t.V | t in T and t.R_attrs = r and t.C_attrs = c }),
     #   where r ranges over unique values of R_attrs and c over unique values
     #   of C_attrs
 
-    pivot = pd.pivot_table(
-        df, # T
-        index='region', # {R_attrs}; 
-        columns='prod', # {C_attrs}
-        values=['Q1', 'Q2', 'Q3'], # {V}
-        aggfunc='mean', # agg
-        fill_value=0, # considers NaN values to be 0
-    )
-    # NOTE: Also - whether or not you set_index from before doesn't affect the
-    # .pivot_table method. You need to specify the index param nevertheless.
-    pivot = pivot.sort_index(axis=1)
-    print(pivot)
+    #!    foo bar  baz
+    #! 0  one   A    1
+    #! 1  one   B    2
+    #! 2  one   A    5
+    #! 3  two   A    3
+    #! 4  two   B    4
 
-    #!             Q1            Q2            Q3
-    #! prod         A      B      A      B      A      B
-    #! region
-    #! E        300.0  350.0    0.0  360.0  320.0  370.0
-    #! N        100.0  150.0  110.0  160.0  120.0    0.0
-    #! S        200.0  250.0  210.0  260.0  220.0  270.0
+    single_index_pivot = df.groupby(['foo']).agg(baz_sum=('baz', 'sum'))
+    print(single_index_pivot, single_index_pivot.columns)
+    #!      baz_sum
+    #! foo
+    #! one        8
+    #! two        7
+    #! Index(['baz_sum'], dtype='object')
 
-#### Lesson 7B: Pivot Table (Formatting)
+    multi_index_pivot = df.groupby(['foo','bar']).agg(baz_sum=("baz", "sum"))
+    print(multi_index_pivot, multi_index_pivot.columns)
+    #!          baz_sum
+    #! foo bar
+    #! one A          6
+    #!     B          2
+    #! two A          3
+    #!     B          4
+    #! Index(['baz_sum'], dtype='object')
 
-    # Now, because the Relational Model mandates that all relational functions
-    # output a relation, lets format the pivot table to be a useful relational df
-    # consistent with the indexing of its input for subsequent processing
+#### Lesson 9A: Pivot (flattening a multi index)
 
-    pivot.columns = [f"{val}_{col}" for val, col in pivot.columns]
-    print(pivot)
+    #! print(multi_index_pivot, multi_index_pivot.columns)
+    #!          baz_sum
+    #! foo bar
+    #! one A          6
+    #!     B          2
+    #! two A          3
+    #!     B          4
+    #! Index(['baz_sum'], dtype='object')
 
-    #!          Q1_A   Q1_B   Q2_A   Q2_B   Q3_A   Q3_B
-    #! region
-    #! E       300.0  350.0    0.0  360.0  320.0  370.0
-    #! N       100.0  150.0  110.0  160.0  120.0    0.0
-    #! S       200.0  250.0  210.0  260.0  220.0  270.0
+    # While the above lays out a neat looking hierachial tree, it is useful to
+    # 'flatten' it using unstack as below.
+    multi_index_pivot = multi_index_pivot.unstack()
+    #!     baz_sum
+    #! bar       A  B
+    #! foo
+    #! one       6  2
+    #! two       3  4
+    #! MultiIndex([('baz_sum', 'A'), ('baz_sum', 'B')], names=[None, 'bar'])
 
-#### Lesson 7C: Pivot Table (Motivation x Ability Grid)
+    # We can further flatten the unstacked df from MultiIndex columns to Index
+    # columns as below 
+    multi_index_pivot.columns = multi_index_pivot.columns.droplevel(0)
+    print(multi_index_pivot)
+    #!              A          B
+    #! foo
+    #! one          6          2
+    #! two          3          4
+
+#### Lesson 9C: Pivot Table (Motivation x Ability Grid)
 
     # Goal: 3x3 table with cols: motivation, high_ability, med_ability, low_ability
-
     # Assume df has:
     # - util_rng_qc: 1-10 (utilisation quantile, 10 = highest usage)
     # - churn_risk_qc: 1-10 (churn risk quantile, 10 = highest risk)
 
-    df['motivation'] = np.where(df['churn_risk_qc'] <= 3, 'high', np.where(df['churn_risk_qc'] <= 7, 'med', 'low'))
-    df['ability'] = np.where(df['util_rng_qc'] >= 9, 'high_ability', np.where(df['util_rng_qc'] >= 4, 'med_ability', 'low_ability'))
-
-    df = ( 
-        df.groupby(['motivation', 'ability'])
-          .agg(users=('plan_id', 'nunique'))
-          .reset_index() 
+    df["motivation"] = np.where(
+        df["churn_risk_qc"] <= 3,
+        "3_high",
+        np.where(df["churn_risk_qc"] <= 7, "2_med", "1_low"),
     )
-    # NOTE: 
+    df["ability"] = np.where(
+        df["util_rng_qc"] >= 9,
+        "3_high",
+        np.where(df["util_rng_qc"] >= 4, "2_med", "1_low"),
+    )
+
+    pk_motivation_df = (
+        df.groupby(["motivation", "ability"])
+        .agg(users=("plan_id", "nunique"))
+        .unstack()
+        .fillna(0)
+    )
+    # NOTE:
     # - We wrap it in a (), to allow us to indent each .method on a seperate line
-    # - We need to reset index here, so that the pivot operation that follows can access the ability column values 
+    # - We do NOT need to reset index here, since we'll use unstack instead of pivot
 
-    # Pivot so abilities become columns and motivations become rows; fill 
-    # missing with 0 and force desired order
-    pk_motivation_df = ( 
-        pk_motivation_ability_df
-          .pivot(index='motivation', columns='ability', values='users')
-          .fillna(0) # missing combos -> 0 users
-          .reindex(['high', 'med', 'low']) # enforce row order
-          .reindex(['high_ability', 'med_ability', 'low_ability'], axis=1) # enforce column order/names
-          .reset_index() # turn 'motivation' back into a column
-    )
-
-    # Flatten the columns so 'ability' doesn't sit on top
-    pk_motivation_df.columns.name = None  
+    pk_motivation_df.columns = pk_motivation_df.columns.droplevel(0)
     print(pk_motivation_df)
+    #! ability     1_low  2_med  3_high
+    #! motivation
+    #! 1_low         4.0    0.0     0.0
+    #! 2_med         1.0    5.0     0.0
+    #! 3_high        0.0    1.0     4.0
