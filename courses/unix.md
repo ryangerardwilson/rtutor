@@ -2,7 +2,7 @@
 
 ## Part I: Typing in the Terminal
 
-### Lesson 1: Multiline stings
+### Lesson 1: Multiline Strings
 
     # Option A: Use `fc`. It loads the last command into vim, and executes when
     # you :wq
