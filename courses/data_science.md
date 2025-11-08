@@ -9,11 +9,9 @@
     # Columns are an Index object
     df.columns
     #! Index(['id', 'to_number', 'model', 'call_type'], dtype='object')
-
     # By default, the index is a RangeIndex from 0 to n
     df.index
     #! RangeIndex(start=0, stop=356540, step=1)
-
     # This RangeIndex has names and values properties
     df.index.names
     #! FrozenList([None])
@@ -39,7 +37,6 @@
     df2 = df.set_index(['id','model']).index
     #! MultiIndex([(7937748,              '23090RA98I'),
     #!             (7938077,    'motorola edge 50 neo'),
-    #!             (7937542, 'motorola edge 50 fusion'),
     #!             ...
     #!             (7839768,                   'V2307')],
     #!            names=['id', 'model'], length=356540)
