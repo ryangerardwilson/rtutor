@@ -62,15 +62,14 @@
     df.sample(5)
     df.tail()
 
-    # 2. Unique values per column, and candidate keys
-    print('Unique values per column:')
+    # 2. Unique value counts 
     for col in df.columns:
         uniques = df[col].unique()
         print(f'{col}: {uniques}')
 
     # 3. Candidate keys
-    candidate_keys = [col for col in df.columns if df[col].nunique() == len(df)]
-    print('Candidate keys:', candidate_keys)
+    candidates = [col for col in df.columns if df[col].nunique() == len(df)]
+    print('Candidates:', candidates)
 
     # 4. Missing values
     df.isnull().sum()
