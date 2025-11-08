@@ -4,42 +4,52 @@
 
 ### Section 1: Vanilla Numpy & Pandas
 
-#### Lession 1: Disecting a DataFrame Like a Cockroach
+#### Lession 1A: Disecting a DataFrame Like a Cockroach (df.columns)
 
-    # Columns are an Index object
+    # Structurally, a Dataframe has two main components
     df.columns
     #! Index(['id', 'to_number', 'model', 'call_type'], dtype='object')
-    # By default, the index is a RangeIndex from 0 to n
-    df.index
+    df.index # defaults to a range from 0 to n
     #! RangeIndex(start=0, stop=356540, step=1)
-    # This RangeIndex has names and values properties
-    df.index.names
+
+    # df.columns: may hold either an Index or a MultiIndex, and has 
+    # .names and .values properties
+    df.columns.names # defaults to an empty frozen list
+    #! FrozenList([None])  
+    df.columns.values
+    #! array(['id', 'to_number', 'model', 'call_type'], dtype='object')
+
+    # You can assign a name for each Index in columns. Since the above 
+    # example has a single Index, we can only assign a single value
+    df.column.names = ['from_employee1']
+    #! from_employee1      id      to_number       model       call_type
+    #! 0                    1     9999999990           z               1
+    #! 1                    2     9999999991           x               2
+    #! 2                    3     9999999992           a               1
+    #! 3                    4     9999999993           b               2
+
+#### Lession 1B: Disecting a DataFrame Like a Cockroach (df.index)
+
+    # df.index: may also hold either an Index or a MultiIndex, and also
+    # has .names and .values properties
+    df.index.names # defaults to an empty frozen list
     #! FrozenList([None])
-    df.index.values
-    #! array([     0,      1,      2, ..., 356537, 356538, 356539], shape=(356540,))
+    df.index.values 
+    #! array([   0,  1,  2, ..., 356537, 356538, 356539], shape=(356540,))
 
-    # When we set a specific index, it is added to the df.index.names and removed from df.columns (default drop=True)
-    df2 = df.set_index(['id','model'])
-    df2.index.names
-    #! FrozenList(['id','model'])
-    df2.columns
-    #! Index(['to_number', 'call_type'], dtype='object')  # 'id' and 'model' are gone from columns!
-
-    # If you want to keep them in columns too (redundant and stupid), use drop=False
-    df_keep = df.set_index(['id','model'], drop=False)
-    df_keep.columns
-    #! Index(['id', 'to_number', 'model', 'call_type'], dtype='object')  # Now they're duplicated
-
-    # When we set index (using set_index or groupby), the RangeIndex gets replaced by an Index object or a
-    # MultiIndex object
-    df2 = df.set_index(['id']).index
-    #! Index([7937748, 7938517, 7938562, 7938486, ...], dtype='int32', name='id', length=356540)
-    df2 = df.set_index(['id','model']).index
+    # When we set a specific index (using set_index or groupby), 
+    # - the default RangeIndex (0 to n) gets replaced by Index/MultiIndex
+    # - it is added to the df.index.names 
+    # - removed from df.columns (default drop=True)
+    df = df.set_index(['id','model'])
+    df.index
     #! MultiIndex([(7937748,              '23090RA98I'),
     #!             (7938077,    'motorola edge 50 neo'),
     #!             ...
     #!             (7839768,                   'V2307')],
     #!            names=['id', 'model'], length=356540)
+    df.index.names
+    #! FrozenList(['id','model'])
 
 #### Lesson 2A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-5) 
 
