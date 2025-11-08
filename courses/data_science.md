@@ -87,10 +87,6 @@
 
     # 7. Value distributions
     df['category_col'].value_counts().sort_index()
-    df['num_col'].hist() 
-    plt.savefig('histogram.png')
-    bash.execute('xdg-open histogram.png')
-    plt.close() # clears the plt state
 
     # 8. Outliers & Anomalies (IQR method)
     Q1 = df[num_cols].quantile(0.25)
@@ -100,10 +96,6 @@
 
     # 9. Correlations & Multicollinearity
     corr_matrix = df.corr(numeric_only=True)  
-    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm')
-    plt.savefig('heatmap.png')
-    bash.execute('xdg-open heatmap.png')
-    plt.close()
 
     # 10. Domain Consistency & Business Logic Checks
     assert (df['age'] >= 0).all(), 'Negative ages found!'
