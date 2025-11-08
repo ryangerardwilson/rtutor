@@ -107,6 +107,9 @@
     # Convert int parseable object column to int64 (not int32 because it is non-nullable)
     df['android_version'] = pd.to_numeric(df['android_version'], errors='coerce').astype('Int64')
 
+    # Convert float parseable object column to float64
+    df['temp'] = pd.to_numeric(df['temp'], errors='coerce').astype('float64')
+
     # Convert datetime parseable string columns to datetime
     df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
 
