@@ -15,10 +15,15 @@
     > courses\
     > && pwd
     /home/ryan/Apps/rtutor/courses
+
     # NOTE: The below will not print 'hello world' in one line because single 
     # quotes tell bash to treat everything inside '' as a string literal
     bash$ echo 'hello\
     > world'
+
+    # Insted, try this:
+    bash$ echo \
+    > 'hello world'
 
 ### Lesson 2: Cursor Control
 
