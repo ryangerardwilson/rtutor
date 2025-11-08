@@ -16,7 +16,7 @@
     # .names and .values properties
     df.columns.names # defaults to an empty frozen list
     #! FrozenList([None])  
-    df.columns.values
+    df.columns.values # holds an array of tuples in case of MultiIndex
     #! array(['id', 'to_number', 'model', 'call_type'], dtype='object')
 
     # You can assign a name for each Index in columns. Since the above 
