@@ -62,7 +62,11 @@
     df.sample(5)
     df.tail()
 
-    # 2. Unique value counts 
+    # 2. Duplicate rows & subset
+    df.duplicated().sum()
+    df.duplicated(subset=['id', 'date']).sum()
+
+    # 3. Unique value counts 
     for col in df.columns:
         uniques = df[col].unique()
         print(f'{col}: {uniques}')
@@ -71,19 +75,15 @@
     candidates = [col for col in df.columns if df[col].nunique() == len(df)]
     print('Candidates:', candidates)
 
-    # 4. Missing values
+    # 5. Missing values
     df.isnull().sum()
     df.isnull().mean() * 100  # % missing
 
-    # 5. Summary stats - look for impossible values (e.g., negative age),
-    # extreme outliers, or unexpected categories.
-    df.describe(include='all')
-
 #### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
 
-    # 6. Duplicate rows & subset
-    df.duplicated().sum()
-    df.duplicated(subset=['id', 'date']).sum()
+    # 6. Summary stats - look for impossible values (e.g., negative age),
+    # extreme outliers, or unexpected categories.
+    df.describe(include='all')
 
     # 7. Value distributions
     df['category_col'].value_counts().sort_index()
