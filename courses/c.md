@@ -520,7 +520,7 @@ uses underscores
         return 0;
     }
 
-## Part III: K&R 2nd Ed - Exercises
+## Part II: K&R 2nd Ed - Exercises
 
 ### Section A: Chapter 1 Exercises 1-12
 
