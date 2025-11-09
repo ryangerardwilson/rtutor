@@ -229,7 +229,7 @@ uses underscores
 
     // Integer/ Char Qualifiers
     signed int si; // default, even if signed qualifier is not specified
-    unsigned int usi; // always positive, and holds 2x more postive integers
+    unsigned int usi; // always positive, and holds 2x more positive integers
     signed char sc; // maps the 256 ASCII values to the int range -128 to 127
     unsigned char usc; // has ASCII decimal values from 0 to 255
 
