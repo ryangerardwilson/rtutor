@@ -343,14 +343,15 @@
 
 #### Lesson 9A: Pivot (single index and multi index)
 
-    # We don't really need the .pivot and .pivot_table methods to pivot a dataframe. This is because, 
-    # the below mathematical definition of a pivot table, makes it possible to pivot simply by unstacking a grouped aggregate
-    # DEF: Given a relation (table) T with attributes {R_attrs} (row keys), {C_attrs} (column keys), and {V} (value(s)), and an aggregation function 
+    # We don't really need the .pivot and .pivot_table methods to pivot a
+    # dataframe. This is because, the below mathematical definition of a pivot
+    # table, makes it possible by simply unstacking a grouped aggregate
+    # DEF: Given a relation (table) T with attributes {R_attrs} (row keys), 
+    # {C_attrs} (column keys), and {V} (value(s)), and an aggregation function 
     # agg, the pivot table P is the function:
     #   P(r, c) = agg({ t.V | t in T and t.R_attrs = r and t.C_attrs = c }),
     #   where r ranges over unique values of R_attrs and c over unique values
     #   of C_attrs
-
     #!    foo bar  baz
     #! 0  one   A    1
     #! 1  one   B    2
@@ -359,22 +360,18 @@
     #! 4  two   B    4
 
     single_index_pivot = df.groupby(['foo']).agg(baz_sum=('baz', 'sum'))
-    print(single_index_pivot, single_index_pivot.columns)
     #!      baz_sum
     #! foo
     #! one        8
     #! two        7
-    #! Index(['baz_sum'], dtype='object')
 
     multi_index_pivot = df.groupby(['foo','bar']).agg(baz_sum=('baz', 'sum'))
-    print(multi_index_pivot, multi_index_pivot.columns)
     #!          baz_sum
     #! foo bar
     #! one A          6
     #!     B          2
     #! two A          3
     #!     B          4
-    #! Index(['baz_sum'], dtype='object')
 
 #### Lesson 9A: Pivot (flattening a multi index)
 
