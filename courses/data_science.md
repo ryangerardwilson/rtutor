@@ -480,7 +480,31 @@
     #! two A          3
     #!     B          4
 
-#### Lesson 9B: Pivot (flattening a multi index)
+#### Lesson 9B: Pivot (`pivot_table`)
+
+    # Now, we use the df.pivot_table method to achieve the same results as the previous lesson
+    #!    foo bar  baz
+    #! 0  one   A    1
+    #! 1  one   B    2
+    #! 2  one   A    5
+    #! 3  two   A    3
+    #! 4  two   B    4
+
+    single_index_pivot = df.pivot_table(index='foo', values='baz', aggfunc='sum')
+    #!      baz_sum
+    #! foo
+    #! one        8
+    #! two        7
+
+    multi_index_pivot = df.pivot_table(index=['foo', 'bar'], values='baz', aggfunc='sum').rename(columns={'baz':'baz_sum'})
+    #!          baz_sum
+    #! foo bar
+    #! one A          6
+    #!     B          2
+    #! two A          3
+    #!     B          4
+
+#### Lesson 9C: Pivot (flattening a multi index)
 
     #! print(multi_index_pivot, multi_index_pivot.columns)
     #!          baz_sum
@@ -510,7 +534,7 @@
     #! one          6          2
     #! two          3          4
 
-#### Lesson 9C: Pivot Table (Motivation x Ability Grid)
+#### Lesson 9D: Pivot Table (Motivation x Ability Grid)
 
     # Goal: 3x3 table with cols: motivation, high_ability, med_ability, low_ability
     # Assume df has:
@@ -614,7 +638,7 @@
 
     # Then slice to just the columns you care about, renaming if needed
     otp_info = (
-        pivot_df[['mobile', 'account_id', 'ASSIGNED', 'OTP_VERIFIED']][~pivot_df['ASSIGNED'].isna()]
+        pivot_df[['mobile', 'account_id', 'ASSIGNED', 'OTP_VERIFIED']][pivot_df['ASSIGNED'].notna()]
         .rename(columns={'ASSIGNED': 'assigned_added_time', 'OTP_VERIFIED': 'otpv_added_time'})
     )
 
