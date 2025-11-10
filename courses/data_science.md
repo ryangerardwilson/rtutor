@@ -78,13 +78,18 @@
 
     # 4. Unique value counts of each column, and candidate keys
     for col in df.columns:
-        uniques = df[col].unique()
-        print(f'{col}: {uniques}')
+        unique_value_counts = df[col].nunique()
+        print(f'{col}: {unique_value_counts}')
 
     candidates = [col for col in df.columns if df[col].nunique() == len(df)]
     print('Candidates:', candidates)
 
-    # 5. Frequency of unique values across a column/ set of columns
+    # 5. Unique values of each column and/ or frequency of unique values across a 
+    # column/ set of columns
+    for col in df.columns:
+        uniques = df[col].unique()
+        print(f'{col}: {uniques}')
+
     df.groupby('plan_id').size() # same logic as df.value_counts(), but retuns a df instead
     df.groupby(['plan_id','mac']).size()
 
