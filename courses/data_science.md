@@ -83,13 +83,12 @@
         print(f'{col}: {unique_value_counts}')
 
     candidates = [col for col in df.columns if df[col].nunique() == len(df)]
-    print('Candidates:', candidates)
 
     # 5. Unique values of each column and/ or frequency of unique values across a 
     # column/ set of columns
     for col in df.columns:
         uniques = df[col].unique()
-        print(f'{col}: {uniques}')
+        if len(uniques) < 10: print(f'{col}: {uniques}')
 
     df.groupby('plan_id').size() # same logic as df.value_counts(), but returns a df instead
     df.groupby(['plan_id','mac']).size()
