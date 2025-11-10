@@ -63,6 +63,7 @@
     df.shape
     df.head()
     df.sample(5)
+    df.sample().T # transpose any random row
     df.tail()
     print(df.to_string()) # prints all rows in a df, useful for printing
                           # grouped dfs with more than 10 rows
