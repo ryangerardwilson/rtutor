@@ -201,16 +201,17 @@
     n = len(df.columns)
     columns = df.columns
 
-#### Lesson 5: Filtering by Index 
+#### Lesson 5: Indexing Advantages 
 
     #!    employee_id   department  hire_date     name  salary
     #! 0          101           HR 2023-01-01    Alice   60000
     #! 1          102  Engineering 2023-01-04      Bob   80000
     #! 2          101  Engineering 2023-01-02  Charlie   75000
     #! 3          103        Sales 2023-01-03    David   70000
-
     df = df.set_index(['employee_id', 'department', 'hire_date'])
-    df = df.sort_index()  # Sorts rows in the order of the index 
+
+    # 1. Easily sort rows in the order of the index
+    df = df.sort_index()  
     #!                                        name  salary
     #! employee_id department  hire_date
     #! 101         Engineering 2023-01-02  Charlie   75000
@@ -218,12 +219,12 @@
     #! 102         Engineering 2023-01-04      Bob   80000
     #! 103         Sales       2023-01-03    David   70000
 
-    # 1. Fast lookups. Grab the row for employee 101 in Engineering on 2023-01-02
+    # 2. Fast lookups. Grab the row for employee 101 in Engineering on 2023-01-02
     df.loc[(101, 'Engineering', '2023-01-02')]
     #! name      Charlie
     #! salary      75000
 
-    # 2. Datetime index slicing by temporarily setting hire_date as the single index
+    # 3. Datetime index slicing by temporarily setting hire_date as the single index
     temp_df = df.reset_index().set_index('hire_date').sort_index().loc['2023-01-01':'2023-01-03']
     #!             employee_id   department     name  salary
     #! hire_date
@@ -231,7 +232,7 @@
     #! 2023-01-02          101  Engineering  Charlie   75000
     #! 2023-01-03          103        Sales    David   70000
 
-    # 3. Partial string slicing (e.g., all of January 2023)
+    # 4. Partial string slicing (e.g., all of January 2023)
     temp_df.loc['2023-01']
     #!             employee_id   department     name  salary
     #! hire_date
