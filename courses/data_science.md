@@ -106,7 +106,11 @@
     Q1 = df[num_cols].quantile(0.25)
     Q3 = df[num_cols].quantile(0.75)
     IQR = Q3 - Q1
-    outliers = ((df[num_cols] < (Q1 - 1.5 * IQR)) | (df[num_cols] > (Q3 + 1.5 * IQR))).sum()
+    outlier_condition = (df[num_cols] < (Q1 - 1.5 * IQR)) | (df[num_cols] > (Q3 + 1.5 * IQR))
+    outliers = outlier_condition.sum()
+    # Filter out outliers
+    non_outlier_mask = ~outlier_condition.any(axis=1)
+    df_clean = df[non_outlier_mask]
 
     # 9. Correlations & Multicollinearity
     corr_matrix = df.corr(numeric_only=True)  
