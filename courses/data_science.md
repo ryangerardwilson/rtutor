@@ -396,11 +396,15 @@
 
 #### Lesson 7C: groupby (shorthand syntax) 
 
+    df.groupby('plan_id').size()    # counts all rows; same logic as df.value_counts(), 
+                                    # thus returns a Series. chain .to_frame(name='count') 
+                                    # to output a df instead.
+
+    # The below return dfs
     df.groupby(level=['plan_id', 'mobile'])[['usage_gb']].mean()
     df.groupby(level=['plan_id', 'mobile'])[['usage_gb', 'cost']].mean()
     df.groupby(level=['plan_id', 'mobile']).mean(numeric_only=True)
 
-    df.groupby('plan_id').size() # counts all rows; same core logic as df.value_counts()
     df.groupby('plan_id').count() # counts rows, but skips NaNs
 
     # NOTE: Available aggs -> count, size, nunique, min, max, first, last, sum, 
@@ -476,7 +480,7 @@
     #! two A          3
     #!     B          4
 
-#### Lesson 9A: Pivot (flattening a multi index)
+#### Lesson 9B: Pivot (flattening a multi index)
 
     #! print(multi_index_pivot, multi_index_pivot.columns)
     #!          baz_sum
