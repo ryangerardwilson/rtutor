@@ -400,31 +400,43 @@
     # NOTE: Available aggs -> count, size, nunique, min, max, first, last, sum, 
     # mean, median, mode
 
-#### Lesson 8: Feature Engineering (Creating Helper Columns)
+#### Lesson 8A: Feature Engineering (Creating Helper Columns)
 
-    # Feature engineering: Discretizing continuous variable columns into bins
-	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
-	df['days_rng_bc'].value_counts().sort_index()
-    # NOTE: labels=False gives us the index number of the label (which can
-    # directly be used as a numeric feature), instead of the label itself. Don't
-    # add this param if you want the col to be more human readable, instead.
-
-    # Append additional derived continuous variable columns
-	df['utilisation'] = df['number_days'] / df['plan_duration']
-
-    # Append boolean attribute columns
-	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0) 
-	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
-
-    # Append quantile bin classification column
+    # 1. Append quantile bin classification column
     df['util_range_qbc'] = pd.qcut(df['utilisation'],q=10,duplicates='drop',labels=False)
 	df['util_range_qbc'].value_counts().sort_index()
     # NOTE: pd.qcut gives quantile / equal-frequency bins cut by data 
     # quantiles so bins have ~equal counts. Here, we drop duplicates to
     # merge duplicate bins caused by too many duplicate values  
 
+    # 2. Appwnd bin classifcation column
+	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
+	df['days_rng_bc'].value_counts().sort_index()
+    # NOTE: labels=False gives us the index number of the label (which can
+    # directly be used as a numeric feature), instead of the label itself. Don't
+    # add this param if you want the col to be more human readable, instead.
+
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
+
+    # 3. Append cohort column
+    conditions = [
+        (df['id'].notnull() & df['otp'].isnull()),
+        (df['id'].isnull() & df['otp'].notnull()),
+        (df['id'].notnull() & df['otp'].notnull()),
+        (df['id'].isnull() & df['otp'].isnull()),
+    ]
+    choices = ['CALL_NOINSTALL', 'NOCALL_INSTALL', 'CALL_INSTALL', 'NOCALL_NOINSTALL']
+    df['cohort'] = np.select(conditions, choices, default=None)
+
+#### Lesson 8B: Feature Engineering (Creating Helper Columns)
+
+    # 4. Append computation storage column
+	df['utilisation'] = df['number_days'] / df['plan_duration']
+
+    # 5. Append boolean attribute columns
+	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0) 
+	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
 
 #### Lesson 9A: Pivot (single index and multi index)
 
