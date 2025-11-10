@@ -90,7 +90,7 @@
         uniques = df[col].unique()
         print(f'{col}: {uniques}')
 
-    df.groupby('plan_id').size() # same logic as df.value_counts(), but retuns a df instead
+    df.groupby('plan_id').size() # same logic as df.value_counts(), but returns a df instead
     df.groupby(['plan_id','mac']).size()
 
 #### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
