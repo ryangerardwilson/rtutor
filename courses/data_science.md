@@ -64,23 +64,29 @@
     df.head()
     df.sample(5)
     df.tail()
+    print(df.to_string()) # prints all rows in a df, useful for printing
+                          # grouped dfs with more than 10 rows
 
     # 2. Duplicate rows & subset
     df.duplicated().sum()
     df.duplicated(subset=['id', 'date']).sum()
 
-    # 3. Unique value counts 
+    # 3. Missing values
+    df.isnull().sum()
+    df.isnull().mean() * 100  # % missing
+    df = df[df['datetime_col'].notna()] # Filter out rows with certain missing values
+
+    # 4. Unique value counts of each column, and candidate keys
     for col in df.columns:
         uniques = df[col].unique()
         print(f'{col}: {uniques}')
 
-    # 3. Candidate keys
     candidates = [col for col in df.columns if df[col].nunique() == len(df)]
     print('Candidates:', candidates)
 
-    # 5. Missing values
-    df.isnull().sum()
-    df.isnull().mean() * 100  # % missing
+    # 5. Frequency of unique values across a column/ set of columns
+    df.groupby('plan_id').size() # same logic as df.value_counts(), but retuns a df instead
+    df.groupby(['plan_id','mac']).size()
 
 #### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
 
@@ -118,6 +124,9 @@
 
     # Convert datetime parseable int64 unix column to datetime
     df['unix'] = pd.to_datetime(df['unix'], unit='ms')
+
+    # Rename specific columns 
+    df = df.rename(columns={'old_name1': 'new_name1', 'old_name2': 'new_name2'})
 
 	# Lowercase all column names
 	df.columns = df.columns.str.lower()
@@ -297,23 +306,89 @@
     #! 101         HR             Alice   60000   5000
     #!             Engineering  Charlie   75000  10000
 
-#### Lesson 7: Group 
+#### Lesson 7A: groupby (unindexed dataframe) 
+
+    #!    plan_id mobile   mac  value
+    #! 0        1      A  mac1     10
+    #! 1        1      A  mac2     20
+    #! 2        1      B  mac3     30
+    #! 3        2      B  mac4     40
+    #! 4        2      C  mac5     50
+    #! 5        3      C  mac6     60
 
     # Group by column
     df = df.groupby(['plan_id', 'mobile']).agg(
         nmbr_mac=('mac', 'count'),
         # other aggs, if any
     )
-    # NOTE: 
-    # - Available aggs: count, nunique, min, max, first, last, sum, mean,
-    #   median, mode
+    #!                 nmber_mac
+    #! plan_id mobile
+    #! 1       A               2
+    #!         B               1
+    #! 2       B               1
+    #!         C               1
+    #! 3       C               1
 
-    # If you have just a single agg to do, you can shorten the syntax like this
-    df.groupby(level=['plan_id', 'mobile']).mean(numeric_only=True)
+    # NOTE: Available aggs -> count, nunique, min, max, first, last, sum, mean, 
+    # median, mode
 
-    # Group by index
+    #! How data structure is altered?
+    #! df.index.names     # FrozenList([None])  ->  FrozenList(['plan_id', 'mobile'])
+    #! df.index.values    # array([0,1,...,n])  ->  array[(1,'A'),(1,'B'),...,(3,'C')
+    #! df.columns.names   # no change, remains FrozenList([None])
+    #! df.columns.values  # array(['plan_id',...,'value'])  -> array(['nmbr_mac'])
+
+#### Lesson 7B: groupby (indexed dataframe) 
+
+    #!    plan_id mobile   mac  value
+    #! 0        1      A  mac1     10
+    #! 1        1      A  mac2     20
+    #! 2        1      B  mac3     30
+    #! 3        2      B  mac4     40
+    #! 4        2      C  mac5     50
+    #! 5        3      C  mac6     60
+
     df = df.set_index(['plan_id', 'mobile'])
+    #!                  mac  value
+    #! plan_id mobile
+    #! 1       A       mac1     10
+    #!         A       mac2     20
+    #!         B       mac3     30
+    #! 2       B       mac4     40
+    #!         C       mac5     50
+    #! 3       C       mac6     60
+
+    # Same syntax as before, except we specify the level param
+    df = df.groupby(level=['plan_id', 'mobile']).agg(
+        nmbr_mac=('mac', 'count'),
+        # other aggs, if any
+    )
+
+    #!                 nmbr_mac
+    #! plan_id mobile
+    #! 1       A              2
+    #!         B              1
+    #! 2       B              1
+    #!         C              1
+    #! 3       C              1
+
+    #! How data structure is altered?
+    #! df.index.names     # no change, remains FrozenList(['plan_id','mobile']) 
+    #! df.index.values    # no chnage, remains array[(1,'A'),(1,'B'),...,(3,'C') 
+    #! df.columns.names   # no change, remains FrozenList([None])
+    #! df.columns.values  # array(['mac','value'])  ->  array(['nmbr_mac']) 
+
+#### Lesson 7C: groupby (shorthand syntax) 
+
+    df.groupby(level=['plan_id', 'mobile'])[['usage_gb']].mean()
+    df.groupby(level=['plan_id', 'mobile'])[['usage_gb', 'cost']].mean()
     df.groupby(level=['plan_id', 'mobile']).mean(numeric_only=True)
+
+    df.groupby('plan_id').size() # counts all rows; same core logic as df.value_counts()
+    df.groupby('plan_id').count() # counts rows, but skips NaNs
+
+    # NOTE: Available aggs -> count, size, nunique, min, max, first, last, sum, 
+    # mean, median, mode
 
 #### Lesson 8: Feature Engineering (Creating Helper Columns)
 
