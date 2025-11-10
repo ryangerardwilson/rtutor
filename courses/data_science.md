@@ -440,7 +440,7 @@
     #! 3  two   A    3
     #! 4  two   B    4
 
-    single_index_pivot = df.groupby(['foo']).agg(baz_sum=('baz', 'sum'))
+    single_index_pivot = df.groupby('foo').agg(baz_sum=('baz', 'sum'))
     #!      baz_sum
     #! foo
     #! one        8
