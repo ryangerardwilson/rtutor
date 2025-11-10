@@ -9,11 +9,9 @@
 
     # Option B: Use `\`. The `\` is ignored, and the below is executed as if it
     # were one line
-    bash$ cd \
-    > Apps/\
-    > rtutor/\
-    > courses\
-    > && pwd
+    bash$ p\
+    >w\
+    >d
     /home/ryan/Apps/rtutor/courses
 
     # NOTE: The below will not print 'hello world' in one line because single 
