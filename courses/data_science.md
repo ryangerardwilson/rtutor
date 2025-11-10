@@ -146,7 +146,10 @@
     # Filter out rows where a specific col has null values
     df = df[df['datetime_col'].notna()] 
 
-#### Lesson 3: Filtering by Columns
+    # Filtering rows and columns in one line
+    df[['mobile', 'account_id', 'assigned', 'otp']][df['assigned'].notna()]
+
+#### Lesson 3: Filtering 
 
     # Boolean filter
     df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
@@ -180,6 +183,9 @@
     df[df['ts'].dt.month.isin([1,2,3])] # filter months
     df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
     df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
+
+    # Filtering rows and columns in one line
+    df[['mobile', 'account_id', 'assigned', 'otp']][df['assigned'].notna()]
 
 #### Lesson 4: Using Python to Implement the Relational Model
 
@@ -535,3 +541,80 @@
     #! 1_low         4.0    0.0     0.0
     #! 2_med         1.0    5.0     0.0
     #! 3_high        0.0    1.0     4.0
+
+#### Lesson 10A: Subset Aggregation / SQL sub-queries (using groupby)
+
+    #!    mobile  account_id    event_name  added_time
+    #! 0  123456           1      ASSIGNED          10
+    #! 1  123456           1  OTP_VERIFIED          15
+    #! 2  123456           1   OTHER_EVENT          20
+    #! 3  789012           2      ASSIGNED           5
+    #! 4  789012           2      ASSIGNED           3
+    #! 5  345678           3  OTP_VERIFIED           8
+    #! 6  901234           4      ASSIGNED          12
+
+    # Get min ASSIGNED time per mobile and account_id as a DataFrame with MultiIndex
+    assigned_df = (
+        df[df['event_name'] == 'ASSIGNED']
+        .groupby(['mobile', 'account_id'])
+        .agg(assigned_added_time=('added_time', 'min'))
+    )
+    #!    mobile  account_id  assigned_added_time
+    #! 0  123456           1                   10
+    #! 1  789012           2                    3
+    #! 2  901234           4                   12
+
+    # Get min OTP_VERIFIED time per mobile and account_id )
+    otp_df = (
+        df[df['event_name'] == 'OTP_VERIFIED']
+        .groupby(['mobile', 'account_id'])
+        .agg(otpv_added_time=('added_time', 'min'))
+    )
+    #!    mobile  account_id  otpv_added_time
+    #! 0  123456           1               15
+    #! 1  345678           3                8
+    
+    # Merge on the index; keep all from left, matches from right, NaN where no OTP
+    otp_info = assigned_df.merge(otp_df, on=['mobile', 'account_id'], how='left')
+
+    #!    mobile  account_id  assigned_added_time  otpv_added_time
+    #! 0  123456           1                   10             15.0
+    #! 1  789012           2                    3              NaN
+    #! 2  901234           4                   12              NaN
+
+
+#### Lesson 10B: Subset Aggregation / SQL sub-queries (using pivot)
+
+    #!    mobile  account_id    event_name  added_time
+    #! 0  123456           1      ASSIGNED          10
+    #! 1  123456           1  OTP_VERIFIED          15
+    #! 2  123456           1   OTHER_EVENT          20
+    #! 3  789012           2      ASSIGNED           5
+    #! 4  789012           2      ASSIGNED           3
+    #! 5  345678           3  OTP_VERIFIED           8
+    #! 6  901234           4      ASSIGNED          12
+
+    pivot_df = df_tasks.pivot_table(
+        index=['mobile', 'account_id'],
+        columns='event_name',
+        values='added_time',
+        aggfunc='min'
+    ).reset_index()
+    pivot_df.columns.name = None
+
+    #! event_name  mobile  account_id  ASSIGNED  OTHER_EVENT  OTP_VERIFIED
+    #! 0           123456           1      10.0         20.0          15.0
+    #! 1           345678           3       NaN          NaN           8.0
+    #! 2           789012           2       3.0          NaN           NaN
+    #! 3           901234           4      12.0          NaN           NaN
+
+    # Then slice to just the columns you care about, renaming if needed
+    otp_info = (
+        pivot_df[['mobile', 'account_id', 'ASSIGNED', 'OTP_VERIFIED']][~pivot_df['ASSIGNED'].isna()]
+        .rename(columns={'ASSIGNED': 'assigned_added_time', 'OTP_VERIFIED': 'otpv_added_time'})
+    )
+
+    #!    mobile  account_id  assigned_added_time  otpv_added_time
+    #! 0  123456           1                   10             15.0
+    #! 1  789012           2                    3              NaN
+    #! 2  901234           4                   12              NaN
