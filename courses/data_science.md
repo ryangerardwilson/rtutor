@@ -41,7 +41,9 @@
     # - the default RangeIndex (0 to n) gets replaced by Index/MultiIndex
     # - it is added to the df.index.names 
     # - removed from df.columns (default drop=True)
-    df = df.set_index(['id','model'])
+    df = df.set_index(['id','model'],verify_integrity=True)
+    # NOTE: Always set verify integrity as True, because it will throw and
+    # error if duplicate indices are found
     df.index
     #! MultiIndex([(7937748,              '23090RA98I'),
     #!             (7938077,    'motorola edge 50 neo'),
@@ -67,6 +69,8 @@
     df.tail()
     print(df.to_string()) # prints all rows in a df, useful for printing
                           # grouped dfs with more than 10 rows
+    df['col_name'].nunique() # get count of unique values of a column
+    df['col_name'].unique() # get list of unqiue values of a column
 
     # 2. Duplicate rows & subset
     df.duplicated().sum()
@@ -77,20 +81,14 @@
     df.isnull().mean() * 100  # % missing
     df = df[df['datetime_col'].notna()] # Filter out rows with certain missing values
 
-    # 4. Unique value counts of each column, and candidate keys
-    for col in df.columns:
-        unique_value_counts = df[col].nunique()
-        print(f'{col}: {unique_value_counts}')
+    # 4. Primary key
+    df.set_index(['col1','col2'], verify_integrity=True) 
+    # The above will throw integrity error if the set isnt a primary key. In
+    case of error, either change the set, or do: 
+    df.drop_duplicates(subset=['col1','col2']) 
 
-    candidates = [col for col in df.columns if df[col].nunique() == len(df)]
-
-    # 5. Unique values of each column and/ or frequency of unique values across a 
-    # column/ set of columns
-    for col in df.columns:
-        uniques = df[col].unique()
-        if len(uniques) < 10: print(f'{col}: {uniques}')
-
-    df.groupby('plan_id').size() # same logic as df.value_counts(), but returns a df instead
+    # 5. Frequency of unique values across a column/ set of columns
+    df.groupby('plan_id').size() # same logic as df.value_counts(), both return Series
     df.groupby(['plan_id','mac']).size()
 
 #### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
@@ -206,8 +204,9 @@
     # relational table because, rows MUST represent a set of {tuples}. A
     # df representing a relation must have at least 1 key candidate.
     df = pd.DataFrame(table)
-    df.drop_duplicates()
-    df.set_index('id')
+    df.set_index('id',verify_integrity=True) 
+    # NOTE: In case of integrity error, do df.drop_duplicates() or
+    # df.drop_duplicates(subset=[list_of_keys_to_be_indexed_upon])
     n = len(df.columns)
     columns = df.columns
 
@@ -218,7 +217,7 @@
     #! 1          102  Engineering 2023-01-04      Bob   80000
     #! 2          101  Engineering 2023-01-02  Charlie   75000
     #! 3          103        Sales 2023-01-03    David   70000
-    df = df.set_index(['employee_id', 'department', 'hire_date'])
+    df = df.set_index(['employee_id', 'department', 'hire_date'],verify_integrity=True)
 
     # 1. Easily sort rows in the order of the index
     df = df.sort_index()  
@@ -235,7 +234,7 @@
     #! salary      75000
 
     # 3. Datetime index slicing by temporarily setting hire_date as the single index
-    temp_df = df.reset_index().set_index('hire_date').sort_index().loc['2023-01-01':'2023-01-03']
+    temp_df = df.reset_index().set_index('hire_date',verify_integrity=True).sort_index().loc['2023-01-01':'2023-01-03']
     #!             employee_id   department     name  salary
     #! hire_date
     #! 2023-01-01          101           HR    Alice   60000
@@ -364,25 +363,23 @@
     #! 4        2      C  mac5     50
     #! 5        3      C  mac6     60
 
-    df = df.set_index(['plan_id', 'mobile'])
-    #!                  mac  value
-    #! plan_id mobile
-    #! 1       A       mac1     10
-    #!         A       mac2     20
-    #!         B       mac3     30
-    #! 2       B       mac4     40
-    #!         C       mac5     50
-    #! 3       C       mac6     60
+    df = df.set_index(['plan_id', 'mobile','mac'],verify_integrity=True)
+    #!    plan_id mobile   mac  value
+    #! 0        1      A  mac1     10
+    #! 1        1      A  mac2     20
+    #! 2        1      B  mac3     30
+    #! 3        2      B  mac4     40
+    #! 4        2      C  mac5     50
+    #! 5        3      C  mac6     60
 
     # Same syntax as before, except we specify the level param
     df = df.groupby(level=['plan_id', 'mobile']).agg(
-        nmbr_mac=('mac', 'count'),
-        # other aggs, if any
+        nmbr_mac=('value', 'count'),  
+        # other aggs
     )
-
-    #!                 nmbr_mac
+    #!                 nmbr_mac  
     #! plan_id mobile
-    #! 1       A              2
+    #! 1       A              2 
     #!         B              1
     #! 2       B              1
     #!         C              1
