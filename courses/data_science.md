@@ -42,7 +42,7 @@
     # - it is added to the df.index.names 
     # - removed from df.columns (default drop=True)
     df = df.set_index(['id','model'],verify_integrity=True)
-    # NOTE: Always set verify integrity as True, because it will throw and
+    # NOTE: Always set verify integrity as True, because it will throw an
     # error if duplicate indices are found
     df.index
     #! MultiIndex([(7937748,              '23090RA98I'),
