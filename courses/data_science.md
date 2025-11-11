@@ -421,7 +421,7 @@
     # quantiles so bins have ~equal counts. Here, we drop duplicates to
     # merge duplicate bins caused by too many duplicate values  
 
-    # 2. Append bin classifcation column
+    # 2. Append bin classification column
 	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
 	df['days_rng_bc'].value_counts().sort_index()
     # NOTE: labels=False gives us the index number of the label (which can
