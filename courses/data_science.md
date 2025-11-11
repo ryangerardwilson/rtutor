@@ -433,10 +433,10 @@
 
     # 3. Append cohort column
     conditions = [
-        (df['id'].notnull() & df['otp'].isnull()),
-        (df['id'].isnull() & df['otp'].notnull()),
-        (df['id'].notnull() & df['otp'].notnull()),
-        (df['id'].isnull() & df['otp'].isnull()),
+        (df['id'].notna() & df['otp'].isna()),
+        (df['id'].isna() & df['otp'].notna()),
+        (df['id'].notna() & df['otp'].notna()),
+        (df['id'].isna() & df['otp'].isna()),
     ]
     choices = ['CALL_NOINSTALL', 'NOCALL_INSTALL', 'CALL_INSTALL', 'NOCALL_NOINSTALL']
     df['cohort'] = np.select(conditions, choices, default=None)
