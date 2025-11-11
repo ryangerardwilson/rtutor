@@ -445,8 +445,8 @@
 
     # 4. Append computation storage column
 	df['utilisation'] = df['number_days'] / df['plan_duration']
-    df["diff_mins"] = (
-        df["end_timestamp"] - df["start_timestamp"]
+    df['diff_mins'] = (
+        df['end_timestamp'] - df['start_timestamp']
     ).dt.total_seconds() / 60
 
     # 5. Append boolean attribute columns
