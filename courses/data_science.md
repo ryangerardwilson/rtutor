@@ -597,7 +597,7 @@
     #! 1  789012           2                    3
     #! 2  901234           4                   12
 
-    # Get min OTP_VERIFIED time per mobile and account_id )
+    # Get min OTP_VERIFIED time per mobile and account_id 
     otp_df = (
         df[df['event_name'] == 'OTP_VERIFIED']
         .groupby(['mobile', 'account_id'])
