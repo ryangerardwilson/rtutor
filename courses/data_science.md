@@ -90,6 +90,8 @@
     # 5. Frequency of unique values across a column/ set of columns
     df.groupby('plan_id').size() # same logic as df.value_counts(), both return Series
     df.groupby(['plan_id','mac']).size()
+    # Alternatively:
+    df['plan_id'].value_counts().sort_index()
 
 #### Lesson 2B: Top 9 Things to Inspect the First Time You Access a Dataframe (6-9) 
 
