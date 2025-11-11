@@ -56,7 +56,7 @@
     # Go back to default RangeIndex
     df = df.reset_index()
 
-#### Lesson 2A: Top 9 Things to Inspect the First Time You Access a Dataframe (1-5) 
+#### Lesson 2A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-5) 
 
     # 1. Columns, Data types, schema, and sampling
     df.columns
@@ -93,7 +93,7 @@
     # Alternatively:
     df['plan_id'].value_counts().sort_index()
 
-#### Lesson 2B: Top 9 Things to Inspect the First Time You Access a Dataframe (6-9) 
+#### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
 
     # 6. Summary stats - look for impossible values (e.g., negative age),
     # extreme outliers, or unexpected categories. Gives: count, unique, mean, freq, 
@@ -116,6 +116,10 @@
 
     # 9. Domain Consistency & Business Logic Checks
     assert (df['age'] >= 0).all(), 'Negative ages found!'
+
+    # 10. Quick filteration / masking based analysis
+    row_condition = df['assigned'].notna()
+    df[['mobile', 'account_id', 'assigned', 'otp']][row_condition]
 
 #### Lesson 2: Modifications / Cleaning Based on Initial Inspection 
 
