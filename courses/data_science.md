@@ -56,7 +56,7 @@
     # Go back to default RangeIndex
     df = df.reset_index()
 
-#### Lesson 2A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-5) 
+#### Lesson 2A: Top 9 Things to Inspect the First Time You Access a Dataframe (1-5) 
 
     # 1. Columns, Data types, schema, and sampling
     df.columns
@@ -91,7 +91,7 @@
     df.groupby('plan_id').size() # same logic as df.value_counts(), both return Series
     df.groupby(['plan_id','mac']).size()
 
-#### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
+#### Lesson 2B: Top 9 Things to Inspect the First Time You Access a Dataframe (6-9) 
 
     # 6. Summary stats - look for impossible values (e.g., negative age),
     # extreme outliers, or unexpected categories. Gives: count, unique, mean, freq, 
@@ -99,10 +99,7 @@
     df.describe(include='all')
     df.describe(include='all').loc['count'].T # deep dive aesthetically
 
-    # 7. Value distributions
-    df['category_col'].value_counts().sort_index()
-
-    # 8. Outliers & Anomalies (IQR method)
+    # 7. Outliers & Anomalies (IQR method)
     Q1 = df[num_cols].quantile(0.25)
     Q3 = df[num_cols].quantile(0.75)
     IQR = Q3 - Q1
@@ -112,10 +109,10 @@
     non_outlier_mask = ~outlier_condition.any(axis=1)
     df_clean = df[non_outlier_mask]
 
-    # 9. Correlations & Multicollinearity
+    # 8. Correlations & Multicollinearity
     corr_matrix = df.corr(numeric_only=True)  
 
-    # 10. Domain Consistency & Business Logic Checks
+    # 9. Domain Consistency & Business Logic Checks
     assert (df['age'] >= 0).all(), 'Negative ages found!'
 
 #### Lesson 2: Modifications / Cleaning Based on Initial Inspection 
