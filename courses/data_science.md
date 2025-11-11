@@ -94,8 +94,10 @@
 #### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
 
     # 6. Summary stats - look for impossible values (e.g., negative age),
-    # extreme outliers, or unexpected categories.
+    # extreme outliers, or unexpected categories. Gives: count, unique, mean, freq, 
+    # top (mode), std, min, max, quantiles
     df.describe(include='all')
+    df.describe(include='all').loc['count'].T # deep dive aesthetically
 
     # 7. Value distributions
     df['category_col'].value_counts().sort_index()
