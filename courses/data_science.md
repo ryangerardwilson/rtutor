@@ -349,7 +349,7 @@
     #!         C               1
     #! 3       C               1
 
-    # NOTE: Available aggs -> count, size nunique, min, max, first, last, sum, mean, 
+    # NOTE: Available aggs -> count, size, nunique, min, max, first, last, sum, mean, 
     # median, mode
 
     #! How data structure is altered?
