@@ -70,7 +70,7 @@
     print(df.to_string()) # prints all rows in a df, useful for printing
                           # grouped dfs with more than 10 rows
     df['col_name'].nunique() # get count of unique values of a column
-    df['col_name'].unique() # get list of unqiue values of a column
+    df['col_name'].unique() # get list of unique values of a column
 
     # 2. Duplicate rows & subset
     df.duplicated().sum()
