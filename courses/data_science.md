@@ -83,8 +83,8 @@
 
     # 4. Primary key
     df.set_index(['col1','col2'], verify_integrity=True) 
-    # The above will throw integrity error if the set isnt a primary key. In
-    case of error, either change the set, or do: 
+    # The above will throw integrity error if the set is not a primary key. In
+    # case of error, either change the set, or do: 
     df.drop_duplicates(subset=['col1','col2']) 
 
     # 5. Frequency of unique values across a column/ set of columns
