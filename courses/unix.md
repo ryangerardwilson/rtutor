@@ -51,7 +51,8 @@
 
 ### Lesson 6: History Search
 
-    Ctrl+R: Reverse search. Keep hitting Ctrl+R to cycle through older matches
+    Ctrl+R: Reverse search. Keep hitting Ctrl+R to cycle through older matches;
+            hit tab to select but not execute; hit enter to select and execute
     Ctrl+P: Previous command
     Ctrl+N: Next command
     !!: Run the last command again
