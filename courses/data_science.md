@@ -651,3 +651,10 @@
     #! 0  123456           1                   10             15.0
     #! 1  789012           2                    3              NaN
     #! 2  901234           4                   12              NaN
+
+#### Lession 11: The code module
+    
+    import code
+
+    # Place this anywhere you want to debug in your code
+    code.interact(local=locals())
