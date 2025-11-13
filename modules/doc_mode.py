@@ -109,11 +109,15 @@ class DocMode:
                         curses.curs_set(0)
                         need_redraw = True
                     elif key in (ord("j"), ord("J")):
-                        # Enter jump mode for current lesson
+                        # Enter jump mode starting from current lesson index
                         jump = JumpMode(
-                            self.sequencer.name, self.sequencer.lessons[idx]
+                            self.sequencer.name, self.sequencer.lessons, idx
                         )
-                        jump_completed = jump.run(stdscr)
+                        final_idx = jump.run(stdscr)
+                        if final_idx is not None:
+                            idx = (
+                                final_idx  # Update the doc index to where jump left off
+                            )
                         # Reset nodelay and curs_set after jump
                         stdscr.nodelay(True)
                         curses.curs_set(0)
