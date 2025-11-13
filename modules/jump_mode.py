@@ -142,9 +142,7 @@ class JumpMode:
                         pass
 
                     if lesson_finished:
-                        instr = (
-                            "Lesson complete! Hit n for next or esc to back to doc mode"
-                        )
+                        instr = "Lesson complete! Hit N for next lesson | ESC to back to doc mode"
                     else:
                         instr = "Ctrl+R -> restart | ESC -> quit"
                     try:
