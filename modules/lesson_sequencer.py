@@ -20,8 +20,15 @@ class LessonSequencer:
 
         if self.doc_mode:
             doc = DocMode(self)
-            return doc.run(stdscr)
+            doc_result = doc.run(stdscr)
+            if doc_result == "ordinary":
+                return self._run_ordinary(stdscr)
+            else:
+                return doc_result
 
+        return self._run_ordinary(stdscr)
+
+    def _run_ordinary(self, stdscr):
         stdscr.nodelay(True)  # Non-blocking input to batch keys
 
         for lesson in self.lessons:

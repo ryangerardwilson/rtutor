@@ -2,6 +2,7 @@ import curses
 import sys
 from .structs import Lesson
 from .rote_mode import RoteMode
+from .jump_mode import JumpMode
 
 
 class DocMode:
@@ -61,7 +62,7 @@ class DocMode:
 
                 # Footer
                 footer_left = f"Lesson {idx + 1}/{len(self.sequencer.lessons)}"
-                instr = "Doc mode: n-next | p-prev | r-rote | esc-back"
+                instr = "Doc mode: n-next | p-prev | r-rote | j-jump | esc-back"
                 try:
                     stdscr.addstr(max_y - 2, 0, footer_left, curses.color_pair(1))
                     stdscr.move(max_y - 2, len(footer_left))
@@ -104,6 +105,16 @@ class DocMode:
                         rote_completed = rote.run(stdscr)
                         # No boom here anymore; rote handles it
                         # Reset nodelay and curs_set after rote
+                        stdscr.nodelay(True)
+                        curses.curs_set(0)
+                        need_redraw = True
+                    elif key in (ord("j"), ord("J")):
+                        # Enter jump mode for current lesson
+                        jump = JumpMode(
+                            self.sequencer.name, self.sequencer.lessons[idx]
+                        )
+                        jump_completed = jump.run(stdscr)
+                        # Reset nodelay and curs_set after jump
                         stdscr.nodelay(True)
                         curses.curs_set(0)
                         need_redraw = True
