@@ -1,6 +1,7 @@
 import curses
 import sys
 from .structs import Lesson
+from .boom import Boom
 
 
 class JumpMode:
@@ -277,17 +278,8 @@ class JumpMode:
             self.current_idx += 1
 
         # All lessons done, do the "boom" thing
-        stdscr.clear()
-        try:
-            stdscr.addstr(
-                0, 0, "BOOM! Sequence complete.", curses.A_BOLD | curses.color_pair(1)
-            )
-        except curses.error:
-            pass
-        stdscr.refresh()
+        boom = Boom("Press any key to return to doc mode.")
+        boom.display(stdscr)
         stdscr.getch()  # Wait for key to acknowledge
-
         curses.curs_set(0)
-        return (
-            self.current_idx if self.current_idx > 0 else None
-        )  # Return ending index for doc mode
+        return len(self.lessons)  # Signal full completion

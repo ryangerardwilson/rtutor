@@ -115,6 +115,8 @@ class DocMode:
                         )
                         final_idx = jump.run(stdscr)
                         if final_idx is not None:
+                            if final_idx >= len(self.sequencer.lessons):
+                                return True  # Sequence completed, exit to higher menu
                             idx = (
                                 final_idx  # Update the doc index to where jump left off
                             )
