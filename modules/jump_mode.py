@@ -31,12 +31,14 @@ class JumpMode:
             # Just one run, no rep nonsense
             stdscr.clear()
             stdscr.refresh()
+            curses.curs_set(2)  # Reset cursor visibility for each new lesson
             current_line = 0
             user_inputs = [[] for _ in lines]
             lesson_finished = False
             need_redraw = True
+            completed = False  # Track lesson completion like in sequencer
 
-            while not lesson_finished:
+            while not completed:
                 if need_redraw:
                     # Draw title without rep count—keep it simple
                     title = f"Jump Mode: {self.sequencer_name} | {lesson.name}"
@@ -140,7 +142,9 @@ class JumpMode:
                         pass
 
                     if lesson_finished:
-                        instr = "Jump complete! Hit esc to quit"
+                        instr = (
+                            "Lesson complete! Hit n for next or esc to back to doc mode"
+                        )
                     else:
                         instr = "Ctrl+R -> restart | ESC -> quit"
                     try:
@@ -185,9 +189,17 @@ class JumpMode:
                         if key == 3:  # Ctrl+C
                             sys.exit(0)
                         if lesson_finished:
-                            if key == 27:  # ESC
-                                return self.current_idx
-                            # Ignore other keys—no 'n' for next since no reps
+                            if key == ord("n") or key == ord("N"):
+                                completed = True
+                            elif key == 27:  # ESC or Alt prefix
+                                next_key = stdscr.getch()
+                                if next_key == -1:
+                                    # Bare ESC, back to doc mode
+                                    return self.current_idx
+                                else:
+                                    # Alt + something, ignore in finished state
+                                    pass
+                            # Ignore other keys
                         else:
                             if key == 18:  # Ctrl+R
                                 user_inputs = [[] for _ in lines]
@@ -246,7 +258,8 @@ class JumpMode:
                                         if current_len < required_len:
                                             user_inputs[current_line].append(typed_char)
 
-                            # Check if lesson is finished after key
+                        # Check if lesson is finished after key (only if not already finished)
+                        if not lesson_finished:
                             all_lines_typed = all(
                                 is_skip[i] or user_inputs[i] == processed_lines[i]
                                 for i in range(len(lines))
