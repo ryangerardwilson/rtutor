@@ -121,7 +121,7 @@
     row_condition = df['assigned'].notna()
     df[['mobile', 'account_id', 'assigned', 'otp']][row_condition]
 
-#### Lesson 2: Modifications / Cleaning Based on Initial Inspection 
+#### Lesson 2C: Modifications / Cleaning Based on Initial Inspection 
 
     df.info()
 
