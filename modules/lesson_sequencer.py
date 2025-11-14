@@ -234,17 +234,30 @@ class LessonSequencer:
                         if lesson_finished:
                             if key == ord("n") or key == ord("N"):
                                 completed = True
-                            elif key == 27:  # ESC
-                                return False
+                            elif key == 27:  # ESC or Alt prefix
+                                next_key = stdscr.getch()
+                                if next_key == -1:
+                                    # Bare ESC, exit
+                                    return False
+                                else:
+                                    # Alt + something, ignore
+                                    pass
                             # Ignore other keys
                         else:
                             if key == 18:  # Ctrl+R
                                 user_inputs = [[] for _ in lines]  # Reset inputs
                                 current_line = 0  # Restart lesson
                                 lesson_finished = False
-                            elif key == 27:  # ESC
-                                return False
-                            elif is_skip[current_line]:
+                            elif key == 27:  # ESC or Alt prefix
+                                next_key = stdscr.getch()
+                                if next_key == -1:
+                                    # Bare ESC, exit
+                                    return False
+                                else:
+                                    # Alt + next_key, treat as plain key for input
+                                    key = next_key
+                                    # Fall through to process it
+                            if is_skip[current_line]:
                                 if key in (curses.KEY_ENTER, 10, 13):
                                     if current_line < len(lines) - 1:
                                         current_line += 1
