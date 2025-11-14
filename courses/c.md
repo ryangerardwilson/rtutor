@@ -53,7 +53,7 @@
     int main() {
 
         // Array: A contiguous block of the same complete type
-        // Stings are arrays derived from chars, the stdlib assumes this set up
+        // Strings are arrays derived from chars, the stdlib assumes this set up
         char name[10] = "Linus";  // Ascii bytes: L,i,n,u,s,\0,\0,\0,\0,\0
         // Derived from int
         int numbers[5] = {1, 2, 3, 4, 5};
