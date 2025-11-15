@@ -35,7 +35,7 @@
 
         // The 4 Complete Basic Data Types 
         // Complete means -> Compiler allocates memory 
-        // based on type declaration.
+        // based on type declaration
         int i = 1337;              
         float f = 3.14f;           
         double d = 3.1415926535;   
@@ -79,11 +79,11 @@
         printf("Name: %s\n", name);
         // %d for decimal integers.
         printf("Age: %d\n", age);
-        // Minimum width 3, pads with spaces. Useful for alignment.
+        // Minimum width 3, pads with spaces. Useful for alignment
         printf("Width: %3d\n", age);
-        // %f for floats, default 6 decimal places--ugly as sin.
+        // %f for floats, default 6 decimal places--ugly as sin
         printf("Height: %f\n", height);
-        // Precision: 2 digits after decimal.
+        // Precision: 2 digits after decimal
         printf("Prec: %.2f\n", height);
 
         return 0;
@@ -150,7 +150,7 @@
         printf("OR: Enter, Ctrl+D to trigger EOT, which c interprets as EOF"); 
 
         // NOTE: EOF is
-        // 1. not a character, but a macro defined in stdio.h as -1. 
+        // 1. not a character, but a macro defined in stdio.h as -1 
         // 2. what getchar() spits back when there's no more input to read 
         while ((c = getchar()) != EOF) {
             putchar(c);
@@ -174,13 +174,13 @@
 
     #include <stdio.h>
 
-    #define INC 1 // Preprocessor constant.
-    const int G_CONST = 42; // Global const.
+    #define INC 1 // Preprocessor constant
+    const int G_CONST = 42; // Global const
 
-    int global = 0; // Mutable global: mostly bad.
+    int global = 0; // Mutable global: mostly bad
 
     int add(int a, int b) {
-        const int L_CONST = 10; // Local const.
+        const int L_CONST = 10; // Local const
         int sum = a + b + L_CONST;
         global += INC;
         return sum;
@@ -189,7 +189,7 @@
     int main() {
         printf("%d\n", add(3, 4)); 
         {
-            const int b_const = G_CONST; // Block const.
+            const int b_const = G_CONST; // Block const
             printf("Block: %d\n", b_const);
         }
         printf("Global: %d\n", global); // 1
@@ -204,7 +204,7 @@
 
     int main() {
         int valid_best_practice_name = 42; // Starts with letter; lower case;
-uses underscores
+                                           // uses underscores
         int _underscore_start = 43; // OK, but avoid double `__`, as it may 
                                     // conflict with lib methods
         int name_with_digits123 = 44; // Digits fine after first char
@@ -247,9 +247,9 @@ uses underscores
     int main() {
         // %zu is the C99 specifier for printing size_t (unsigned, from 
         // sizeof); use it to avoid UB with %d on large values
-        printf("char: %zu bytes\n", sizeof(char));  // 1, always.
-        printf("int: %zu bytes\n", sizeof(int));    // 4, probably.
-        printf("long: %zu bytes\n", sizeof(long));  // 8 on 64-bit.
+        printf("char: %zu bytes\n", sizeof(char));  // 1, always
+        printf("int: %zu bytes\n", sizeof(int));    // 4, probably
+        printf("long: %zu bytes\n", sizeof(long));  // 8 on 64-bit
         printf("Unsigned int max: %u\n", UINT_MAX);
         printf("Float max: %e\n", FLT_MAX);     // Max float value, 
                                                 // in scientific notation
@@ -262,7 +262,7 @@ uses underscores
 
     int main() {
         // Integer constants (literals): decimal by default, octal (0 prefix), 
-        // hex (0x prefix).
+        // hex (0x prefix)
         int dec = 42;   
         int oct = 052;  
         int hex = 0x2A; 
@@ -276,14 +276,18 @@ uses underscores
     #include <stdio.h>
 
     int main() {
-        // Look, in C, integers are ints by default, but you can force them to be long or unsigned.
-        // Don't be sloppy; use suffixes to avoid surprises on different machines.
-        long big_num = 123456789L;  // L for long, because who wants overflow headaches?
-        unsigned int positive_only = 42U;  // U for unsigned, doubles your positive range.
-        unsigned long even_bigger = 0xFUL;  // Hex with UL suffix, value 15 decimal. Hex is for humans who hate octal.
+        // Look, in C, integers are ints by default, but you can force them to be 
+        // long or unsigned. Don't be sloppy; use suffixes to avoid surprises on 
+        // different machines
+        long big_num = 123456789L;  // L for long
+        unsigned int positive_only = 42U;  // U for unsigned;
+                                           // doubles positive range
+        unsigned long even_bigger = 0xFUL; // Hex with UL suffix, value 15 decimal 
+                                           // Hex is for humans who hate octal
 
         printf("Long: %ld, Unsigned: %u, Unsigned Long: %lu\n", big_num, positive_only, even_bigger);
-        // Octal? Prefix with 0. Like 037 is 31 decimal. But seriously, use hex instead unless you're punishing yourself.
+        // Octal? Prefix with 0. Like 037 is 31 decimal. But seriously, use hex 
+        // instead unless you're punishing yourself
         int octal = 037;
         printf("Octal 037 as decimal: %d\n", octal);
 
@@ -295,13 +299,17 @@ uses underscores
     #include <stdio.h>
 
     int main() {
-        // Floats and doubles: decimals or exponents. Double by default, because precision matters, dammit.
-        double pi_approx = 3.14159;  // Decimal point makes it floating-point.
-        float small_pi = 3.14159F;   // F suffix for float; use when memory is tight, but don't cry about lost precision.
-        long double super_precise = 1.23456789e-10L;  // e for exponent, L for long double. For when double isn't enough.
+        // Floats and doubles: decimals or exponents. Double by default
+        double pi_approx = 3.14159;  // Decimal point makes it floating-point
+        float small_pi = 3.14159F;   // F suffix for float; use when memory is 
+                                     // tight, but don't cry about lost precision
+        long double super_precise = 1.23456789e-10L;  // e for exponent, L for 
+                                                      // long double. For when 
+                                                      // double isn't enough
 
         printf("Double: %.5f, Float: %.5f, Long Double: %.10Lf\n", pi_approx, small_pi, super_precise);
-        // Pro tip: Avoid floats unless you're optimizing arrays. Doubles are the way to go on modern hardware.
+        // Pro tip: Avoid floats unless you're optimizing arrays. Doubles are the 
+        // way to go on modern hardware
 
         return 0;
     }
@@ -312,23 +320,23 @@ uses underscores
 
     int main() {
         // Characters are just ints in disguise. 'x' is the ASCII value of x, not the string "x".
-        char letter = 'x';  // Single quotes. Value? Probably 120 in ASCII.
-        char null_char = '\0';  // Null terminator. Numeric value 0, but write it as char for clarity.
-        char bell = '\a';  // Escape for alert (beep). Try it; annoy your terminal.
-        char newline = '\n';  // Newline, obviously.
-        char tab = '\t';  // Horizontal tab.
+        char letter = 'x';  // Single quotes. Value? Probably 120 in ASCII
+        char null_char = '\0';  // Null terminator. Numeric value 0, but write it as char for clarity
+        char bell = '\a';  // Escape for alert (beep). Try it; annoy your terminal
+        char newline = '\n';  // Newline, obviously
+        char tab = '\t';  // Horizontal tab
 
-        // Octal escapes: '\ooo' for arbitrary bytes.
-        char vtab_oct = '\013';  // Vertical tab in octal.
-        // Hex escapes: '\xhh' for the same, but hex is saner.
-        char bell_hex = '\x7';  // Bell in hex.
+        // Octal escapes: '\ooo' for arbitrary bytes
+        char vtab_oct = '\013';  // Vertical tab in octal
+        // Hex escapes: '\xhh' for the same, but hex is saner
+        char bell_hex = '\x7';  // Bell in hex
 
-        printf("Char value: %d\n", letter);  // Prints the int value.
+        printf("Char value: %d\n", letter);  // Prints the int value
         printf("Escape demo: Alert\a Newline\n Tab\t Done.\n");
-        // Backslash itself? '\\'. Quotes? '\'' or '\"'. Don't mess this up or your strings break.
+        // Backslash itself? '\\'. Quotes? '\'' or '\"'. Don't mess this up or your strings break
 
         // Full escapes: \a \b \f \n \r \t \v \\ \? \' \" \ooo \xhh
-        // Use them in strings too, like "Hello\nWorld".
+        // Use them in strings too, like "Hello\nWorld"
 
         return 0;
     }
@@ -336,31 +344,23 @@ uses underscores
 #### Lesson 6: String Constants and Concatenation
 
     #include <stdio.h>
-    #include <string.h>  // For strlen, because rolling your own is fine but lazy is better.
+    #include <string.h>  
 
     int main() {
-        // Strings: Double quotes, null-terminated arrays under the hood.
-        char greeting[] = "Hello, world";  // Includes '\0' at end. Storage: length + 1.
-        char empty[] = "";  // Just '\0'.
+        // Strings: Double quotes, null-terminated arrays under the hood
+        char greeting[] = "Hello, world";  // Includes '\0' at end. Storage: length + 1
+        char empty[] = "";  // Just '\0'
 
-        // Concatenation at compile time: Split long strings.
+        // Concatenation at compile time: Split long strings
         char long_str[] = "This is a long string that "
                           "spans multiple lines. Neat, huh?";
 
         printf("%s\n", long_str);
-        // Length? Use strlen, excludes '\0'.
-        printf("Length of greeting: %zu\n", strlen(greeting));  // 12, not 13.
+        // Length? Use strlen, excludes '\0'
+        printf("Length of greeting: %zu\n", strlen(greeting));  // 12, not 13
 
-        // Don't confuse 'x' (int) with "x" (array with 'x' and '\0').
-        // 'x' + 1 is 'y' maybe, but "x"[0] is 'x'.
-
-        // Custom strlen if you're masochistic:
-        int my_strlen(const char s[]) {
-            int i = 0;
-            while (s[i] != '\0') ++i;
-            return i;
-        }
-        printf("My strlen: %d\n", my_strlen(greeting));
+        // Don't confuse 'x' (int) with "x" (array with 'x' and '\0')
+        // 'x' + 1 is 'y' maybe, but "x"[0] is 'x'
 
         return 0;
     }
@@ -370,19 +370,20 @@ uses underscores
     #include <stdio.h>
 
     int main() {
-        // Enums: Named int constants. Better than #define for related values.
+        // Enums: Named int constants. Better than #define for related values
         enum boolean { NO, YES };  // NO=0, YES=1 by default.
-        enum months { JAN = 1, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV, DEC };  // Starts at 1, increments.
+        // Starts at 1, increments
+        enum months { JAN = 1, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV, DEC };  
 
-        // Partial values: Gaps? Fine.
+        // Partial values: Gaps? Fine
         enum escapes { BELL = '\a', BACKSPACE = '\b', TAB = '\t', NEWLINE = '\n', VTAB = '\v', RETURN = '\r' };
 
         printf("YES: %d, FEB: %d, BELL: %d\n", YES, FEB, BELL);
         // Use in vars: enum boolean flag = YES;
-        // Compilers might not enforce values, but debuggers love symbolic names.
-        // Alternative to #define, auto-generates values. Portable and readable.
+        // Compilers might not enforce values, but debuggers love symbolic names
+        // Alternative to #define, auto-generates values. Portable and readable
 
-        // Distinct enums can't share names, but values can overlap.
+        // Distinct enums can't share names, but values can overlap
 
         return 0;
     }
@@ -391,19 +392,19 @@ uses underscores
 
     #include <stdio.h>
 
-    #define MAXLINE 1000  // Constant expression.
+    #define MAXLINE 1000  
 
     int main() {
-        // Constants only, evaluated at compile time.
+        // Constants only, evaluated at compile time
         char line[MAXLINE + 1];  // Array size must be constant.
 
-        // In arrays or wherever constants are needed.
+        // In arrays or wherever constants are needed
         #define LEAP 1
-        int days[31 + 28 + LEAP + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31];  // For leap year.
+        int days[31 + 28 + LEAP + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31];  // For leap year
 
-        printf("Size of line: %zu\n", sizeof(line));  // 1001 bytes.
+        printf("Size of line: %zu\n", sizeof(line));  // 1001 bytes
 
-        // Useful for portability; no runtime cost.
+        // Useful for portability; no runtime cost
 
         return 0;
     }
@@ -412,27 +413,19 @@ uses underscores
 
     #include <stdio.h>
 
+    #define MAXLINE 1000  
+
     int main() {
-        // Declare before use. Type + vars.
+        // 1. Declare types and varialbes before use
         int lower, upper = 100, step;  // Multiple, some initialized.
         char c = 'a';
-        char line[1000] = {0};  // Zero-init array.
+        char line[1000] = {0};  // Zero-init array
 
-        // Init: = expression.
+        // 2. Use = to Init
         int i = 0;
-        int limit = MAXLINE + 1;  // From #define.
+        int limit = MAXLINE + 1;  // From #define
         float eps = 1.0e-5;
-
-        // Externals/statics: Init once, to constant. Autos: Each entry, any expr. Uninit autos: Garbage.
-        // Externals/statics default to 0.
-
         printf("Upper: %d, Eps: %e\n", upper, eps);
-
-        // Can split declarations:
-        int foo;
-        int bar;
-
-        // Add comments per var if you want.
 
         return 0;
     }
@@ -443,16 +436,13 @@ uses underscores
     #include <string.h>
 
     int main() {
-        // Const: Can't change. For safety.
-        const double e = 2.71828182845905;  // Try e = 3; compiler yells.
-        const char msg[] = "warning: ";  // Array elements immutable.
+        // Const: Can't change. For safety
+        const double e = 2.71828182845905;  // Try e = 3; compiler yells
+        const char msg[] = "warning: ";  // Array elements immutable
 
-        // In functions: Promises no change.
-        // int strlen(const char[]);  // From string.h.
-
+        // In functions: Promises no change
+        // int strlen(const char[]);  // From string.h
         printf("%s %f\n", msg, e);
-
-        // Attempt to modify? Undefined behavior. Don't.
 
         return 0;
     }
@@ -465,20 +455,13 @@ uses underscores
         // +, -, *, /, % (modulus).
         int x = 10, y = 3;
         printf("Add: %d, Sub: %d, Mul: %d\n", x + y, x - y, x * y);
-        printf("Div: %d (truncates), Mod: %d\n", x / y, x % y);  // 3 and 1.
+        printf("Div: %d (truncates), Mod: %d\n", x / y, x % y);  // 3 and 1
 
-        // % only for ints. No floats.
-        // Negative? Machine-dependent. Avoid if portable.
+        // % only for ints. No floats
+        // Negative? Machine-dependent. Avoid if portable
 
-        // Precedence: * / % > + -. Left to right.
-        int res = 1 + 2 * 3;  // 7, not 9.
-
-        // Unary + - higher.
-
-        // Leap year example:
-        int year = 2000;
-        if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)
-            printf("%d is leap.\n", year);  // Yes.
+        // Precedence: * / % > + -. Left to right
+        int res = 1 + 2 * 3;  // 7, not 9
 
         return 0;
     }
@@ -488,34 +471,23 @@ uses underscores
     #include <stdio.h>
 
     int main() {
-        // Relational: > >= < <=. Same precedence.
-        // Equality: == !=. Lower than relational.
-        // All lower than arithmetic.
+        // Relational: > >= < <=. Same precedence
+        // Equality: == !=. Lower than relational
+        // All lower than arithmetic
         int i = 5, lim = 10;
-        if (i < lim - 1) printf("Yes.\n");  // i < (lim-1).
+        if (i < lim - 1) printf("Yes.\n");  // i < (lim-1)
 
-        // Logical: && ||. Short-circuit: Stops early.
-        // && > || precedence. Lower than relational.
+        // Logical: && ||. Short-circuit: Stops early
+        // && > || precedence. Lower than relational
         int c = 'a';
-        if (i < lim - 1 && (c = getchar()) != '\n' && c != EOF) {}  // From getline.
+        if (i < lim - 1 && (c = getchar()) != '\n' && c != EOF) {}  // From getline
 
-        // No parens needed for && chain.
-        // But for assignment: (c = getchar()) != '\n'.
+        // No parens needed for && chain
+        // But for assignment: (c = getchar()) != '\n'
 
-        // True=1, False=0.
+        // True=1, False=0
         int valid = 1;
-        if (!valid) printf("Not valid.\n");  // ! negates: Non-zero to 0.
-
-        // Exercise 2-2: For loop without &&/||.
-        // Equivalent to: for (i=0; i < lim-1 && (c=getchar()) != '\n' && c != EOF; ++i) s[i]=c;
-        int ii = 0;
-        while (ii < lim - 1) {
-            c = getchar();
-            if (c == '\n') break;
-            if (c == EOF) break;
-            // s[ii] = c;  // Assuming s array.
-            ++ii;
-        }
+        if (!valid) printf("Not valid.\n");  // ! negates: Non-zero to 0
 
         return 0;
     }
