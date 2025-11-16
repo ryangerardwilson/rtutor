@@ -652,9 +652,52 @@
     #! 1  789012           2                    3              NaN
     #! 2  901234           4                   12              NaN
 
-#### Lession 11: The code module
-    
-    import code
+#### Lession 11: Debugging with code
+   
+    # 1. With code
+    # Place this anywhere you want to debug
+    import code; code.interact(local=locals())
 
-    # Place this anywhere you want to debug in your code
-    code.interact(local=locals())
+#### Lession 12: Debugging with pdb
+
+    # Place this anywhere you want to debug
+    import pdb; pdb.set_trace()
+    # Or run it like this from the start
+    python -m pdb buggy_script.py
+
+    # Basic Commands:
+    # l: list code context
+    # p <var>: inspect a variable
+    # break <line>: Set a breakpoint at a line number.
+    # break <line>, <condition>: Conditional breakpoint: 
+    #! -> import pdb; pdb.set_trace()  
+    # (Pdb) p
+    #! *** SyntaxError: invalid syntax
+    # (Pdb) l
+    #!   7  	            total -= num  
+    #!   8  	        print(f"Processed {num}, total now: {total}")  
+    #!   9  	
+    #!  10  	def main():
+    #!  11  	    nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    #!  12  ->	    import pdb; pdb.set_trace()  
+    #!  13  	    process_numbers(nums)
+    #!  14  	    print("Final total:", total)  
+    #!  15  	
+    #!  16  	main()
+    #! [EOF]
+    # (Pdb) p nums
+    #! [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    # (Pdb) break 7, num > 8
+    #! Breakpoint 1 at /home/ryan/x.py:7
+    # (Pdb) c
+    #! Processed 1, total now: -1
+    #! Processed 2, total now: 1
+    #! Processed 3, total now: -2
+    #! Processed 4, total now: 2
+    #! Processed 5, total now: -3
+    #! Processed 6, total now: 3
+    #! Processed 7, total now: -4
+    #! Processed 8, total now: 4
+    #! > /home/ryan/x.py(7)process_numbers()
+    #! -> total -= num  # Odd: subtract, but imagine a bug here if num > 10
+    #! (Pdb)
