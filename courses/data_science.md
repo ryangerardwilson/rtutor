@@ -761,9 +761,9 @@
 #### Lesson 3C: Pdb (s)
 
     # 4. Instead of setting a breakpoint as we did above, we can hit 's' (step
-    #    into ) to dive into the guts on a executable line. Notice, that unlike
+    #    into) to dive into the guts on an executable line. Notice, that unlike
     #    'c' (which we can invoke from anywhere), we must be on an executable
-    #    to invoke 's'. If there is no function to 'step unto', 's' will behave 
+    #    to invoke 's'. If there is no function to 'step into', 's' will behave 
     #    the same as 'n'.
 
     #! > /home/ryan/x.py(23)<module>()
