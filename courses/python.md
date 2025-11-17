@@ -435,3 +435,174 @@
     connect('www.python.org', 80, timeout=500)
     # Order of args doesn't matter if you know their names.
     connect(port=80, hostname='www.python.org')
+
+### Section 2: Debugging
+
+#### Lesson 1: Assertions, Logging & Raise
+
+    # 1. Use assertions for sanity checks and try-except for graceful failures.
+    #    A failed assertion raises an AssertionError('with your message')
+    assert df.empty == False, 'DataFrame is empty, check your load!'
+    assert 'target' in df.columns, 'Missing target column!'
+
+    # 2. Printing everything is amateur. Use logging to track without cluttering 
+    #    stdout. It is non-intrusive and persists across runs.
+
+    import logging
+    logging.basicConfig(
+        level=logging.DEBUG, 
+        filename='data_debug.log', 
+        format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+
+    def process_data(df):
+        logging.info(f'{df.shape}')
+        try:
+            cleaned = df.apply(lambda x: x * 2)  # Potential bug: non-numeric columns
+            logging.debug(f'After apply: {cleaned.head()}')
+        except Exception as e:
+            logging.error(f'Error in processing: {e}')
+            raise  
+        return cleaned
+
+    # 3. NOTE: 
+    # - Use `tail -f data_debug.log`. 
+    # - Levels: DEBUG for verbose, INFO for progress, WARNING/ERROR for issues. 
+    # - raise the exception: This means - hey, I saw this mess, logged it for 
+    #   posterity, but screw it-I'm not fixing it here; let it explode upstream 
+    #   where someone smarter might handle it.
+
+#### Lession 2: Code
+   
+    # 1. With code
+    # Place this anywhere you want to debug
+    import code; code.interact(local=locals())
+
+#### Lesson 3A: Pdb (basics - l, p, b, q)
+
+    # Place this anywhere you want to debug
+    import pdb; pdb.set_trace()
+
+    # Or run it like this from the start
+    python -m pdb buggy_script.py
+
+    # Or save time and drop into debugger on crash. This is fun to use with
+    # assertions because a failed assertion raises an AssertionError
+    python -m pdb -c continue buggy_script.py
+
+    # Basic Commands:
+    # l: list code context
+    # p <var>: inspect a variable
+    # b <line>: Set a breakpoint at a line number.
+    # b <line>, <condition>: Conditional breakpoint: 
+    # q: quit
+
+#### Lesson 3B: Pdb (the -m flag, n and c)
+
+    # 1. Unless run with `python -m pdb -c continue x.py`, Pdb pauses at all 
+    # top level function definitions, from the top of the script to the bottom
+    # - NOT as per the architectural flow of your app.  These are not break 
+    # points - they are simply points at which Pdb pauses. Notice that nested 
+    # functions are skipped.
+    #! def main(): # pauses here
+    #!     def process_numbers(numbers): # does not pause here
+    #!         return total 
+    #!     nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    #!     process_numbers(nums)
+    #!     print('Final total:', total) 
+
+    # 2. Hitting n (next) does not guarentee us a jump to the next breakpoint. 
+    #    Instead, n means 'step over' - which executes the current line, 
+    #    without diving into its guts. In the below example, although we set a 
+    #    breakpoint at line 5, hitting n executes everything defined at line 1, 
+    #    taking us to line 14.
+    #! -> def process_numbers(numbers):
+    #  (Pdb) l
+    #!   1  ->	def process_numbers(numbers):
+    #!   2  	    total = 0
+    #!   3  	    for i, num in enumerate(numbers):
+    #!   4  	        if num % 2 == 0:
+    #!   5  	            total += num  
+    #!   6  	        else:
+    #!   7  	            total -= num  
+    #!   8  	        print(f'Processed {num}, total now: {total}') 
+    #!  11  	    return total
+    #  (Pdb) break 5
+    #! Breakpoint 1 at /home/ryan/x.py:5
+    #  (Pdb) n
+    #! > /home/ryan/x.py(14)<module>()
+    #! -> def main():
+
+    # 3. Hitting c (continue) guarentees us a jump to the next breakpoint.
+    #  (Pdb) c
+    #! Processed 1, total now: -1
+    #! > /home/ryan/x.py(5)process_numbers()
+    #! -> total += num  # Even: add
+    #  (Pdb) p total
+    #! -1
+    #! (Pdb)
+
+#### Lesson 3C: Pdb (s)
+
+    # 4. Instead of setting a breakpoint as we did above, we can hit 's' (step
+    #    into) to dive into the guts on an executable line. Notice, that unlike
+    #    'c' (which we can invoke from anywhere), we must be on an executable
+    #    to invoke 's'. If there is no function to 'step into', 's' will behave 
+    #    the same as 'n'.
+
+    #! > /home/ryan/x.py(23)<module>()
+    #! -> main()
+    #  (Pdb) l
+    #!  18  	    print(
+    #!  19  	        'Final total:', total
+    #!  20  	    )  # total is local to process_numbers, oops – but focus on debug
+    #!  21
+    #!  22
+    #!  23  ->	main()
+    #! [EOF]
+    #  (Pdb) s
+    #! --Call--
+    #! > /home/ryan/x.py(14)main()
+    #! -> def main():
+    #  (Pdb) l
+    #!   9  	            f'Processed {num}, total now: {total}'
+    #!  10  	        )  # Line 7: We'll break here conditionally
+    #!  11  	    return total
+    #!  12
+    #!  13
+    #!  14  ->	def main():
+    #!  15  	    nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    #!  16
+    #!  17  	    process_numbers(nums)
+    #!  18  	    print(
+    #!  19  	        'Final total:', total
+    #  (Pdb) s
+    #! > /home/ryan/x.py(15)main()
+    #! -> nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+#### Lesson 3D: Pdb (b, run, c)
+
+    # 5. Pdb is forward-only. You can't rewind time because pdb doesn't record 
+    #    execution history. Best you can do is:
+    #    - set more breakpoints with b before you screw up.
+    #    - run to restart and c (continue). 
+    # NOTE: While you can jump to an earlier line in the current frame (like 
+    # j 42 to hop to line 42), but that's not rewinding; it's just skipping 
+    # ahead or back within the same function call without re-executing side 
+    # effects properly. 
+
+    #! -> def main():
+    #  (Pdb) b 5
+    #! Breakpoint 1 at /home/ryan/x.py:5
+    #  (Pdb) run
+    #! Restarting /home/ryan/x.py with arguments:
+    #! 	
+    #! The program finished and will be restarted
+    #! > /home/ryan/x.py(1)<module>()
+    #! -> def process_numbers(numbers):
+    #  (Pdb) c
+    #! Processed 1, total now: -1
+    #! > /home/ryan/x.py(5)process_numbers()
+    #! -> total += num  # Even: add
+
+    # NOTE: Notice that while run restarts, it does not remove the breakpoint b
