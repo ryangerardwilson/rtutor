@@ -658,8 +658,8 @@
 
     # 1. Use assertions for sanity checks and try-except for graceful failures.
     #    A failed assertion raises an AssertionError('with your message')
-    assert df.empty == False, "DataFrame is empty, check your load!"
-    assert 'target' in df.columns, "Missing target column!"
+    assert df.empty == False, 'DataFrame is empty, check your load!'
+    assert 'target' in df.columns, 'Missing target column!'
 
     # 2. Printing everything is amateur. Use logging to track without cluttering 
     #    stdout. It is non-intrusive and persists across runs.
@@ -672,12 +672,12 @@
         )
 
     def process_data(df):
-        logging.info(f"{df.shape}")
+        logging.info(f'{df.shape}')
         try:
             cleaned = df.apply(lambda x: x * 2)  # Potential bug: non-numeric columns
-            logging.debug(f"After apply: {cleaned.head()}")
+            logging.debug(f'After apply: {cleaned.head()}')
         except Exception as e:
-            logging.error(f"Error in processing: {e}")
+            logging.error(f'Error in processing: {e}')
             raise  
         return cleaned
 
@@ -724,7 +724,7 @@
     #!         return total 
     #!     nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     #!     process_numbers(nums)
-    #!     print("Final total:", total) 
+    #!     print('Final total:', total) 
 
     # 2. Hitting n (next) does not guarentee us a jump to the next breakpoint. 
     #    Instead, n means 'step over' - which executes the current line, 
@@ -740,7 +740,7 @@
     #!   5  	            total += num  
     #!   6  	        else:
     #!   7  	            total -= num  
-    #!   8  	        print(f"Processed {num}, total now: {total}") 
+    #!   8  	        print(f'Processed {num}, total now: {total}') 
     #!  11  	    return total
     #  (Pdb) break 5
     #! Breakpoint 1 at /home/ryan/x.py:5
@@ -769,7 +769,7 @@
     #! -> main()
     #  (Pdb) l
     #!  18  	    print(
-    #!  19  	        "Final total:", total
+    #!  19  	        'Final total:', total
     #!  20  	    )  # total is local to process_numbers, oops – but focus on debug
     #!  21
     #!  22
@@ -780,7 +780,7 @@
     #! > /home/ryan/x.py(14)main()
     #! -> def main():
     #  (Pdb) l
-    #!   9  	            f"Processed {num}, total now: {total}"
+    #!   9  	            f'Processed {num}, total now: {total}'
     #!  10  	        )  # Line 7: We'll break here conditionally
     #!  11  	    return total
     #!  12
@@ -790,7 +790,7 @@
     #!  16
     #!  17  	    process_numbers(nums)
     #!  18  	    print(
-    #!  19  	        "Final total:", total
+    #!  19  	        'Final total:', total
     #  (Pdb) s
     #! > /home/ryan/x.py(15)main()
     #! -> nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
