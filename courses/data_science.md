@@ -657,7 +657,7 @@
 #### Lesson 1: Assertions, Logging & Raise
 
     # 1. Use assertions for sanity checks and try-except for graceful failures.
-    #    A failed assetion raises an AssertionError('with your message')
+    #    A failed assertion raises an AssertionError('with your message')
     assert df.empty == False, "DataFrame is empty—check your load!"
     assert 'target' in df.columns, "Missing target column!"
 
