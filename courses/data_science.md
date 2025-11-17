@@ -733,7 +733,7 @@
     #    breakpoint at line 5, hitting n executes everything defined at line 1, 
     #    taking us to line 14.
     #! -> def process_numbers(numbers):
-    # (Pdb) l
+    #  (Pdb) l
     #!   1  ->	def process_numbers(numbers):
     #!   2  	    total = 0
     #!   3  	    for i, num in enumerate(numbers):
