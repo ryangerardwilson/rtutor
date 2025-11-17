@@ -694,7 +694,7 @@
     # Place this anywhere you want to debug
     import code; code.interact(local=locals())
 
-#### Lesson 3A: Pdb (basics)
+#### Lesson 3A: Pdb (basics - l, p, b, q)
 
     # Place this anywhere you want to debug
     import pdb; pdb.set_trace()
@@ -711,6 +711,7 @@
     # p <var>: inspect a variable
     # b <line>: Set a breakpoint at a line number.
     # b <line>, <condition>: Conditional breakpoint: 
+    # q: quit
 
 #### Lesson 3B: Pdb (the -m flag, n and c)
 
