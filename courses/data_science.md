@@ -715,10 +715,11 @@
 
 #### Lesson 3B: Pdb (the -m flag, n and c)
 
-    # 1. Pdb pauses at all top level function definitions, from the top of the
-    #    script to the bottom - NOT as per the architecural flow of your app. 
-    #    These are not break points - they are simply points at which Pdb 
-    #    pauses. Notice that nested functions are skipped.
+    # 1. Unless run with `python -m pdb -c continue x.py`, Pdb pauses at all 
+    # top level function definitions, from the top of the script to the bottom
+    # - NOT as per the architectural flow of your app.  These are not break 
+    # points - they are simply points at which Pdb pauses. Notice that nested 
+    # functions are skipped.
     #! def main(): # pauses here
     #!     def process_numbers(numbers): # does not pause here
     #!         return total 
