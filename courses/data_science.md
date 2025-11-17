@@ -658,7 +658,7 @@
 
     # 1. Use assertions for sanity checks and try-except for graceful failures.
     #    A failed assertion raises an AssertionError('with your message')
-    assert df.empty == False, "DataFrame is empty—check your load!"
+    assert df.empty == False, "DataFrame is empty, check your load!"
     assert 'target' in df.columns, "Missing target column!"
 
     # 2. Printing everything is amateur. Use logging to track without cluttering 
