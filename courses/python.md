@@ -436,7 +436,9 @@
     # Order of args doesn't matter if you know their names.
     connect(port=80, hostname='www.python.org')
 
-### Section 2: Debugging
+## Part II: Debugging
+
+### Section 1: Basic Debugging
 
 #### Lesson 1: Assertions, Logging & Raise
 
