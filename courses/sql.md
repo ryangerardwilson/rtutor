@@ -98,7 +98,15 @@
     -- Aliases: The AS u / AS p bullshit. Shortens u.id instead of users.id. 
     -- NEVER use leading commas. This garbage is an abomination:
 
-#### Lesson 3A: Joins (Inner, Left, Right)
+#### Lesson 3: Group By
+
+    SELECT
+        source,
+        COUNT(*) AS action_count
+    FROM actions
+    GROUP BY source;
+
+#### Lesson 4A: Joins (Inner, Left, Right)
 
     -- 1. INNER JOIN  
     -- This is the default behavior when you just write "JOIN".  
@@ -129,7 +137,7 @@
     RIGHT JOIN posts AS p ON p.author_id = u.id;
     -- Posts whose author no longer exists will show up with u.id = NULL and u.username = NULL.
 
-#### Lesson 3B: Joins (Outer, Cross, Multiple)
+#### Lesson 4B: Joins (Outer, Cross, Multiple)
 
     -- 4. FULL OUTER JOIN  
     -- Returns everything from both sides: all users AND all posts, matched where possible.  
@@ -144,11 +152,18 @@
 
     -- 5. CROSS JOIN  
     -- Cartesian product: every row from the left table combined with every row from the right table.  
-    -- No ON clause needed (or allowed). Usually a mistake, but handy for generating test data or grids.  
-    SELECT u.username, p.title
-    FROM users AS u
-    CROSS JOIN posts AS p
-    LIMIT 10;  -- Without LIMIT on real data you'll nuke your machine. Don't be stupid.
+    -- No ON clause needed (or allowed). Useful to define parameters that we
+    would frequently use across a very long query
+    WITH 
+    params AS (
+        SELECT 
+            '2025-11-18' AS start_day,
+            '2025-11-25' AS end_day
+    )
+    SELECT user_id, created_at
+    FROM users
+    CROSS JOIN params p
+    WHERE created_at BETWEEN p.start_day AND p.end_day;
 
     -- 6. Multiple joins in the same query  
     -- Real-world queries usually need more than one join.  
@@ -163,11 +178,12 @@
     GROUP BY u.id, u.username
     ORDER BY posts DESC, comments DESC;
 
-#### Lesson 3C: Joins (Self)
+#### Lesson 4C: Joins (Self)
 
-    -- 7. Self-join – joining a table to itself  
+    -- 7. Self-join - joining a table to itself  
     -- Classic example: hierarchical data like employees and their managers, or threaded comments.  
     -- Both sides are the same table, so we use aliases to keep our sanity.  
+    -- who reports to whom (including the poor CEO who has no one to blame)
     SELECT
         e.username AS employee,
         COALESCE(m.username, '<< No manager (CEO or orphan) >>') AS manager
@@ -176,7 +192,7 @@
     ORDER BY manager, employee;
     -- LEFT JOIN ensures people without a manager (top boss or data error) still appear.
 
-#### Lesson 4A: CTEs - Treat them like Functions
+#### Lesson 5A: CTEs - Treat them like Functions
 
     # Wrong (what every PHP monkey does):
     #! WITH
@@ -186,9 +202,9 @@
     #! SELECT * FROM tmp1 JOIN tmp2 USING (user_id) JOIN tmp3 USING (author_id);
     # That shit is unreadable, untestable, and makes baby Codd cry.
 
-#### Lesson 4B: CTEs - Treat them like Functions
+#### Lesson 5B: CTEs - Treat them like Functions
 
-    -- Correct – CTEs are FUNCTIONS, period:
+    -- Correct - CTEs are FUNCTIONS, period:
     WITH
     active_users AS (                  -- function name: active_users()
         SELECT                         -- clear inputs: none
@@ -238,7 +254,7 @@
     LIMIT 50;
 
 
-#### Lesson 4C: CTEs - Treat them like Functions
+#### Lesson 5C: CTEs - Treat them like Functions
 
     1. Each CTE has a single responsibility - you can test it in isolation
     2. Clear name = self-documenting (no "what the fuck does tmp3 do?" at 3 a.m.)
