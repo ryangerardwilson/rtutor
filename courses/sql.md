@@ -140,7 +140,7 @@
     FROM users AS u
     FULL OUTER JOIN posts AS p ON p.author_id = u.id
     GROUP BY u.id, u.username;
-    -- You’ll see both lonely users (total_posts=0) and orphaned posts.
+    -- You'll see both lonely users (total_posts=0) and orphaned posts.
 
     -- 5. CROSS JOIN  
     -- Cartesian product: every row from the left table combined with every row from the right table.  
@@ -148,7 +148,7 @@
     SELECT u.username, p.title
     FROM users AS u
     CROSS JOIN posts AS p
-    LIMIT 10;  -- Without LIMIT on real data you’ll nuke your machine. Don’t be stupid.
+    LIMIT 10;  -- Without LIMIT on real data you'll nuke your machine. Don't be stupid.
 
     -- 6. Multiple joins in the same query  
     -- Real-world queries usually need more than one join.  
