@@ -46,7 +46,7 @@ class LessonSequencer:
                 tabs = [i for i, c in enumerate(line) if c == "\t"]  # Tab indices
                 processed_lines.append(non_tabs)
                 tab_positions.append(tabs)
-                is_skip.append(line.lstrip().startswith(("#!", "//!")))
+                is_skip.append(line.lstrip().startswith(("#!", "//!", "--!")))
 
             current_line = 0
             user_inputs = [[] for _ in lines]  # Store input for non-tab chars

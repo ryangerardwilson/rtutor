@@ -75,36 +75,164 @@
 #### Lesson 1: SQLFluff config 
 
     This is the .sqlfluff config we add to our project root
-    #! [sqlfluff]
-    #! dialect = postgres
-    #! exclude_rules = RF06  -- allow leading commas because trailing commas are for idiots
+    --! [sqlfluff]
+    --! dialect = postgres
+    --! exclude_rules = RF06  -- allow leading commas because trailing commas are for idiots
 
-    #! [sqlfluff:rules:capitalisation.keywords]
-    #! capitalisation_policy = upper
+    --! [sqlfluff:rules:capitalisation.keywords]
+    --! capitalisation_policy = upper
 
-    #! [sqlfluff:rules:capitalisation.identifiers]
-    #! capitalisation_policy = lower
+    --! [sqlfluff:rules:capitalisation.identifiers]
+    --! capitalisation_policy = lower
 
-    #! [sqlfluff:rules:capitalisation.functions]
-    #! capitalisation_policy = upper
+    --! [sqlfluff:rules:capitalisation.functions]
+    --! capitalisation_policy = upper
 
-    #! [sqlfluff:rules:layout.comma]
-    #! line_position = leading          -- git diff stays clean, fight me
+    --! [sqlfluff:rules:layout.comma]
+    --! line_position = leading        
 
 #### Lesson 2: Keywords, Identifiers, Leading Commas 
 
-    -- Keywords: Words the SQL parser reserves: SELECT, FROM, WHERE, JOIN, ON, LEFT, RIGHT, INNER, OUTER, GROUP BY, ORDER BY, AS, etc. Write them in UPPERCASE.
+    -- Keywords:    Words the SQL parser reserves: SELECT, FROM, WHERE, JOIN, ON, LEFT, RIGHT, 
+                    INNER, OUTER, GROUP BY, ORDER BY, AS, etc. Write them in UPPERCASE.
     -- Identifiers: Table names (users, posts), column names (id, username). 
-    -- Aliases: The AS u / AS p bullshit. Shortens u.id instead of users.id. 
-    -- NEVER use leading commas. This garbage is an abomination:
+    -- Aliases:     The AS u / AS p bullshit. Shortens u.id instead of users.id. 
 
-#### Lesson 3: Group By
+#### Lesson 3A: Group By
 
+    -- 1. Rows per single column
     SELECT
         source,
-        COUNT(*) AS action_count
+        COUNT(*) AS row_count
     FROM actions
-    GROUP BY source;
+    GROUP BY source
+    ORDER BY row_count DESC;
+
+    --! +----------+-----------+
+    --! | source   | row_count |
+    --! +----------+-----------+
+    --! | web      |    842105 |
+    --! | mobile   |    523441 |
+    --! | api      |     98765 |
+    --! | iframe   |      2341 |
+    --! | bot      |       666 |
+    --! +----------+-----------+
+
+    -- 2. Two columns at once – instant "what the fuck is combining here?"
+    SELECT
+        source,
+        action_type,
+        COUNT(*) AS row_count
+    FROM actions
+    GROUP BY source, action_type
+    ORDER BY row_count DESC
+    LIMIT 20;
+
+    --! +----------+-------------+-----------+
+    --! | source   | action_type | row_count |
+    --! +----------+-------------+-----------+
+    --! | web      | click       |    412341 |
+    --! | mobile   | view        |    298765 |
+    --! | web      | purchase    |    123456 |
+    --! | api      | login       |     87654 |
+    --! | mobile   | add_to_cart |     65432 |
+    --! ... (15 more rows)
+
+#### Lesson 3B: Group By
+
+    -- 3. Monthly distribution (Postgres/DuckDB/BigQuery/Trino version)
+    SELECT
+        DATE_TRUNC('month', created_at) AS month,
+        COUNT(*) AS row_count
+    FROM actions
+    GROUP BY month
+    ORDER BY month;
+
+    --! +---------------------+-----------+
+    --! | month               | row_count |
+    --! +---------------------+-----------+
+    --! | 2024-01-01 00:00:00 |     45231 |
+    --! | 2024-02-01 00:00:00 |     48912 |
+    --! | ...                 |           |
+    --! | 2025-10-01 00:00:00 |    156789 |
+    --! | 2025-11-01 00:00:00 |     98765 |   -- look, sudden spike, something happened
+    --! +---------------------+-----------+
+
+    -- 4. NULL / garbage detection – every table is lying to you
+    SELECT
+        CASE 
+            WHEN user_id IS NULL THEN 'missing'
+            WHEN user_id = 0 THEN 'dummy_zero'
+            WHEN user_id < 0 THEN 'negative_wtf'
+            ELSE 'valid'
+        END AS user_id_quality,
+        COUNT(*) AS row_count,
+        ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 2) AS pct
+    FROM actions
+    GROUP BY user_id_quality
+    ORDER BY row_count DESC;
+
+    --! +-----------------+-----------+-------+
+    --! | user_id_quality | row_count |  pct  |
+    --! +-----------------+-----------+-------+
+    --! | valid           |   1452341 | 98.45 |
+    --! | missing         |     23456 |  1.59 |
+    --! | dummy_zero      |       666 |  0.05 |
+    --! +-----------------+-----------+-------+
+
+#### Lesson 3C: Group By
+
+    -- 5. Outlier users with HAVING – find the bots and the addicts
+    SELECT
+        user_id,
+        COUNT(*) AS actions,
+        MIN(created_at) AS first_seen,
+        MAX(created_at) AS last_seen
+    FROM actions
+    GROUP BY user_id
+    HAVING COUNT(*) > 10000 OR COUNT(*) = 1
+    ORDER BY actions DESC
+    LIMIT 30;
+
+    --! +---------+---------+---------------------+---------------------+
+    --! | user_id | actions | first_seen          | last_seen           |
+    --! +---------+---------+---------------------+---------------------+
+    --! | 666     |   87421 | 2024-01-15 03:14:11 | 2025-11-20 23:59:59 |  
+    --! | 12345   |   54321 | 2024-06-01 12:00:00 | 2025-11-21 01:23:45 | 
+    --! | 999999  |       1 | 2025-11-21 06:66:66 | 2025-11-21 06:66:66 |
+    --! ... (lots of single-action rows)
+
+    -- 6. Uniqueness check – is this column actually a key?
+    SELECT
+        COUNT(*) AS total_rows,
+        COUNT(DISTINCT user_id) AS distinct_users,
+        COUNT(DISTINCT session_id) AS distinct_sessions,
+        ROUND(100.0 * COUNT(DISTINCT user_id) / COUNT(*), 4) AS pct_unique_user
+    FROM actions;
+
+    --! +------------+----------------+-------------------+-----------------+
+    --! | total_rows | distinct_users | distinct_sessions | pct_unique_user |
+    --! +------------+----------------+-------------------+-----------------+
+    --! |    1478321 |         234567 |            987654 |         15.8674 |
+    --! +------------+----------------+-------------------+-----------------+
+
+#### Lesson 3D: Group By
+
+    -- 7. Exact duplicate rows? (should be zero if you have a proper PK)
+    SELECT
+        source, action_type, user_id, created_at, metadata,
+        COUNT(*) AS duplicate_count
+    FROM actions
+    GROUP BY source, action_type, user_id, created_at, metadata
+    HAVING COUNT(*) > 1
+    ORDER BY duplicate_count DESC;
+
+    --! +--------+-------------+---------+---------------------+----------+-----------------+
+    --! | source | action_type | user_id | created_at          | metadata | duplicate_count |
+    --! +--------+-------------+---------+---------------------+----------+-----------------+
+    --! | web    | click       |  12345  | 2025-11-21 10:11:12 | null     |              47 |  
+    --! +--------+-------------+---------+---------------------+----------+-----------------+
+
 
 #### Lesson 4A: Joins (Inner, Left, Right)
 

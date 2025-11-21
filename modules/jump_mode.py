@@ -27,7 +27,7 @@ class JumpMode:
                 tabs = [i for i, c in enumerate(line) if c == "\t"]
                 processed_lines.append(non_tabs)
                 tab_positions.append(tabs)
-                is_skip.append(line.lstrip().startswith(("#!", "//!")))
+                is_skip.append(line.lstrip().startswith(("#!", "//!", "--!")))
 
             # Just one run, no rep nonsense
             stdscr.clear()
