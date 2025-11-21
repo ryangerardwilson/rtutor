@@ -22,19 +22,21 @@ even you.
 
 Built-ins. Minimal excuses.
 
-1. `data_science.md`: Use python to implement the Relational Model for elegant
-   data science operations.
+1. python.md: Hello World, primitives, loops, operators, functions, I/O. Great
+   for scripting, and MVPs. Debugging tutorials.  Use python to implement the 
+   Relational Model for elegant data science operations.
 
-2. a.md: High-Level Assembly (HLA). Hello World, variables. Use it to ramp into
-   real assembly.
+2. sql.md: SQL was designed as a printing language, however, for better or for
+   worse it has evolved into a programming language. This has led to ugly
+   queries. Learn to write readable and not-awful SQL with SOLID principles.
 
-3. python.md: Hello World, primitives, loops, operators, functions, I/O. Great
-   for scripting, not an excuse to ignore performance.
-
-4. c.md: printf, types, control flow, IO, constants. The metal is cold. Learn
+3. c.md: printf, types, control flow, IO, constants. The metal is cold. Learn
    it anyway.
 
-5. unix.md: terminal typing, ls, tmux, grep, find, iwctl. More coming.
+4. unix.md: terminal typing, ls, tmux, grep, find, iwctl. More coming.
+
+5. a.md: High-Level Assembly (HLA). Hello World, variables. Use it to ramp into
+   real assembly.
 
 ## Installation
 
