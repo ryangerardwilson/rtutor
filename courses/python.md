@@ -1402,7 +1402,7 @@
     # leaves. Think of it as taxing the hell out of overconfident predictions to 
     # promote humility.
     # - Low lambda (close to 0): Lets trees go wild with big swings in predictions. 
-    #   Fine if your data's clean, but on noisy crap? Expect overfitting – model's 
+    #   Fine if your data's clean, but on noisy crap? Expect overfitting - model's 
     #   chasing ghosts instead of real patterns. 
     # - High lambda (say 1 or more): Cranks up the penalty, shrinking weights and 
     #   smoothing things out. Trees stay modest, reducing variance and fighting 
@@ -1411,7 +1411,7 @@
     #   it's like optimizing compiler flags - small tweaks, big wins.
 
     # 7. subsample
-    # This is your data diet plan – subsample decides what fraction of your 
+    # This is your data diet plan - subsample decides what fraction of your 
     # training data (rows) each tree gets to munch on. Usually between 0.5 and 
     # 1.0, it's like randomly sampling without replacement for each boosting round.
     # - Low subsample (e.g., 0.5-0.8): Grabs a chunk of data per tree, injecting 
