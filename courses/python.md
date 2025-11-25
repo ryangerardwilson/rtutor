@@ -1386,12 +1386,12 @@
     # 5. num_boost_round (or n_estimators) 
     # This is just how many trees you slap into your boosting team - the number of 
     # boosting iterations.
-    # - Few rounds (low num, say 50-100): Trains fast, but might  underfit – the 
+    # - Few rounds (low num, say 50-100): Trains fast, but might underfit - the 
     #   team isn't big enough to cover all the errors.
     # - Many rounds (high num, like 500+): Builds a stronger squad, fixing more 
     #   residuals for better accuracy. But watch out: without early stopping or a 
     #   low learning rate, you risk overfitting as the model keeps hammering away. 
-    #   Use validation sets to halt when it stops improving – no point wasting CPU 
+    #   Use validation sets to halt when it stops improving - no point wasting CPU 
     #   cycles on diminishing returns.
 
 #### Lesson 1C: XGBoost Intuition (lambda, subsample, colsample_bytree)
