@@ -1329,7 +1329,7 @@
     #! 1  789012           2                    3              NaN
     #! 2  901234           4                   12              NaN
 
-### Section 4: Machine Learning (XGBoost)
+### Section 2: Machine Learning (XGBoost)
 
 #### Lesson 1A: XGBoost Intuition (gradient boosting, overfitting, regularization, learning rate/eta)
 
