@@ -710,7 +710,23 @@
     df.describe(include='all')
     df.describe(include='all').loc['count'].T # deep dive aesthetically
 
-    # 7. Outliers & Anomalies (IQR method)
+    # 7. Quantile Analysis 
+    # To examine Percenilt Distibution
+    df['duration_hours'].quantile([i/10 for i in range(0,11)])
+    #! 0.0      0.062609 # this is the min, or the 0th percentile
+    #! 0.1      0.323194
+    #! 0.2      0.730218
+    #! 0.3      1.435072
+    #! 0.4      2.325425
+    #! 0.5      3.509761
+    #! 0.6      5.275056
+    #! 0.7      9.345334
+    #! 0.8     23.160115
+    #! 0.9     28.946773
+    #! 1.0    312.477587 # this is the max, or the 100th percentile
+    #! Name: duration_hours, dtype: float64
+
+    # To identify outliers and alomalies via the IQR method 
     Q1 = df[num_cols].quantile(0.25)
     Q3 = df[num_cols].quantile(0.75)
     IQR = Q3 - Q1
