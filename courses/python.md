@@ -1431,12 +1431,11 @@
     # - Low colsample (0.5-0.8): Randomly selects fewer features per tree, adding 
     #   diversity and curbing overfitting. Great for high-dimensional data where 
     #   features correlate - prevents trees from fixating on the same predictors. 
-    #   Plus, it trains faster; your Omarchy won't choke on wide datasets.
+    #   Plus, it trains faster. 
     # - High colsample (close to 1.0): Lets trees see most or all features - 
     #   captures more interactions but invites overfitting if features are 
     #   redundant. Use sparingly unless your data's sparse and pure. Tune this with
-    #   subsample for that sweet spot; it's like configuring your kernel modules - 
-    #   load only what you need to avoid bloat.
+    #   subsample for that sweet spot. 
 
     # Bottom line: These params are your anti-bullshit shields. 
     # - lambda penalizes complexity, 
