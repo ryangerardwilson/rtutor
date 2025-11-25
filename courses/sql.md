@@ -395,7 +395,9 @@
     three unrelated things, you split it into multiple CTEs like you would split a 
     500-line C function.
 
-### Section 2: Practical SQL Workflow Patterns
+## Part 2: Workflow Patterns
+
+### Section 1: Data Science
 
 #### Lesson 1: Using Count and Group By for Quick Inspections
 
@@ -422,8 +424,7 @@
     ORDER BY row_count DESC
     LIMIT 20;
 
-
-#### Lesson 2: Using Subset Aggregation for Cohort Analysis of Log Tables
+#### Lesson 2A: Using Subset Aggregation for Cohort Analysis of Log Tables
 
     WITH base_data AS (
         /* Log tables are huge, so we start with a filter that is a little larger 
@@ -433,16 +434,30 @@
         WHERE added_time > '2025-10-09 00:00:00'
         AND added_time < '2025-11-23 00:00:00'
     ),
+    bdo_mobiles AS (
+        /* Identify BDO leads based on prospect_identified events in booking_logs */
+        SELECT DISTINCT mobile
+        FROM your_other_log_table
+        WHERE added_time > '2025-10-09 00:00:00'
+        AND added_time < '2025-11-23 00:00:00'
+        AND event_name = 'prospect_identified'
+    ),
     cohort_base_identifier AS (
-        /* Identifies cohort as cycles fully completed by November 16th when inner 
-        joined with base_data */
+        /* Identifies cohort as cycles fully completed by November 16th
+        when inner joined with base_data, excluding BDO leads */
         SELECT
             account_id,
             mobile
         FROM base_data
+        WHERE mobile IN (SELECT mobile FROM bdo_mobiles)
         GROUP BY account_id, mobile
         HAVING MAX(added_time) <= '2025-11-16 00:00:00'
     ),
+    /* ... tbc ... */
+
+#### Lesson 2B: Using Subset Aggregation for Cohort Analysis of Log Tables
+
+    /* ... contd ... */
     assignments AS (
         SELECT
             b.account_id,
