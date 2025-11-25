@@ -1148,10 +1148,79 @@
     #! one          6          2
     #! two          3          4
 
-#### Lesson 9D: Pivot Table (Motivation x Ability Grid)
+#### Lesson 10A: Rank Ordering Basics
 
-    # Goal: 3x3 table with cols: motivation, high_ability, med_ability, low_ability
-    # Assume df has:
+    # Rank ordering is simply UI in data science, to present data in a way
+    # business can digest
+
+    # Presenting data like this will give business a headache
+    #!   item  score1  score2   value
+    #! 0    A       1      10      10
+    #! 1    B       3       8      20
+    #! 2    C       5       6      30
+    #! 3    D       7       4      40
+    #! 4    E       9       2      50
+    #! 5    F       2       1      60
+    #! 6    G       4       3      70
+    #! 7    H       6       5      80
+    #! 8    I       8       7      90
+    #! 9    J      10       9     100
+
+    # But, this will give them an orgasm
+    #!    level1  level2  count  total_value  avg_value
+    #! 0   1_low   1_low      1           60       60.0
+    #! 0   1_low   2_med      1           60       60.0
+    #! 1   1_low  3_high      2           30       15.0
+    #! 2   2_med   1_low      1           70       70.0
+    #! 3   2_med   2_med      2          110       55.0
+    #! 3   2_med   3_high     2          110       55.0
+    #! 4  3_high   1_low      1           50       50.0
+    #! 5  3_high   2_med      1           40       40.0
+    #! 6  3_high  3_high      2          190       95.0
+
+#### Lesson 10B: Rank Ordering nD Data (computation)
+
+    #!   item  score1  score2  score3  value
+    #! 0    A       1      10       4     10
+    #! 1    B       3       8       5     20
+    #! 2    C       5       6       6     30
+    #! 3    D       7       4       7     40
+    #! 4    E       9       2       8     50
+    #! 5    F       2       1       9     60
+    #! 6    G       4       3      10     70
+    #! 7    H       6       5       1     80
+    #! 8    I       8       7       2     90
+    #! 9    J      10       9       3    100
+
+    # The simplest and most efficient way to rank order is to convert bins to
+    levels, and then, group by levels
+    df['level1'] = np.where(df['score1'] >= 7, "3_high", np.where(df['score1'] >= 4, "2_med", "1_low"))
+    df['level2'] = np.where(df['score2'] >= 7, "3_high", np.where(df['score2'] >= 4, "2_med", "1_low"))
+    df['level3'] = np.where(df['score3'] >= 7, "3_high", np.where(df['score3'] >= 4, "2_med", "1_low"))
+    grouped = df.groupby(['level1', 'level2', 'level3']).agg(
+        count=('item', 'nunique'), total_value=('value', 'sum'), avg_value=('value', 'mean')
+    )
+    grouped.sort_values(["level1", "level2", "level3"])
+    print(grouped)
+    #!                       count  total_value  avg_value
+    #! level1 level2 level3
+    #! 1_low  1_low  3_high      1           60       60.0
+    #!        3_high 2_med       2           30       15.0
+    #! 2_med  1_low  3_high      1           70       70.0
+    #!        2_med  1_low       1           80       80.0
+    #!               2_med       1           30       30.0
+    #! 3_high 1_low  3_high      1           50       50.0
+    #!        2_med  3_high      1           40       40.0
+    #!        3_high 1_low       2          190       95.0
+
+
+#### Lesson 10C: Rank Ordering 2D Data (Motivation x Ability Grid)
+
+    # If the focus of our rank ordering is 2D with only one item to aggregate,
+    # we could also present the rank ordering in grid. For instance a 3x3 grid 
+    # of ability x motivation, aggregating the count of unique users.
+
+    # Let's consider a df which has the columns:
     # - util_rng_qc: 1-10 (utilisation quantile, 10 = highest usage)
     # - churn_risk_qc: 1-10 (churn risk quantile, 10 = highest risk)
 
@@ -1184,7 +1253,7 @@
     #! 2_med         1.0    5.0     0.0
     #! 3_high        0.0    1.0     4.0
 
-#### Lesson 10A: Subset Aggregation / SQL sub-queries (using groupby)
+#### Lesson 11A: Subset Aggregation / SQL sub-queries (using groupby)
 
     #!    mobile  account_id    event_name  added_time
     #! 0  123456           1      ASSIGNED          10
@@ -1224,8 +1293,7 @@
     #! 1  789012           2                    3              NaN
     #! 2  901234           4                   12              NaN
 
-
-#### Lesson 10B: Subset Aggregation / SQL sub-queries (using pivot)
+#### Lesson 11B: Subset Aggregation / SQL sub-queries (using pivot)
 
     #!    mobile  account_id    event_name  added_time
     #! 0  123456           1      ASSIGNED          10
