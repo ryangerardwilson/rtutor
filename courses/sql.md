@@ -118,7 +118,7 @@
     --! | bot      |       666 |
     --! +----------+-----------+
 
-    -- 2. Two columns at once – instant "what the fuck is combining here?"
+    -- 2. Two columns at once - instant "what the fuck is combining here?"
     SELECT
         source,
         action_type,
@@ -158,7 +158,7 @@
     --! | 2025-11-01 00:00:00 |     98765 |   -- look, sudden spike, something happened
     --! +---------------------+-----------+
 
-    -- 4. NULL / garbage detection – every table is lying to you
+    -- 4. NULL / garbage detection - every table is lying to you
     SELECT
         CASE 
             WHEN user_id IS NULL THEN 'missing'
@@ -182,7 +182,7 @@
 
 #### Lesson 3C: Group By
 
-    -- 5. Outlier users with HAVING – find the bots and the addicts
+    -- 5. Outlier users with HAVING - find the bots and the addicts
     SELECT
         user_id,
         COUNT(*) AS actions,
@@ -202,7 +202,7 @@
     --! | 999999  |       1 | 2025-11-21 06:66:66 | 2025-11-21 06:66:66 |
     --! ... (lots of single-action rows)
 
-    -- 6. Uniqueness check – is this column actually a key?
+    -- 6. Uniqueness check - is this column actually a key?
     SELECT
         COUNT(*) AS total_rows,
         COUNT(DISTINCT user_id) AS distinct_users,
@@ -394,3 +394,56 @@
     Treat your CTEs like C functions. If your CTE is longer than 25 lines or does 
     three unrelated things, you split it into multiple CTEs like you would split a 
     500-line C function.
+
+#### Lesson 6A: Workflow Optimization Patterns (cohort analysis of log tables)
+
+    WITH base_data AS (
+        /* Log tables are huge, so we start with a filter that is a little larger 
+        than the cycle we want to isolate i.e. Oct 16 to Nov 16 */
+        SELECT *
+        FROM prod_db.public.task_logs
+        WHERE added_time > '2025-10-09 00:00:00'
+        AND added_time < '2025-11-23 00:00:00'
+    ),
+    cohort_base_identifier AS (
+        /* Identifies cohort as cycles fully completed by November 16th when inner 
+        joined with base_data */
+        SELECT
+            account_id,
+            mobile
+        FROM base_data
+        GROUP BY account_id, mobile
+        HAVING MAX(added_time) <= '2025-11-16 00:00:00'
+    ),
+    assignments AS (
+        SELECT
+            b.account_id,
+            b.mobile,
+            MIN(b.added_time) AS first_assigned
+        FROM base_data b
+        INNER JOIN cohort_base_identifier c
+        ON b.account_id = c.account_id AND b.mobile = c.mobile
+        WHERE b.event_name = 'ASSIGNED'
+        GROUP BY b.account_id, b.mobile
+        HAVING MIN(b.added_time) > '2025-10-16 00:00:00'
+    ),
+    verifications AS (
+        SELECT
+            b.account_id,
+            b.mobile,
+            MIN(b.added_time) AS otp_verified
+        FROM base_data b
+        INNER JOIN cohort_base_identifier c
+        ON b.account_id = c.account_id AND b.mobile = c.mobile
+        WHERE b.event_name = 'OTP_VERIFIED'
+        GROUP BY b.account_id, b.mobile
+    )
+    /* Now, we simply do subset aggreagation */
+    SELECT
+        a.account_id,
+        a.mobile,
+        a.first_assigned,
+        v.otp_verified
+    FROM assignments a
+    LEFT JOIN verifications v
+    ON a.account_id = v.account_id AND a.mobile = v.mobile;
