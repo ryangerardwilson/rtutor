@@ -395,13 +395,41 @@
     three unrelated things, you split it into multiple CTEs like you would split a 
     500-line C function.
 
-#### Lesson 6A: Workflow Optimization Patterns (cohort analysis of log tables)
+### Section 2: Practical SQL Workflow Patterns
+
+#### Lesson 1: Using Count and Group By for Quick Inspections
+
+    -- 1. Count all records from a relations
+    SELECT
+        COUNT(*)
+    FROM your_cte_or_table;
+
+    -- 2. Count all rows of each unique value of the source column
+    SELECT
+        source,
+        COUNT(*) AS row_count
+    FROM actions
+    GROUP BY source
+    ORDER BY row_count DESC;
+
+    -- 3. Count all rows of each unqiue combination of source and action_type
+    SELECT
+        source,
+        action_type,
+        COUNT(*) AS row_count
+    FROM actions
+    GROUP BY source, action_type
+    ORDER BY row_count DESC
+    LIMIT 20;
+
+
+#### Lesson 2: Using Subset Aggregation for Cohort Analysis of Log Tables
 
     WITH base_data AS (
         /* Log tables are huge, so we start with a filter that is a little larger 
         than the cycle we want to isolate i.e. Oct 16 to Nov 16 */
         SELECT *
-        FROM prod_db.public.task_logs
+        FROM your_log_table
         WHERE added_time > '2025-10-09 00:00:00'
         AND added_time < '2025-11-23 00:00:00'
     ),
