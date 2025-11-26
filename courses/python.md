@@ -674,6 +674,7 @@
     df.shape
     df.head()
     df.sample(5)
+    df.col_name.sample(20) 
     df.sample().T # transpose any random row
     pd.set_option('display.max_rows', 100) # You may need to pair this with the above 
                                            # if your df has an insane number of cols
@@ -713,7 +714,9 @@
     df.describe(include='all').loc['count'].T # deep dive aesthetically
 
     # 7. Quantile Analysis 
-    # To examine Percenilt Distibution
+    # To examine Percentile Distibution - you can use this as a histogram replacement, 
+    # to check if the dist is skewed on the right or left. For instance, the below data 
+    # is skewed on the right.
     df['duration_hours'].quantile([i/10 for i in range(0,11)])
     #! 0.0      0.062609 # this is the min, or the 0th percentile
     #! 0.1      0.323194
@@ -780,6 +783,9 @@
     df[['mobile', 'account_id', 'assigned', 'otp']][df['assigned'].notna()]
 
 #### Lesson 3: Filtering 
+
+    # Dot notation v. [] notation
+    df[df.price > 0] # Pandas lets you use dot notation if your column name is a valid variable name
 
     # Boolean filter
     df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
