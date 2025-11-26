@@ -670,7 +670,7 @@
     # 1. Columns, Data types, schema, and sampling
     df.columns
     df.dtypes
-    df.info()
+    df.info() # shows both dtypes of each col and the number of non-null values
     df.shape
     df.head()
     df.sample(5)
