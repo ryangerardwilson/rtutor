@@ -675,6 +675,8 @@
     df.head()
     df.sample(5)
     df.sample().T # transpose any random row
+    pd.set_option('display.max_rows', 100) # You may need to pair this with the above 
+                                           # if your df has an insane number of cols
     df.tail()
     print(df.to_string()) # prints all rows in a df, useful for printing
                           # grouped dfs with more than 10 rows
