@@ -718,17 +718,17 @@
     # to check if the dist is skewed on the right or left. For instance, the below data 
     # is skewed on the right.
     df['duration_hours'].quantile([i/10 for i in range(0,11)]).round(2)
-    #! 0.0      0.06 # this is the min, or the 0th percentile
-    #! 0.1      0.32
-    #! 0.2      0.73
-    #! 0.3      1.43
-    #! 0.4      2.32
-    #! 0.5      3.50
-    #! 0.6      5.27
-    #! 0.7      9.34
-    #! 0.8     23.16
-    #! 0.9     28.94
-    #! 1.0    312.47 # this is the max, or the 100th percentile
+    #! 0.0      0.06 # this is the min, or 0% of your data is below this
+    #! 0.1      0.32 # 10% of your data is below this
+    #! 0.2      0.73 # 20% of your data is below this  
+    #! 0.3      1.43 # 30% of your data is below this 
+    #! 0.4      2.32 # 40% of your data is below this 
+    #! 0.5      3.50 # 50% of your data is below this 
+    #! 0.6      5.27 # 60% of your data is below this 
+    #! 0.7      9.34 # 70% of your data is below this 
+    #! 0.8     23.16 # 80% of your data is below this 
+    #! 0.9     28.94 # 90% of your data is below this 
+    #! 1.0    312.47 # this is the max, or 100% of your data is below this
     #! Name: duration_hours, dtype: float64
 
     # To identify outliers and alomalies via the IQR method 
