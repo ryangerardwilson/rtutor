@@ -7,7 +7,7 @@
 #### Lesson 1: Running the REPL
 
     $ python3
-    >>> print("Hello World")
+    >>> print('Hello World')
     Hello World
     >>> 1000 + 0.1 + 1 
     1001.1
@@ -20,7 +20,7 @@
 
     # hello.py
     #!/usr/bin/env python3
-    print("Hello World")
+    print('Hello World')
     $ python3 hello.py
 
     # Or, make executable 
@@ -32,7 +32,7 @@
     # Built-in types, considered 'primitives'. Type hints improve readability
     x: int = 42  
     y: float = 3.14159
-    z: str = "Hello World"
+    z: str = 'Hello World'
     a: bool = True
 
     # An expression is anything that produces a value
@@ -89,11 +89,11 @@
     b = 5
 
     if a < b:
-        print("Yes")
+        print('Yes')
     elif a == b:
         pass  # Nada
     else:
-        print("No")  
+        print('No')  
 
     # Conditional Expression
     maxval = a if a > b else b  # 10
@@ -120,14 +120,14 @@
 #### Lesson 6A: Text Strings
 
     a = 'Hello World'
-    b = "Python is groovy"
+    b = 'Python is groovy'
     c = '''Computer says no.'''  
-    d = """Computer says no."""  
+    d = '''Computer says no.'''  
 
     # f-string
     year = 1
     principal = 1050.0
-    print(f"{year:>3d}  {principal:0.2f}") # '  1  1050.00'
+    print(f'{year:>3d}  {principal:0.2f}') # '  1  1050.00'
 
     # Operations
     len(a) # 11
@@ -159,7 +159,7 @@
 
     num = 12.34567
     str(num)                # '12.34567'
-    repr('hello\nworld')    # "'hello\\nworld'"
+    repr('hello\nworld')    # ''hello\\nworld''
     format(num, '0.2f')     # '12.35'
     f'{num:0.2f}'           # '12.35'
 
@@ -1055,112 +1055,132 @@
     # NOTE: Available aggs -> count, size, nunique, min, max, first, last, sum, 
     # mean, median, mode
 
-#### Lesson 8A: Feature Engineering (Create helper columns with col by col computations)
+#### Lesson 8A: Feature Engineering (Create helper columns with piped functions)
 
-    # Given the poor API design of the .apply function, the most tasteful way to iterate 
-    # row by row or col by col is the old fashioned way - because it guarentees an 
-    # identical invocation syntax
-
-    # 1. Col by col computations
-    #! df
-    #!    height  weight  age
-    #! 0     150      50   20
-    #! 1     160      60   25
-    #! 2     170      70   30
-    #! 3     180      80   35
-    #! 4     190      90   40
-
-    def generate_n_height(df):
-        # Normalizes height column
-        col = df['height']
-        return (col - col.mean()) / col.std()
-
-    df['n_height'] = generate_n_height(df)
-    df
-    #!    height  weight  age  n_height
-    #! 0     150      50   20 -1.264911
-    #! 1     160      60   25 -0.632456
-    #! 2     170      70   30  0.000000
-    #! 3     180      80   35  0.632456
-    #! 4     190      90   40  1.264911
-
-#### Lesson 8B: Feature Engineering (Create helper columns with row by row computations)
-
-    # 2. Row by row computations
     #! df
     #!   verification_methods  price  reviews
     #! 0          email,phone    100      4.5
     #! 1                email    150      3.8
     #! 2     phone,work_email    200      4.9
 
-    def generate_vcount(df):
-        def gen():
-            for _, row in df.iterrows():
-                verif_count = len(row['verification_methods'].split(','))
-                adjusted = row['price'] / row['reviews'] if row['reviews'] > 0 else 0
-                yield verif_count * adjusted
+    def generate_vcount(df, feature_name):
+        # axis=1 iterates row by row
+        def compute_vcount(row):
+            verif_count = len(row['verification_methods'].split(','))
+            adjusted = row['price'] / row['reviews'] if row['reviews'] > 0 else 0
+            return verif_count * adjusted
 
-        return pd.Series(gen())
+        df[feature_name] = df.apply(compute_vcount, axis=1)
+        return df
 
-    # Assign the new column directly from the function
-    df['vcount'] = generate_vcount(df)
-    print(df)
-    #!   verification_methods  price  reviews     vcount
-    #! 0          email,phone    100      4.5  44.444444
-    #! 1                email    150      3.8  39.473684
-    #! 2     phone,work_email    200      4.9  81.632653
+    def generate_discounted_price(df):
+        df['discounted_price'] = df['price'] * 0.9  
+        return df
 
-#### Lesson 8C: Feature Engineering (Creating helper bin classification and categoty columns)
+    def generate_n_price(df):
+        if 'price' in df.columns:
+            min_val = df.price.min()
+            max_val = df.price.max()
+            if max_val > min_val:  
+                df.n_price = (df.price - min_val) / (max_val - min_val)
+            else:
+                df.n_price = 0.0  
+        return df
 
-    # 1. Append quantile bin classification column
+    # This allows us to comment out features by line, and neatly encapsalte complexities,
+    # and also control the feature names if we want
+    df = (
+        df.pipe(generate_vcount, 'fv_count')
+        .pipe(generate_discounted_price)
+        .pipe(generate_n_price)
+    )
+    # Retain only features
+    df[['fv_count', 'discounted_price', 'n_price']]
+    #!     fv_count  discounted_price  n_price
+    #! 0  44.444444              90.0      0.0
+    #! 1  39.473684             135.0      0.5
+    #! 2  81.632653             180.0      1.0
+
+#### Lesson 8B: Feature Engineering (Creating helper bin classification and category columns)
+
+    #! df
+    #!    utilisation  number_days    id   otp
+    #! 0         0.75           15  1234  None
+    #! 1         0.95           28  None  ABCD
+    #! 2         0.85           40  5678  EFGH
+
     def generate_util_range_qbc(df):
-        # Uses pd.qcut for quantile / equal-frequency bins cut by data 
-        # quantiles so bins have ~equal counts. We drop duplicates to
-        # merge duplicate bins caused by too many duplicate values.
-        return pd.qcut(df.utilisation, q=10, duplicates='drop', labels=False)
-    df['util_range_qbc'] = generate_util_range_qbc(df)
-    df['util_range_qbc'].value_counts().sort_index()
-    # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
-    # classification' and 'quantile bin classification', respectively
+        # Uses pd.qcut for quantile / equal-frequency bins cut by data quantiles so bins have 
+        # ~equal counts. We drop duplicates to merge duplicate bins caused by too many duplicate values.
+        df['util_range_qbc'] = pd.qcut(df['utilisation'], q=10, duplicates='drop', labels=False)
+        return df
 
-    # 2. Append bin classification column
     def generate_days_rng_bc(df):
-        # NOTE: labels=False gives us the index number of the label (which can
-        # directly be used as a numeric feature), instead of the label itself. Don't
-        # add this param if you want the col to be more human readable, instead.
-        return pd.cut(df.number_days, bins=[0, 10, 20, 28, 35, float('inf')], labels=False)
-    df['days_rng_bc'] = generate_days_rng_bc(df)
-    df['days_rng_bc'].value_counts().sort_index()
+        # NOTE: labels=False gives us the index number of the label (which can directly be used as a 
+        # numeric feature), instead of the label itself. Don't add this param if you want the col more readable
+        df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False)
+        return df
 
-    # 3. Append category column
     def generate_cohort(df):
         conditions = [
-            (df.id.notna() & df.otp.isna()),
-            (df.id.isna() & df.otp.notna()),
-            (df.id.notna() & df.otp.notna()),
-            (df.id.isna() & df.otp.isna()),
+            (df['id'].notna() & df['otp'].isna()),
+            (df['id'].isna() & df['otp'].notna()),
+            (df['id'].notna() & df['otp'].notna()),
+            (df['id'].isna() & df['otp'].isna()),
         ]
         choices = ['CALL_NOINSTALL', 'NOCALL_INSTALL', 'CALL_INSTALL', 'NOCALL_NOINSTALL']
-        return np.select(conditions, choices, default=None)
-    df['cohort'] = generate_cohort(df)
+        df['cohort'] = np.select(conditions, choices, default=None)
+        return df
 
-#### Lesson 8D: Feature Engineering (Creating helper computation and boolean columns)
+    df = (
+        df.pipe(generate_util_range_qbc)
+        .pipe(generate_days_rng_bc)
+        .pipe(generate_cohort)
+    )
+    # Retain only features
+    df[['util_range_qbc', 'days_rng_bc', 'cohort']]
+    #!    util_range_qbc  days_rng_bc         cohort
+    #! 0               0            1  CALL_NOINSTALL
+    #! 1               2            2  NOCALL_INSTALL
+    #! 2               1            4    CALL_INSTALL
 
-    # 4. Append computation storage column
+#### Lesson 8C: Feature Engineering (Creating helper computation and boolean columns)
+
+    #! df
+    #!    number_days  plan_duration       start_timestamp         end_timestamp
+    #! 0           15             30  2025-11-01 10:00:00  2025-11-01 10:30:00
+    #! 1           28             30  2025-11-02 14:00:00  2025-11-02 15:45:00
+    #! 2           40             45  2025-11-03 09:00:00  2025-11-03 09:20:00
+
     def generate_utilisation(df):
-        return df.number_days / df.plan_duration
-    df['utilisation'] = generate_utilisation(df)
-    def generate_diff_mins(df):
-        return (df.end_timestamp - df.start_timestamp).dt.total_seconds() / 60
-    df['diff_mins'] = generate_diff_mins(df)
+        df['utilisation'] = df['number_days'] / df['plan_duration']
+        return df
 
-    # 5. Append boolean attribute columns
+    def generate_diff_mins(df):
+        df['diff_mins'] = (df['end_timestamp'] - df['start_timestamp']).dt.total_seconds() / 60
+        return df
+
     def generate_mac_90(df):
-        return np.where(df.utilisation > 0.9, 1, 0)
-    df['mac_90%'] = generate_mac_90(df)
+        df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0)
+        return df
+
     def generate_mac_80(df):
-        return np.where((df.utilisation > 0.8) & (df.utilisation <= 0.9), 1, 0)
-    df['mac_80%'] = generate_mac_80(df)
+        df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
+        return df
+
+    # Pipe 'em all—comment out lines if you want to disable a feature without breaking the chain.
+    df = (
+        df.pipe(generate_utilisation)
+        .pipe(generate_diff_mins)
+        .pipe(generate_mac_90)
+        .pipe(generate_mac_80)
+    )
+    # Retain only features
+    df[['utilisation', 'diff_mins', 'mac_90%', 'mac_80%']]
+    #!   utilisation  diff_mins  mac_90%   mac_80%
+    #! 0    0.500000       30.0        0         0
+    #! 1    0.933333      105.0        1         0
+    #! 2    0.888889       20.0        0         1
 
 #### Lesson 9A: Pivot (single index and multi index)
 
@@ -1294,13 +1314,13 @@
 
     # The simplest and most efficient way to rank order is to convert bins to
     levels, and then, group by levels
-    df['level1'] = np.where(df['score1'] >= 7, "3_high", np.where(df['score1'] >= 4, "2_med", "1_low"))
-    df['level2'] = np.where(df['score2'] >= 7, "3_high", np.where(df['score2'] >= 4, "2_med", "1_low"))
-    df['level3'] = np.where(df['score3'] >= 7, "3_high", np.where(df['score3'] >= 4, "2_med", "1_low"))
+    df['level1'] = np.where(df['score1'] >= 7, '3_high', np.where(df['score1'] >= 4, '2_med', '1_low'))
+    df['level2'] = np.where(df['score2'] >= 7, '3_high', np.where(df['score2'] >= 4, '2_med', '1_low'))
+    df['level3'] = np.where(df['score3'] >= 7, '3_high', np.where(df['score3'] >= 4, '2_med', '1_low'))
     grouped = df.groupby(['level1', 'level2', 'level3']).agg(
         count=('item', 'nunique'), total_value=('value', 'sum'), avg_value=('value', 'mean')
     )
-    grouped.sort_values(["level1", "level2", "level3"])
+    grouped.sort_values(['level1', 'level2', 'level3'])
     print(grouped)
     #!                       count  total_value  avg_value
     #! level1 level2 level3
