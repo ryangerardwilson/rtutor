@@ -673,6 +673,7 @@
     df.info() # shows both dtypes of each col and the number of non-null values
     df.shape
     df.head()
+    df.col_name[row_index] # Extract cell value from table 
     df.sample(5)
     df.col_name.sample(20) 
     df.sample().T # transpose any random row
@@ -681,8 +682,9 @@
     df.tail()
     print(df.to_string()) # prints all rows in a df, useful for printing
                           # grouped dfs with more than 10 rows
-    df['col_name'].nunique() # get count of unique values of a column
-    df['col_name'].unique() # get list of unique values of a column
+    df.col_name.nunique() # get count of unique values of a column
+    df.col_name.unique() # get list of unique values of a column
+    df.sort_values(by='col',ascending=False)
 
     # 2. Duplicate rows & subset
     df.duplicated().sum()
@@ -691,7 +693,7 @@
     # 3. Missing values
     df.isnull().sum()
     df.isnull().mean() * 100  # % missing
-    df = df[df['datetime_col'].notna()] # Filter out rows with certain missing values
+    df = df[df.datetime_col.notna()] # Filter out rows with certain missing values
 
     # 4. Primary key
     df.set_index(['col1','col2'], verify_integrity=True) 
@@ -700,10 +702,9 @@
     df.drop_duplicates(subset=['col1','col2']) 
 
     # 5. Frequency of unique values across a column/ set of columns
-    df.groupby('plan_id').size() # same logic as df.value_counts(), both return Series
-    df.groupby(['plan_id','mac']).size()
-    # Alternatively:
-    df['plan_id'].value_counts().sort_index()
+    df.col.value_counts() # Chain: .sort_index(), .round(n), nlargest(n), nsmallest(n)
+    df.groupby('col').size() # same logic as df.value_counts(), both return Series
+    df.groupby(['col1','col2']).size() # works with a list of columns
 
 #### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
 
@@ -717,7 +718,7 @@
     # To examine Percentile Distibution - you can use this as a histogram replacement, 
     # to check if the dist is skewed on the right or left. For instance, the below data 
     # is skewed on the right.
-    df['duration_hours'].quantile([i/10 for i in range(0,11)]).round(2)
+    df.duration_hours_col.quantile([i/10 for i in range(0,11)]).round(2)
     #! 0.0      0.06 # this is the min, or 0% of your data is below this
     #! 0.1      0.32 # 10% of your data is below this
     #! 0.2      0.73 # 20% of your data is below this  
@@ -729,9 +730,10 @@
     #! 0.8     23.16 # 80% of your data is below this 
     #! 0.9     28.94 # 90% of your data is below this 
     #! 1.0    312.47 # this is the max, or 100% of your data is below this
-    #! Name: duration_hours, dtype: float64
+    #! Name: duration_hours_col, dtype: float64
 
     # To identify outliers and alomalies via the IQR method 
+    num_cols = ['col1', 'col2']
     Q1 = df[num_cols].quantile(0.25)
     Q3 = df[num_cols].quantile(0.75)
     IQR = Q3 - Q1
@@ -745,42 +747,50 @@
     corr_matrix = df.corr(numeric_only=True)  
 
     # 9. Domain Consistency & Business Logic Checks
-    assert (df['age'] >= 0).all(), 'Negative ages found!'
+    assert (df.age_col >= 0).all(), 'Negative ages found!'
 
     # 10. Quick filteration / masking based analysis
-    row_condition = df['assigned'].notna()
+    row_condition = df.assigned_col.notna()
     df[['mobile', 'account_id', 'assigned', 'otp']][row_condition]
 
 #### Lesson 2C: Modifications / Cleaning Based on Initial Inspection 
 
     df.info()
 
-    # Convert int parseable object column to int64 (not int32 because it is non-nullable)
-    df['android_version'] = pd.to_numeric(df['android_version'], errors='coerce').astype('Int64')
+    # 1. Cleaning rows
+    # Filter out rows where a specific col has null values
+    df = df[df.datetime_col.notna()] 
+    # Filtering rows and columns in one line
+    df[['mobile', 'account_id', 'assigned', 'otp']][df['assigned'].notna()]
 
-    # Convert float parseable object column to float64
-    df['temp'] = pd.to_numeric(df['temp'], errors='coerce').astype('float64')
-
-    # Convert datetime parseable string columns to datetime
-    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')  
-
-    # Convert datetime parseable int64 unix column to datetime
-    df['unix'] = pd.to_datetime(df['unix'], unit='ms')
-
+    # 2. Cleaning column names
     # Rename specific columns 
     df = df.rename(columns={'old_name1': 'new_name1', 'old_name2': 'new_name2'})
-
 	# Lowercase all column names
 	df.columns = df.columns.str.lower()
 
-    # Sort by column
-    df.sort_values(by='sum_cnts',ascending=False)
+    # 3. Cleaning object dtype column values
+    df['col'] = df.col.str.replace('$'.'').str.replace(','.'')
+    df['col'] = df.col.map({'t':True, 'f':False})
 
-    # Filter out rows where a specific col has null values
-    df = df[df['datetime_col'].notna()] 
-
-    # Filtering rows and columns in one line
-    df[['mobile', 'account_id', 'assigned', 'otp']][df['assigned'].notna()]
+    # 4. Converting object dtypes to int, float, bool
+    # Works if the column has no non-numeric values
+    # int32 uses 4byts with range -2bn to +2bn, int64 uses 2x bytes giving range -9.2 
+    # quintillion to + 9.2 quintillion. We generally use int64 because int32
+    # isn't nullable
+    df['col'] = df.col.astype('int64') 
+    # float32 is good enough for most use cases; uses 4bytes, same range as int 32, but 
+    # with 7-8 decimals, float64 uses 2x bytes, same range as int64, with 8-15 decimals 
+    df['col'] = df.col.astype('float32') 
+    df['col'] = df.col.astype('datetime64[ns]')
+    df['col'] = df.col.astype('timedelta64[ns]')
+    df['col'] = df.col.astype('category') # Speeds up computations; works when your 
+                                          # column is a dumpsterfire of non-numeric mixed dtypes as well
+    # Use coercion if you want to treat the non-parseable values of your column as nan/nat/empty 
+    df['col'] = pd.to_numeric(df.col, errors='coerce').astype('int64')
+    df['col'] = pd.to_numeric(df.col, errors='coerce').astype('float64')
+    df['col'] = pd.to_datetime(df.col, errors='coerce')  
+    df['col'] = pd.to_datetime(df.col, errors='coerce', unit='ms') # Handles unix values
 
 #### Lesson 3: Filtering 
 
@@ -1045,46 +1055,112 @@
     # NOTE: Available aggs -> count, size, nunique, min, max, first, last, sum, 
     # mean, median, mode
 
-#### Lesson 8A: Feature Engineering (Creating Helper Columns)
+#### Lesson 8A: Feature Engineering (Create helper columns with col by col computations)
+
+    # Given the poor API design of the .apply function, the most tasteful way to iterate 
+    # row by row or col by col is the old fashioned way - because it guarentees an 
+    # identical invocation syntax
+
+    # 1. Col by col computations
+    #! df
+    #!    height  weight  age
+    #! 0     150      50   20
+    #! 1     160      60   25
+    #! 2     170      70   30
+    #! 3     180      80   35
+    #! 4     190      90   40
+
+    def generate_n_height(df):
+        # Normalizes height column
+        col = df['height']
+        return (col - col.mean()) / col.std()
+
+    df['n_height'] = generate_n_height(df)
+    df
+    #!    height  weight  age  n_height
+    #! 0     150      50   20 -1.264911
+    #! 1     160      60   25 -0.632456
+    #! 2     170      70   30  0.000000
+    #! 3     180      80   35  0.632456
+    #! 4     190      90   40  1.264911
+
+#### Lesson 8B: Feature Engineering (Create helper columns with row by row computations)
+
+    # 2. Row by row computations
+    #! df
+    #!   verification_methods  price  reviews
+    #! 0          email,phone    100      4.5
+    #! 1                email    150      3.8
+    #! 2     phone,work_email    200      4.9
+
+    def generate_vcount(df):
+        def gen():
+            for _, row in df.iterrows():
+                verif_count = len(row['verification_methods'].split(','))
+                adjusted = row['price'] / row['reviews'] if row['reviews'] > 0 else 0
+                yield verif_count * adjusted
+
+        return pd.Series(gen())
+
+    # Assign the new column directly from the function
+    df['vcount'] = generate_vcount(df)
+    print(df)
+    #!   verification_methods  price  reviews     vcount
+    #! 0          email,phone    100      4.5  44.444444
+    #! 1                email    150      3.8  39.473684
+    #! 2     phone,work_email    200      4.9  81.632653
+
+#### Lesson 8C: Feature Engineering (Creating helper bin classification and categoty columns)
 
     # 1. Append quantile bin classification column
-    df['util_range_qbc'] = pd.qcut(df['utilisation'],q=10,duplicates='drop',labels=False)
-	df['util_range_qbc'].value_counts().sort_index()
-    # NOTE: pd.qcut gives quantile / equal-frequency bins cut by data 
-    # quantiles so bins have ~equal counts. Here, we drop duplicates to
-    # merge duplicate bins caused by too many duplicate values  
-
-    # 2. Append bin classification column
-	df['days_rng_bc'] = pd.cut(df['number_days'], bins=[0, 10, 20, 28, 35, float('inf')], labels=False) 
-	df['days_rng_bc'].value_counts().sort_index()
-    # NOTE: labels=False gives us the index number of the label (which can
-    # directly be used as a numeric feature), instead of the label itself. Don't
-    # add this param if you want the col to be more human readable, instead.
-
+    def generate_util_range_qbc(df):
+        # Uses pd.qcut for quantile / equal-frequency bins cut by data 
+        # quantiles so bins have ~equal counts. We drop duplicates to
+        # merge duplicate bins caused by too many duplicate values.
+        return pd.qcut(df.utilisation, q=10, duplicates='drop', labels=False)
+    df['util_range_qbc'] = generate_util_range_qbc(df)
+    df['util_range_qbc'].value_counts().sort_index()
     # NOTE: It is good practice to use _bc and _qbc as indicators for 'bin
     # classification' and 'quantile bin classification', respectively
 
-    # 3. Append cohort column
-    conditions = [
-        (df['id'].notna() & df['otp'].isna()),
-        (df['id'].isna() & df['otp'].notna()),
-        (df['id'].notna() & df['otp'].notna()),
-        (df['id'].isna() & df['otp'].isna()),
-    ]
-    choices = ['CALL_NOINSTALL', 'NOCALL_INSTALL', 'CALL_INSTALL', 'NOCALL_NOINSTALL']
-    df['cohort'] = np.select(conditions, choices, default=None)
+    # 2. Append bin classification column
+    def generate_days_rng_bc(df):
+        # NOTE: labels=False gives us the index number of the label (which can
+        # directly be used as a numeric feature), instead of the label itself. Don't
+        # add this param if you want the col to be more human readable, instead.
+        return pd.cut(df.number_days, bins=[0, 10, 20, 28, 35, float('inf')], labels=False)
+    df['days_rng_bc'] = generate_days_rng_bc(df)
+    df['days_rng_bc'].value_counts().sort_index()
 
-#### Lesson 8B: Feature Engineering (Creating Helper Columns)
+    # 3. Append category column
+    def generate_cohort(df):
+        conditions = [
+            (df.id.notna() & df.otp.isna()),
+            (df.id.isna() & df.otp.notna()),
+            (df.id.notna() & df.otp.notna()),
+            (df.id.isna() & df.otp.isna()),
+        ]
+        choices = ['CALL_NOINSTALL', 'NOCALL_INSTALL', 'CALL_INSTALL', 'NOCALL_NOINSTALL']
+        return np.select(conditions, choices, default=None)
+    df['cohort'] = generate_cohort(df)
+
+#### Lesson 8D: Feature Engineering (Creating helper computation and boolean columns)
 
     # 4. Append computation storage column
-	df['utilisation'] = df['number_days'] / df['plan_duration']
-    df['diff_mins'] = (
-        df['end_timestamp'] - df['start_timestamp']
-    ).dt.total_seconds() / 60
+    def generate_utilisation(df):
+        return df.number_days / df.plan_duration
+    df['utilisation'] = generate_utilisation(df)
+    def generate_diff_mins(df):
+        return (df.end_timestamp - df.start_timestamp).dt.total_seconds() / 60
+    df['diff_mins'] = generate_diff_mins(df)
 
     # 5. Append boolean attribute columns
-	df['mac_90%'] = np.where(df['utilisation'] > 0.9, 1, 0) 
-	df['mac_80%'] = np.where((df['utilisation'] > 0.8) & (df['utilisation'] <= 0.9), 1, 0)
+    def generate_mac_90(df):
+        return np.where(df.utilisation > 0.9, 1, 0)
+    df['mac_90%'] = generate_mac_90(df)
+    def generate_mac_80(df):
+        return np.where((df.utilisation > 0.8) & (df.utilisation <= 0.9), 1, 0)
+    df['mac_80%'] = generate_mac_80(df)
 
 #### Lesson 9A: Pivot (single index and multi index)
 
