@@ -753,7 +753,22 @@
     row_condition = df.assigned_col.notna()
     df[['mobile', 'account_id', 'assigned', 'otp']][row_condition]
 
-#### Lesson 2C: Modifications / Cleaning Based on Initial Inspection 
+#### Lesson 3: Mutating Dataframes
+
+    # Never mutate a DataFrame that came from outside your function unless you explicitly own it.
+    # The below will throw a SettingWithCopyWarning, as pandas will enforce
+    # copy() under the hood, and throw an ugly warning
+    def mutate_df(df, target):
+        df[target] = df[target].astype(str).replace('$','') 
+        return df
+
+    # Instead, do this
+    def mutate_df(df, target):
+        df = df.copy
+        df[target] = df[target].astype(str).replace('$','') 
+        return df
+
+#### Lesson 4: Modifications / Cleaning Based on Initial Inspection 
 
     df.info()
 
@@ -792,7 +807,7 @@
     df['col'] = pd.to_datetime(df.col, errors='coerce')  
     df['col'] = pd.to_datetime(df.col, errors='coerce', unit='ms') # Handles unix values
 
-#### Lesson 3: Filtering 
+#### Lesson 5: Filtering 
 
     # Dot notation v. [] notation
     df[df.price > 0] # Pandas lets you use dot notation if your column name is a valid variable name
@@ -840,7 +855,7 @@
     # Filtering rows and columns in one line
     df[['mobile', 'account_id', 'assigned', 'otp']][df.assigned.notna()]
 
-#### Lesson 4: Using Python to Implement the Relational Model
+#### Lesson 6: Using Python to Implement the Relational Model
 
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
     # - n represents the number of columns,
@@ -865,7 +880,7 @@
     n = len(df.columns)
     columns = df.columns
 
-#### Lesson 5: Indexing Advantages 
+#### Lesson 7: Indexing Advantages 
 
     #!    employee_id   department  hire_date     name  salary
     #! 0          101           HR 2023-01-01    Alice   60000
@@ -903,7 +918,7 @@
     #! 2023-01-01          101           HR    Alice   60000
     #! 2023-01-02          101  Engineering  Charlie   75000
 
-#### Lesson 6A: Joins (union join aka full outer join)
+#### Lesson 8A: Joins (union join aka full outer join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -928,7 +943,7 @@
     #! 103         Sales          David  70000.0      NaN
     #! 104         Marketing        NaN      NaN  12000.0
 
-#### Lesson 6B: Joins (left join)
+#### Lesson 8B: Joins (left join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -953,7 +968,7 @@
     #! 101         Engineering  Charlie   75000  10000.0
     #! 103         Sales          David   70000      NaN
 
-#### Lesson 6C: Joins (inner join)
+#### Lesson 8C: Joins (inner join)
 
     #! print(df, other_df)
     #!                             name  salary
@@ -976,7 +991,7 @@
     #! 101         HR             Alice   60000   5000
     #!             Engineering  Charlie   75000  10000
 
-#### Lesson 7A: groupby (unindexed dataframe) 
+#### Lesson 9A: groupby (unindexed dataframe) 
 
     #!    plan_id mobile   mac  value
     #! 0        1      A  mac1     10
@@ -1008,7 +1023,7 @@
     #! df.columns.names   # no change, remains FrozenList([None])
     #! df.columns.values  # array(['plan_id',...,'value'])  -> array(['nmbr_mac'])
 
-#### Lesson 7B: groupby (indexed dataframe) 
+#### Lesson 9B: groupby (indexed dataframe) 
 
     #!    plan_id mobile   mac  value
     #! 0        1      A  mac1     10
@@ -1046,7 +1061,7 @@
     #! df.columns.names   # no change, remains FrozenList([None])
     #! df.columns.values  # array(['mac','value'])  ->  array(['nmbr_mac']) 
 
-#### Lesson 7C: groupby (shorthand syntax) 
+#### Lesson 9C: groupby (shorthand syntax) 
 
     df.groupby('plan_id').size()    # counts all rows; same logic as df.value_counts(), 
                                     # thus returns a Series. chain .to_frame(name='count') 
@@ -1062,7 +1077,7 @@
     # NOTE: Available aggs -> count, size, nunique, min, max, first, last, sum, 
     # mean, median, mode
 
-#### Lesson 8A: Feature Engineering (Create helper columns with piped functions)
+#### Lesson 10A: Feature Engineering (Create helper columns with piped functions)
 
     #! df
     #!   verification_methods  price  reviews
@@ -1108,7 +1123,7 @@
     #! 1  39.473684             135.0      0.5
     #! 2  81.632653             180.0      1.0
 
-#### Lesson 8B: Feature Engineering (Creating helper bin classification and category columns)
+#### Lesson 10B: Feature Engineering (Creating helper bin classification and category columns)
 
     #! df
     #!    utilisation  number_days    id   otp
@@ -1151,7 +1166,7 @@
     #! 1               2            2  NOCALL_INSTALL
     #! 2               1            4    CALL_INSTALL
 
-#### Lesson 8C: Feature Engineering (Creating helper computation and boolean columns)
+#### Lesson 10C: Feature Engineering (Creating helper computation and boolean columns)
 
     #! df
     #!    number_days  plan_duration       start_timestamp         end_timestamp
@@ -1189,7 +1204,7 @@
     #! 1    0.933333      105.0        1         0
     #! 2    0.888889       20.0        0         1
 
-#### Lesson 9A: Pivot (single index and multi index)
+#### Lesson 11A: Pivot (single index and multi index)
 
     # We don't really need the .pivot and .pivot_table methods to pivot a
     # dataframe. This is because, the below mathematical definition of a pivot
@@ -1221,7 +1236,7 @@
     #! two A          3
     #!     B          4
 
-#### Lesson 9B: Pivot (`pivot_table`)
+#### Lesson 11B: Pivot (`pivot_table`)
 
     # Now, we use the df.pivot_table method to achieve the same results as the previous lesson
     #!    foo bar  baz
@@ -1245,7 +1260,7 @@
     #! two A          3
     #!     B          4
 
-#### Lesson 9C: Pivot (flattening a multi index)
+#### Lesson 11C: Pivot (flattening a multi index)
 
     #! print(multi_index_pivot, multi_index_pivot.columns)
     #!          baz_sum
@@ -1275,7 +1290,7 @@
     #! one          6          2
     #! two          3          4
 
-#### Lesson 10A: Rank Ordering Basics
+#### Lesson 12A: Rank Ordering Basics
 
     # Rank ordering is simply UI in data science, to present data in a way
     # business can digest
@@ -1305,7 +1320,7 @@
     #! 5  3_high   2_med      1           40       40.0
     #! 6  3_high  3_high      2          190       95.0
 
-#### Lesson 10B: Rank Ordering nD Data (computation)
+#### Lesson 12B: Rank Ordering nD Data (computation)
 
     #!   item  score1  score2  score3  value
     #! 0    A       1      10       4     10
@@ -1341,7 +1356,7 @@
     #!        3_high 1_low       2          190       95.0
 
 
-#### Lesson 10C: Rank Ordering 2D Data (Motivation x Ability Grid)
+#### Lesson 12C: Rank Ordering 2D Data (Motivation x Ability Grid)
 
     # If the focus of our rank ordering is 2D with only one item to aggregate,
     # we could also present the rank ordering in grid. For instance a 3x3 grid 
@@ -1380,7 +1395,7 @@
     #! 2_med         1.0    5.0     0.0
     #! 3_high        0.0    1.0     4.0
 
-#### Lesson 11A: Subset Aggregation / SQL sub-queries (using groupby)
+#### Lesson 13A: Subset Aggregation / SQL sub-queries (using groupby)
 
     #!    mobile  account_id    event_name  added_time
     #! 0  123456           1      ASSIGNED          10
@@ -1420,7 +1435,7 @@
     #! 1  789012           2                    3              NaN
     #! 2  901234           4                   12              NaN
 
-#### Lesson 11B: Subset Aggregation / SQL sub-queries (using pivot)
+#### Lesson 13B: Subset Aggregation / SQL sub-queries (using pivot)
 
     #!    mobile  account_id    event_name  added_time
     #! 0  123456           1      ASSIGNED          10
