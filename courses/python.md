@@ -753,19 +753,19 @@
     row_condition = df.assigned_col.notna()
     df[['mobile', 'account_id', 'assigned', 'otp']][row_condition]
 
-#### Lesson 3: Mutating Dataframes
+#### Lesson 3: Impact of Scope on Dataframe Mutations
 
-    # Never mutate a DataFrame that came from outside your function unless you explicitly own it.
-    # The below will throw a SettingWithCopyWarning, as pandas will enforce
-    # copy() under the hood, and throw an ugly warning
-    def mutate_df(df, target):
-        df[target] = df[target].astype(str).replace('$','') 
-        return df
+    # Never mutate a DataFrame that came from outside your function. The below 
+    # will throw a SettingWithCopyWarning, as pandas will enforce copy() under 
+    # the hood, and throw an ugly warning
+    #! def mutate_df(df, target):
+    #!     df['target'] = df.price.astype(str).replace('$','').astype(float)
+    #!     return df
 
-    # Instead, do this
+    # Instead, do this, when you want to use a function to mutate a df
     def mutate_df(df, target):
-        df = df.copy
-        df[target] = df[target].astype(str).replace('$','') 
+        df = df.copy()
+        df['target'] = df.price.astype(str).replace('$','').astype(float)
         return df
 
 #### Lesson 4: Modifications / Cleaning Based on Initial Inspection 
