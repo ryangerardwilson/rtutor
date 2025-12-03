@@ -797,41 +797,48 @@
     # Dot notation v. [] notation
     df[df.price > 0] # Pandas lets you use dot notation if your column name is a valid variable name
 
+    # The correct way to store filtered dfs
+    # This confuses pandas, on whether to return a view or a do an assignment
+    df = df[df['price'] != 0] # Wrong approach - will return a SettingWithCopyWarning
+    # Correct approaches
+    df = df[df.price != 0].copy()
+    df2 = df[df.price != 0] 
+
     # Boolean filter
-    df[((df['plan_duration'] > 12) & (df['status'].isin([6,12,24]))) | (df['plan_type'] == 'promo')]
+    df[((df.plan_duration > 12) & (df.status.isin([6,12,24]))) | (df.plan_type == 'promo')]
 
     # Exclusion
-    df[~df['plan_id'].isin([4, 5])]
+    df[~df.plan_id.isin([4, 5])]
 
     # isna and notna
-    df[df['mac'].isna()]
-    df[df['mac'].notna()]
+    df[df.mac.isna()]
+    df[df.mac.notna()]
 
     # Mask example
-    mask = (df['plan_duration'] > 12) & (df['plan_id'] == 3)
+    mask = (df.plan_duration > 12) & (df.plan_id == 3)
     df.loc[mask, ['mac', 'mobile', 'plan_id']]
     df.loc[mask, 'plan_duration'] = 0
 
     # String filters
-    df[df['mobile'].str.contains('555', na=False)]
-    df[df['mac'].str.startswith('aa', na=False)]
+    df[df.mobile.str.contains('555', na=False)]
+    df[df.mac.str.startswith('aa', na=False)]
 
     # Mutate/ Copy
-    df = df[df['plan_duration'] > 12]
-    filtered_df = df[df['plan_duration'] > 12].copy()
+    df = df[df.plan_duration > 12]
+    filtered_df = df[df.plan_duration > 12].copy()
 
     # Range comparisons / between - readable and vectorized
-    df[df['ts'] >= pd.Timestamp('2020-01-01')] # single-side
-    df[df['ts'].between('2020-01-01', '2020-01-31')] # inclusive range (clean)
+    df[df.ts >= pd.Timestamp('2020-01-01')] # single-side
+    df[df.ts.between('2020-01-01', '2020-01-31')] # inclusive range (clean)
 
     # Component masks with .dt - year/month/weekday/time
-    df[df['ts'].dt.year == 2020] # filter by year
-    df[df['ts'].dt.month.isin([1,2,3])] # filter months
-    df[df['ts'].dt.weekday < 5] # weekday mask (Mon=0)
-    df[df['ts'].dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
+    df[df.ts.dt.year == 2020] # filter by year
+    df[df.ts.dt.month.isin([1,2,3])] # filter months
+    df[df.ts.dt.weekday < 5] # weekday mask (Mon=0)
+    df[df.ts.dt.time.between(pd.to_datetime('08:00').time(), pd.to_datetime('17:00').time())] # time-only mask
 
     # Filtering rows and columns in one line
-    df[['mobile', 'account_id', 'assigned', 'otp']][df['assigned'].notna()]
+    df[['mobile', 'account_id', 'assigned', 'otp']][df.assigned.notna()]
 
 #### Lesson 4: Using Python to Implement the Relational Model
 
