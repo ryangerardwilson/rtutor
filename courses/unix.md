@@ -1,5 +1,28 @@
 # Unix
 
+## Part I: Emacs
+
+### Lesson 1: Getting Started
+
+
+    # Tutorial mode
+    C-h t: Start tutorial
+    q: exits tutorial buffer
+    
+    # Dir mode
+    C-x d: Opens dird at specific path
+    q: exits dird buffer
+
+    # Create file
+    C-x C-f
+    C-x k: Closes buffer without saving
+    C-x C-s: Closes buffer after saving
+  
+    Alt+Shift+. : Jump to end of page
+    Alt+Shift+< : Jump to start of page
+    C-x C-x: Exit emacs
+
+
 ## Part I: Typing in the Terminal
 
 ### Lesson 1: Multiline Strings

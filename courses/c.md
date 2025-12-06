@@ -416,7 +416,7 @@
     #define MAXLINE 1000  
 
     int main() {
-        // 1. Declare types and varialbes before use
+        // 1. Declare types and variables before use
         int lower, upper = 100, step;  // Multiple, some initialized.
         char c = 'a';
         char line[1000] = {0};  // Zero-init array
