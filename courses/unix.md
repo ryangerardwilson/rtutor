@@ -14,6 +14,7 @@
 
 	# Execute shell command
 	M-! shell
+	M-x eat # takes you into eat, a shell with your .bashrc.
 	
     # Create/ open file
     C-x C-f
