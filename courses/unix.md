@@ -2,8 +2,7 @@
 
 ## Part I: Emacs
 
-### Lesson 1: Getting Started
-
+### Lesson 1: Getting Started & Basic Navigation
 
     # Tutorial mode
     C-h t: Start tutorial
@@ -13,16 +12,54 @@
     C-x d: Opens dird at specific path
     q: exits dird buffer
 
-    # Create file
+	# Execute shell command
+	M-! shell
+	
+    # Create/ open file
     C-x C-f
     C-x k: Closes buffer without saving
     C-x C-s: Closes buffer after saving
-  
-    Alt+Shift+. : Jump to end of page
-    Alt+Shift+< : Jump to start of page
+
+	# Buffer navigation
+	C-(n/p/f/b) : Move across lines and chars
+	M-(f/b) : Move across words
+	C-(a/e) : Move to start/end of line
+	M-(a/e) : Move to start/end of sentence
+	(C/M)-v: Page up/page down
+	C-L: Focus cursor line at center
+    M-> : Jump to end of page
+    M-< : Jump to start of page
     C-x C-x: Exit emacs
 
+### Lesson 2: Buffer Editing
 
+	# <DEL> means backspace in emacs lingo
+	<DEL> : Delete char before cursor
+	M-<DEL> : Delte word before cursor
+	C-d : Delete char after cursor
+	M-d : Delete word after cursor
+	C-k : Delete from cursor to end of line
+	(C/M)-a C-k: Delete from start of line/ sentence to end
+	C-Space <Navigate-to-select> <DEL> : Deletes selection
+	C-Space <Navigate-to-select> C-w <place-cursor> C-y : Cut and paste
+	C-Space <Navigate-to-select> C-w <place-cursor> C-y : Copy and paste
+
+	C-/ : Undo
+	C-g C-/ : Redo
+
+	# Hail Mary, if you give a gibberish command
+	C-g: Clears the command input, so you can start anew
+
+### Lesson 3: Repeat Count Modifier
+
+	# C-u is the modifer that allows us to specify the repeat count
+	# Most command take in args like this, while very few take it
+	# in the form of flags
+	C-u <count> <command>
+
+	# For instance
+	C-u 8 C-f: moves forward 8 characters
+	
 ## Part I: Typing in the Terminal
 
 ### Lesson 1: Multiline Strings
