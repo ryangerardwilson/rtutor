@@ -395,7 +395,7 @@
     three unrelated things, you split it into multiple CTEs like you would split a 
     500-line C function.
 
-## Part 2: Workflow Patterns
+## Part III: Workflow Patterns
 
 ### Section 1: Data Science
 
