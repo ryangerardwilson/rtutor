@@ -43,7 +43,8 @@
 	C-Space <Navigate-to-select> <DEL> : Deletes selection
 	C-Space <Navigate-to-select> C-w <place-cursor> C-y : Cut and paste
 	C-Space <Navigate-to-select> M-w <place-cursor> C-y : Copy and paste
-
+	C-x h: Select all text in the buffer
+	
 	C-/ : Undo
 	C-g C-/ : Redo
 
