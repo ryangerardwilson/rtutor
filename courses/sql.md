@@ -401,7 +401,7 @@
 
 #### Lesson 1: Using Count and Group By for Quick Inspections
 
-    -- 1. Count all records from a relations
+    -- 1. Count all records from a relation
     SELECT
         COUNT(*)
     FROM your_cte_or_table;
@@ -414,7 +414,7 @@
     GROUP BY source
     ORDER BY row_count DESC;
 
-    -- 3. Count all rows of each unqiue combination of source and action_type
+    -- 3. Count all rows of each unique combination of source and action_type
     SELECT
         source,
         action_type,
@@ -481,7 +481,7 @@
         WHERE b.event_name = 'OTP_VERIFIED'
         GROUP BY b.account_id, b.mobile
     )
-    /* Now, we simply do subset aggreagation */
+    /* Now, we simply do subset aggregation */
     SELECT
         a.account_id,
         a.mobile,
