@@ -665,7 +665,7 @@
     # Go back to default RangeIndex
     df = df.reset_index()
 
-#### Lesson 2A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-5) 
+#### Lesson 2A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-3) 
 
     # 1. Columns, Data types, schema, and sampling
     df.columns
@@ -684,6 +684,9 @@
                           # grouped dfs with more than 10 rows
     df.col_name.nunique() # get count of unique values of a column
     df.col_name.unique() # get list of unique values of a column
+	# See which years data we have
+	df['col'] = df.col.astype('datetime64[ns]')
+	df.col.dt.year.unique() 
     df.sort_values(by='col',ascending=False)
 
     # 2. Duplicate rows & subset
@@ -693,7 +696,10 @@
     # 3. Missing values
     df.isnull().sum()
     df.isnull().mean() * 100  # % missing
-    df = df[df.datetime_col.notna()] # Filter out rows with certain missing values
+    df = df[df.datetime_col.notna()] # Filter out rows with certain missing
+	values
+	
+#### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (4-6)
 
     # 4. Primary key
     df.set_index(['col1','col2'], verify_integrity=True) 
@@ -705,14 +711,14 @@
     df.col.value_counts() # Chain: .sort_index(), .round(n), nlargest(n), nsmallest(n)
     df.groupby('col').size() # same logic as df.value_counts(), both return Series
     df.groupby(['col1','col2']).size() # works with a list of columns
-
-#### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (6-10) 
-
+	
     # 6. Summary stats - look for impossible values (e.g., negative age),
     # extreme outliers, or unexpected categories. Gives: count, unique, mean, freq, 
     # top (mode), std, min, max, quantiles
     df.describe(include='all')
     df.describe(include='all').loc['count'].T # deep dive aesthetically
+
+#### Lesson 2C: Top 10 Things to Inspect the First Time You Access a Dataframe (7-10) 
 
     # 7. Quantile Analysis 
     # To examine Percentile Distibution - you can use this as a histogram replacement, 
@@ -858,9 +864,9 @@
 #### Lesson 6: Using Python to Implement the Relational Model
 
     # A table/dataframe is a way to represent an n-ary mathematical relation, where
-    # - n represents the number of columns,
-    # - columns represent attributes of tuple indices, and
-    # - rows represent a set of {tuples}.
+    # - n represents the number of columns,
+    # - columns represent attributes of tuple indices, and
+	# - rows represent a set of {tuples}.
     # Table = { (c1, c2, ..., cn) | each ci in `domain_i`, for i=1 to n }
 
     # Define the domains implicitly through data types and values

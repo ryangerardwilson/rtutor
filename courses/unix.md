@@ -50,7 +50,31 @@
 	# Hail Mary, if you give a gibberish command
 	C-g: Clears the command input, so you can start anew
 
-### Lesson 3: Repeat Count Modifier
+### Lesson 3: Window and Buffer Navigation
+
+	# To open multiple buffers, simply do this
+	C-x C-f <type buffer path>
+
+	# To toggle between open buffers, simply do this
+	C-x <left/right arrow>
+
+	# To view buffers list
+	C-x C-b -> followed by: C-x o (which focuses you inside the list window)
+	# Then, you can:
+	n/p : navigate
+	m: mark
+	u: unmark buffer
+	M-<DEL>: unmark all buffers
+	S: save all marked buffers
+	D: kill all marked buffers
+	q : close
+
+	# Window Navigation
+	C-x o: jump across windows
+	C-x 0: close current window
+	C-x 1: delete other window
+
+### Lesson 4: Repeat Count Modifier
 
 	# C-u is the modifer that allows us to specify the repeat count
 	# Most command take in args like this, while very few take it
