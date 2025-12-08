@@ -1479,7 +1479,58 @@
 
 ### Section 2: Machine Learning (XGBoost)
 
-#### Lesson 1: Decision Trees
+#### Lesson 1A: Data Visualization Fundamentals (Normalised vs. De-normalised data)
+
+	 # Normalization (in the original Codd/1970 relational database sense) =
+	 # organizing tables to eliminate redundancy and update anomalies by
+	 # splitting data into many narrow, tightly linked tables following strict
+	 # normal forms
+
+	 # Core Idea: Every piece of information appears exactly once, and everything else
+	 # references it via keys.
+
+	 #! Real-world example - fully normalized version of the same data:
+	 #! Table	   		   Key 	   	 	   Columns
+	 #! customers  		   customer_id	   customer_id, name, birth_date, city
+	 #! orders	   		   order_id		   order_id, customer_id, order_date, amount
+	 #! order_items		   item_id		   item_id, order_id, product_id, qty, price
+	 #! products		   product_id	   product_id, product_name, category
+	 #! payments		   payment_id	   payment_id, order_id, payment_date, method
+
+	 # Why Normalization Is the Enemy of Real-World ML? To train a model you
+	 # would have to execute massive star-schema joins + window aggregations
+	 # on-the-fly for every single prediction or training row. That's 100–1000×
+	 # slower and leaks like crazy if you're not extremely careful
+
+#### Lesson 1B: Data Visualization Fundamentals (Mathematical Data Structures)
+
+	# Generally speaking, data appears in the real world in the following
+	# mathematical forms:
+	# a. Event/ Logs/ relations: they simply record a series of events around
+	#    a time axis
+	# b. Real world Tabular Data: a denormalized, point-in-time feature matrix. Note
+	#    that this is not a relation, but a matrix, which is a superset of a relation.
+	# c. Codd’s original 1970 relational model - a time-varying relation that holds
+	#    only currently valid tuples
+
+	# What is a good data set to model?
+	# A good data set is a point-in-time feature matrix with one target column,
+	# without any prohibited duplicates, where
+	# - Each row = one observation/entity at a specific prediction time
+	# - Each column = a pre-computed feature (numeric, categorical, or embedding)
+
+	# What are the prohibited duplicates?
+	# - Exact duplicate rows: They add zero information. They artificially
+	#   inflate sample count, mess up train/val splits, and make your metrics
+	#   (log-loss, AUC) lie to you.  
+	# - Rows identical accross all columns, but a different row_id / timestamp
+	#   / user_id. 99.9 % of the time this is a pipeline bug 
+
+	# What are 'good' duplicates that actually add value?
+	# - Same features, different label. This is real 'stochasticity'. Removing
+	# or aggregating destroys the probability estimate.  
+
+#### Lesson 2: Decision Trees
 
     # A decision tree is like a flowchart for making predictions. It starts at the 
     # root (top question), splits into branches based on features (e.g., 'Is the 
@@ -1503,7 +1554,7 @@
     #!  2014 |        XGBoost |   Scalable, regularized gradient boosting with tree pruning and parallelism |
     #! -----------------------------------------------------------------------------------------------------|
 
-#### Lesson 2A: XGBoost Intuition (gradient boosting, overfitting, regularization)
+#### Lesson 3A: XGBoost Intuition (gradient boosting, overfitting, regularization)
 
     # 1. Gradient Boosting
     # Think of gradient boosting like building a team of weaklings who, together, 
@@ -1532,7 +1583,7 @@
     # weights toward zero without killing 'em off, which helps with variance
 
 
-#### Lesson 2B: XGBoost Intuition (learning rate/ eta, max_depth, num_boost_roung/ n_estimators)
+#### Lesson 3B: XGBoost Intuition (learning rate/ eta, max_depth, num_boost_roung/ n_estimators)
 
     # 3. Learning Rate/ eta
     # This is like your gas pedal control. It's a number (usually 0.01 to 0.3) that 
@@ -1542,7 +1593,6 @@
     #   slower the eval. But, results in a steady accurate model. 
     # - High learning rate: Speeds things up, but watch out - you could overshoot 
     #   and end up with a bouncy, unstable model. 
-
 
     # 4. max_depth 
     # This decides how tall your decision trees can grow - think of it as the 
@@ -1565,7 +1615,7 @@
     # - Low learning rate/eta -> requires higher n_estimators (500+)
     # - High learning rate/eta -> requires low n_esimators (50-100) 
 
-#### Lesson 2C: XGBoost Intuition (lambda, subsample, colsample_bytree)
+#### Lesson 3C: XGBoost Intuition (lambda, subsample, colsample_bytree)
 
     # 6. lambda (L2 regularization)
     # Lambda is XGBoost's knob for L2 regularization. Adds a penalty for big, 
