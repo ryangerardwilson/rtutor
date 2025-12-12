@@ -1548,7 +1548,13 @@
 	# To understand the importance of the above definitions, lets say we define our
 	# target as follows: WITH {prediction_time}: 1 IF {condition} ELSE 0
 	# The problem that is created is called 'target leakage', where the rule
-	# governing the impact of prediction_time on the outcome is ambiguously stated.
+	# governing the impact of prediction_time on the outcome is ambiguously
+	# stated.
+
+	# Thus, in preprocessing raw data, it is imperative to ensure that the data
+	# filtered such that:
+	# - target is AFTER prediction_time
+	# - all features exist ON_OR_BEFORE prediction_time
 	
 #### Lesson 2: Decision Trees
 
