@@ -14,10 +14,13 @@
 
 	# Execute shell command
 	M-! shell
-	
+
+	# Reload init.el (requires mapping in config)
+	C-c C-l
+
     # Create/ open file
     C-x C-f
-    C-x k: Closes buffer without saving
+    C-x k: Closes buffer without saving (requires config mapping)
     C-x C-s: Closes buffer after saving
 
 	# Buffer navigation
@@ -27,8 +30,8 @@
 	M-(a/e) : Move to start/end of sentence
 	(C/M)-v: Page up/page down
 	C-L: Focus cursor line at center
-    M-> : Jump to end of page
-    M-< : Jump to start of page
+    M-> | C-end : Jump to end of page
+    M-< | C-home : Jump to start of page
     C-x C-x: Exit emacs
 
 ### Lesson 2: Buffer Editing
@@ -40,18 +43,45 @@
 	M-d : Delete word after cursor
 	C-k : Delete from cursor to end of line
 	(C/M)-a C-k: Delete from start of line/ sentence to end
-	C-Space <Navigate-to-select> <DEL> : Deletes selection
-	C-Space <Navigate-to-select> C-w <place-cursor> C-y : Cut and paste
-	C-Space <Navigate-to-select> M-w <place-cursor> C-y : Copy and paste
-	C-x h: Select all text in the buffer
+	M-^: Join current line to previous (is essential M-Shift-6)
+
+	# Selection workfolows
+	C-c f : Select from start to end of line (needs config)
+	C-c b : Select from end to start of line (needs config)
+	M-h : mark current paragraph
+	C-M-h : mark current function
+	C-x-h : mark entire file
+	M-@ : mark word
+
+	# Cut, Copy & Paste
+	C-w: cut
+	M-w: copy
+	C-y: paste
+
+	# Rectanble mode
+	C-Space-x <Navigate-to-select-rectangle> <type-something> : Rectangle mode
 	
 	C-/ : Undo
 	C-g C-/ : Redo
 
 	# Hail Mary, if you give a gibberish command
-	C-g: Clears the command input, so you can start anew
+	C-g: Clears input commands, so you can start anew; also clears selections
+	     so you can select anew
 
-### Lesson 3: Window and Buffer Navigation
+	# Repeat Command
+	<command> C-x z zzzzzzz : spam z as many times you want to repeat
+
+### Lesson 3: Customized Bindings
+
+	# Customized Bindings
+	C-c f : Select current line from start to end
+	C-c b : Select current line from end to start
+	C-c (i/d) : Increment/ Decrement nearest number to cursor on line
+	C-c C-m : Continue spaced line numbering
+	C-c C-n : Continue unspaced list numbering
+	C-c C-d : Deletes a whole line
+	
+### Lesson 4: Window and Buffer Navigation
 
 	# To open multiple buffers, simply do this
 	C-x C-f <type buffer path>
@@ -60,22 +90,14 @@
 	C-x <left/right arrow>
 
 	# To view buffers list
-	C-x C-b -> followed by: C-x o (which focuses you inside the list window)
-	# Then, you can:
-	n/p : navigate
-	m: mark
-	u: unmark buffer
-	M-<DEL>: unmark all buffers
-	S: save all marked buffers
-	D: kill all marked buffers
-	q : close
+	C-x b -> followed by Tab to view available buffers
 
 	# Window Navigation
 	C-x o: jump across windows
 	C-x 0: close current window
 	C-x 1: delete other window
 
-### Lesson 4: Repeat Count Modifier
+### Lesson 5: Repeat Count Modifier
 
 	# C-u is the modifer that allows us to specify the repeat count
 	# Most command take in args like this, while very few take it

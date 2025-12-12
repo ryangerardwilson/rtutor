@@ -707,7 +707,12 @@
     # case of error, either change the set, or do: 
     df.drop_duplicates(subset=['col1','col2']) 
 
-    # 5. Frequency of unique values across a column/ set of columns
+	# 5. Relative Distribution & Frequencies
+	# For each unique value of col_a, count each unique value of col_b
+	pd.crosstab(df.user_id, df.category)
+	# Now to get the %distribution of values of col_b
+	pd.crosstab(df.user_id, df.category, normalize='index')
+	
     df.col.value_counts() # Chain: .sort_index(), .round(n), nlargest(n), nsmallest(n)
     df.groupby('col').size() # same logic as df.value_counts(), both return Series
     df.groupby(['col1','col2']).size() # works with a list of columns
@@ -1481,55 +1486,70 @@
 
 #### Lesson 1A: Data Visualization Fundamentals (Normalised vs. De-normalised data)
 
-	 # Normalization (in the original Codd/1970 relational database sense) =
-	 # organizing tables to eliminate redundancy and update anomalies by
-	 # splitting data into many narrow, tightly linked tables following strict
-	 # normal forms
+	# Normalization (in the original Codd/1970 relational database sense) =
+	# organizing tables to eliminate redundancy and update anomalies by
+	# splitting data into many narrow, tightly linked tables following strict
+	# normal forms
 
-	 # Core Idea: Every piece of information appears exactly once, and everything else
-	 # references it via keys.
+	# Core Idea: Every piece of information appears exactly once, and everything else
+	# references it via keys.
 
-	 #! Real-world example - fully normalized version of the same data:
-	 #! Table	   		   Key 	   	 	   Columns
-	 #! customers  		   customer_id	   customer_id, name, birth_date, city
-	 #! orders	   		   order_id		   order_id, customer_id, order_date, amount
-	 #! order_items		   item_id		   item_id, order_id, product_id, qty, price
-	 #! products		   product_id	   product_id, product_name, category
-	 #! payments		   payment_id	   payment_id, order_id, payment_date, method
+	#! Real-world example - fully normalized version of the same data:
+	#! Table	   		   Key 	   	 	   Columns
+	#! customers  		   customer_id	   customer_id, name, birth_date, city
+	#! orders	   		   order_id		   order_id, customer_id, order_date, amount
+	#! order_items		   item_id		   item_id, order_id, product_id, qty, price
+	#! products		   product_id	   product_id, product_name, category
+	#! payments		   payment_id	   payment_id, order_id, payment_date, method
 
-	 # Why Normalization Is the Enemy of Real-World ML? To train a model you
-	 # would have to execute massive star-schema joins + window aggregations
-	 # on-the-fly for every single prediction or training row. That's 100–1000×
-	 # slower and leaks like crazy if you're not extremely careful
+	# Why Normalization Is the Enemy of Real-World ML? To train a model you
+	# would have to execute massive star-schema joins + window aggregations
+	# on-the-fly for every single prediction or training row. That's 100-1000x
+	# slower and leaks like crazy if you're not extremely careful
 
 #### Lesson 1B: Data Visualization Fundamentals (Mathematical Data Structures)
 
 	# Generally speaking, data appears in the real world in the following
 	# mathematical forms:
-	# a. Event/ Logs/ relations: they simply record a series of events around
-	#    a time axis
+	# a. Event/ logs: they simply record a series of events around a time axis
 	# b. Real world Tabular Data: a denormalized, point-in-time feature matrix. Note
 	#    that this is not a relation, but a matrix, which is a superset of a relation.
-	# c. Codd’s original 1970 relational model - a time-varying relation that holds
+	# c. Codd's original 1970 relational model - a time-varying relation that holds
 	#    only currently valid tuples
 
 	# What is a good data set to model?
-	# A good data set is a point-in-time feature matrix with one target column,
-	# without any prohibited duplicates, where
-	# - Each row = one observation/entity at a specific prediction time
-	# - Each column = a pre-computed feature (numeric, categorical, or embedding)
+	# A good dataset for supervised learning is a point-in-time feature table, rooted in the REAL WORLD,
+	# meeting the following conditions:
+	# - Each row corresponds to a unique real world entity (e.g., customer, vehicle, patient, etc.)
+	#   observed at a specific prediction timestamp t_pred, collectively, creating a 'Monte-Carlo'
+	#   sample (Whats a Monte-Carlo sample? Let reality roll the dice for you, then write down what
+	#   actually happened. You repeat that many times, and you get a bunch of real-world random samples.
+	# - The target variable y_i is the outcome of interest that materializes strictly after t_pred
+	#   (e.g., failure within next 30 days, churn in the following month, etc.)
+	# - For every feature x_i, the value j in the row must be known or computable using only
+	#   information available at or before t_pred. No feature may incorporate data from any time > t_pred
+	#   (this prohibition is called 'future leakage' or 'target leakage')
+	# - There are no duplicate rows that are invalid Monte-Carlo samples
+	
+	# Why do 'good' duplicates (i.e. duplicates that are valid Monte-Carlo samples) actually add value?
+	# - They teach the model the actual odds: when everything looks exactly like this, it fails x% of the time.
+	# - If you delete all of them and keep only one, the model thinks 'this never happens' or 'this always
+	#   happens', causing totally wrong probabilities.
+	# - Every extra copy is like flipping the real-world coin one more time and writing down what actually happened.
 
-	# What are the prohibited duplicates?
-	# - Exact duplicate rows: They add zero information. They artificially
-	#   inflate sample count, mess up train/val splits, and make your metrics
-	#   (log-loss, AUC) lie to you.  
-	# - Rows identical accross all columns, but a different row_id / timestamp
-	#   / user_id. 99.9 % of the time this is a pipeline bug 
+#### Lesson 1C: Using Definitional Precision to Prevent Target Leakage
 
-	# What are 'good' duplicates that actually add value?
-	# - Same features, different label. This is real 'stochasticity'. Removing
-	# or aggregating destroys the probability estimate.  
+	# Now, the following definitions become clear:
+	# Feature: Anything known ON_OR_BEFORE prediction_time
+	# Target: A value that is realized AFTER prediction_time. For instance,
+	# - for linear regression: number OR log(number) AFTER {prediction_time}
+	# - for binary classification: 1 IF {condition} AFTER {prediction_time} ELSE 0
 
+	# To understand the importance of the above definitions, lets say we define our
+	# target as follows: WITH {prediction_time}: 1 IF {condition} ELSE 0
+	# The problem that is created is called 'target leakage', where the rule
+	# governing the impact of prediction_time on the outcome is ambiguously stated.
+	
 #### Lesson 2: Decision Trees
 
     # A decision tree is like a flowchart for making predictions. It starts at the 
@@ -1613,7 +1633,7 @@
     # boosting iterations. You can think of it as a 'dance partner' of learning
     # rate/ eta.
     # - Low learning rate/eta -> requires higher n_estimators (500+)
-    # - High learning rate/eta -> requires low n_esimators (50-100) 
+    # - High learning rate/eta -> requires low n_estimators (50-100) 
 
 #### Lesson 3C: XGBoost Intuition (lambda, subsample, colsample_bytree)
 
