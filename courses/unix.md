@@ -1,112 +1,5 @@
 # Unix
 
-## Part I: Emacs
-
-### Lesson 1: Getting Started & Basic Navigation
-
-    # Tutorial mode
-    C-h t: Start tutorial
-    q: exits tutorial buffer
-    
-    # Dir mode
-    C-x d: Opens dird at specific path
-    q: exits dird buffer
-
-	# Execute shell command
-	M-! shell
-
-	# Reload init.el (requires mapping in config)
-	C-c C-l
-
-    # Create/ open file
-    C-x C-f
-    C-x k: Closes buffer without saving (requires config mapping)
-    C-x C-s: Closes buffer after saving
-
-	# Buffer navigation
-	C-(n/p/f/b) : Move across lines and chars
-	M-(f/b) : Move across words
-	C-(a/e) : Move to start/end of line
-	M-(a/e) : Move to start/end of sentence
-	(C/M)-v: Page up/page down
-	C-L: Focus cursor line at center
-    M-> | C-end : Jump to end of page
-    M-< | C-home : Jump to start of page
-    C-x C-x: Exit emacs
-
-### Lesson 2: Buffer Editing
-
-	# <DEL> means backspace in emacs lingo
-	<DEL> : Delete char before cursor
-	M-<DEL> : Delte word before cursor
-	C-d : Delete char after cursor
-	M-d : Delete word after cursor
-	C-k : Delete from cursor to end of line
-	(C/M)-a C-k: Delete from start of line/ sentence to end
-	M-^: Join current line to previous (is essential M-Shift-6)
-
-	# Selection workfolows
-	C-c f : Select from start to end of line (needs config)
-	C-c b : Select from end to start of line (needs config)
-	M-h : mark current paragraph
-	C-M-h : mark current function
-	C-x-h : mark entire file
-	M-@ : mark word
-
-	# Cut, Copy & Paste
-	C-w: cut
-	M-w: copy
-	C-y: paste
-
-	# Rectanble mode
-	C-Space-x <Navigate-to-select-rectangle> <type-something> : Rectangle mode
-	
-	C-/ : Undo
-	C-g C-/ : Redo
-
-	# Hail Mary, if you give a gibberish command
-	C-g: Clears input commands, so you can start anew; also clears selections
-	     so you can select anew
-
-	# Repeat Command
-	<command> C-x z zzzzzzz : spam z as many times you want to repeat
-
-### Lesson 3: Customized Bindings
-
-	# Customized Bindings
-	C-c f : Select current line from start to end
-	C-c b : Select current line from end to start
-	C-c (i/d) : Increment/ Decrement nearest number to cursor on line
-	C-c C-m : Continue spaced line numbering
-	C-c C-n : Continue unspaced list numbering
-	C-c C-d : Deletes a whole line
-	
-### Lesson 4: Window and Buffer Navigation
-
-	# To open multiple buffers, simply do this
-	C-x C-f <type buffer path>
-
-	# To toggle between open buffers, simply do this
-	C-x <left/right arrow>
-
-	# To view buffers list
-	C-x b -> followed by Tab to view available buffers
-
-	# Window Navigation
-	C-x o: jump across windows
-	C-x 0: close current window
-	C-x 1: delete other window
-
-### Lesson 5: Repeat Count Modifier
-
-	# C-u is the modifer that allows us to specify the repeat count
-	# Most command take in args like this, while very few take it
-	# in the form of flags
-	C-u <count> <command>
-
-	# For instance
-	C-u 8 C-f: moves forward 8 characters
-	
 ## Part I: Typing in the Terminal
 
 ### Lesson 1: Multiline Strings
@@ -141,9 +34,12 @@
 
     Ctrl+U: Clear the line before the cursor
     Ctrl+K: Clear the line after the cursor
+
     Ctrl+W: Remove one word to the left
     Alt+D: Remove one word to the right
+
     Ctrl+H: Remove one char to the left
+    Ctrl+D: Renive one char to the right
     Tab: Auto-complete
 
 ### Lesson 4: Job Control
