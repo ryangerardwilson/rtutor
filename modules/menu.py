@@ -5,7 +5,8 @@ from .ascii import title_ascii_art
 
 class Menu:
     def __init__(self, courses, doc_mode=False):
-        self.courses = courses
+        # self.courses = courses
+        self.courses = sorted(courses, key=lambda c: c.name.lower())
         self.title_ascii_art = title_ascii_art
         self.doc_mode = doc_mode
 
