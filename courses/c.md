@@ -1005,6 +1005,7 @@
 
 #### Lesson 19B: Reverse String
 
+    // Test
     int length(char line[]){
         int i;
         for (i = 0; line[i] != '\0'; ++i);
