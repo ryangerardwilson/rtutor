@@ -725,10 +725,10 @@
 
 #### Lesson 2C: Top 11 Things to Inspect the First Time You Access a Dataframe (7-11) 
 
-    # 7. Percentile Analysis
-    cut_off = np.percentile(df.probs, 90)
+    # 7. Quantile Analysis
+    cut_off = df.probs.quantile(0.90)      
     df['meets_cutoff'] = np.where(df.probs > cut_off,1,0)
-    df.meets_cutoff.values_count()
+    print(df.meets_cutoff.value_counts())
 
     # 8. Quantile Distribution Analysis 
     # To examine Percentile Distibution - you can use this as a histogram replacement, 
@@ -1679,3 +1679,208 @@
     # - lambda penalizes complexity, 
     # - subsample and colsample inject randomness 
     # Together, they make XGBoost robust without the drama of vanilla boosting.
+
+#### Lesson 4A: Binary Classification Implementation (test-train split)
+
+    import pandas as pd
+    import numpy as np
+    import xgboost as xgb
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import (
+        roc_auc_score,
+        precision_score,
+        recall_score,
+        f1_score,
+        accuracy_score,
+    )
+
+    tabular_data_df.head(5)
+
+    #!            feat_0    feat_1    feat_2   ...   feat_19  converted
+    #! user_id                                 ...
+    #! 0        0.025729  0.165038  0.072194   ...  0.018873          0
+    #! 1        0.054640  0.008674  0.019949   ...  0.033492          0
+    #! 2        0.006200  0.032563  0.001667   ...  0.018747          0
+    #! 3        0.026806  0.017243  0.096114   ...  0.006708          0
+    #! 4        0.120043  0.058937  0.024257   ...  0.006892          0
+
+    # Train-test split (using the combined df)
+    X_train, X_test, y_train, y_test = train_test_split(
+        tabular_data_df.drop('converted', axis=1),
+        tabular_data_df['converted'],
+        test_size=0.2,
+        random_state=42,
+        stratify=tabular_data_df['converted']
+    )
+
+#### Lesson 4B: Binary Classification Implementation (model training)
+
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    dtest = xgb.DMatrix(X_test, label=y_test)
+
+    params = {
+        'objective': 'binary:logistic',
+        'eval_metric': 'auc',
+        'max_depth': 6,
+        'eta': 0.1,
+        'subsample': 0.8,
+        'colsample_bytree': 0.8,
+    }
+
+    bst = xgb.train(
+        params,
+        dtrain,
+        num_boost_round=200,
+        evals=[(dtest, 'eval')],
+        early_stopping_rounds=20,
+        verbose_eval=False,
+    )
+
+    # Predictions on test set
+    y_pred_test = bst.predict(dtest)
+
+#### Lesson 4C: Binary Classification Implementation (base_rate & auc)
+
+    # 1. Base Rate
+    # Base rate is simply the mean of the target column of the test data. It's the 
+    # benchmark for 'doing nothing smart' - if you randomly selected users to 
+    # target, your expected conversion rate would be exactly this base rate. It is 
+    # important when we calculate lift (lift = precision/ base_rate).
+    base_rate = y_test.mean()
+
+    # 2. AUC
+    # Imagine you randomly pick:
+    # - one user who actually converted (positive class)
+    # - one user who did not convert (negative class)
+    # The AUC is exactly the probability that your model assigns a 'higher 
+    # predicted probability' to the 'positive class'/ 'actual converter' than to 
+    # the 'negative class'/'non-converter'.
+    # - AUC = 1.0 -> Perfect model: it always ranks real converters higher than 
+    #   non-converters.
+    # - AUC = 0.5 -> Model is no better than random guessing (like flipping a coin)
+    # - AUC < 0.5 -> Worse than random (the model is systematically wrong — you 
+    #   could just invert its predictions).
+    auc_test = roc_auc_score(y_test, y_pred_test)
+    print(f'AUC on test set: {auc_test:.4f}\n')
+
+#### Lesson 4D: Binary Classification Implementation (creating metrics_df)
+
+    percentiles = [1] + list(range(5, 100, 5)) + [99]
+    results = []
+    for p in percentiles:
+        cutoff = np.percentile(y_pred_test, p)
+        y_pred_binary = (y_pred_test >= cutoff).astype(int)
+        precision = precision_score(y_test, y_pred_binary, zero_division=0)
+        recall = recall_score(y_test, y_pred_binary, zero_division=0)
+        f1 = f1_score(y_test, y_pred_binary, zero_division=0)
+        accuracy = accuracy_score(y_test, y_pred_binary)
+        lift = precision / base_rate if base_rate > 0 and precision > 0 else 0
+        results.append({
+            'percentile': f'P{p}',
+            'cutoff_prob': round(cutoff, 4),
+            'precision': round(precision, 4),
+            'recall': round(recall, 4),
+            'f1_score': round(f1, 4),
+            'accuracy': round(accuracy, 4),
+            'lift': round(lift, 2),
+        })
+
+    # Create metrics DataFrame
+    metrics_df = pd.DataFrame(results)
+    metrics_df = metrics_df.set_index('percentile')
+    print(metrics_df.to_string())
+    #!             cutoff_prob  precision  recall  f1_score  accuracy  lift
+    #! percentile
+    #! P1               0.0493     0.1303  0.9923    0.2304     0.138  1.00
+    #! P5               0.0587     0.1321  0.9654    0.2324     0.171  1.02
+    #! ...
+    #! P70              0.1363     0.1933  0.4462    0.2698     0.686  1.49
+    #! P75              0.1481     0.2040  0.3923    0.2684     0.722  1.57
+    #! P80              0.1596     0.2175  0.3346    0.2636     0.757  1.67
+    #! P85              0.1766     0.2367  0.2731    0.2536     0.791  1.82
+    #! P90              0.2003     0.2450  0.1885    0.2130     0.819  1.88
+    #! P95              0.2452     0.2700  0.1038    0.1500     0.847  2.08
+    #! P99              0.3478     0.3500  0.0269    0.0500     0.867  2.69
+
+#### Lesson 4E: Binary Classification Implementation (understanding metrics_df - precision, recall, f1_score, accuracy, lift)
+
+    # 1. precision
+    # Of the users we predict will convert (i.e., we target/select them), what 
+    # fraction actually convert? If precision = 0.80 at top 5%, that means 80% 
+    # of the users we target actually convert -> very efficient campaign.
+    # Formula: precision = true_positives / (true_positives + false_positives)
+    # Intuition: High precision -> When we say 'this user will convert', we're 
+    # usually right. This metric is critical when false positives are expensive 
+
+    # 2. recall (also called sensitivity or true_positive_rate)
+    # Of all the users who actually convert, what fraction did we correctly identify?
+    # Formula: Recall = true_positives / (true_positives + false_negatives)
+    # Intuition: High recall -> We capture most of the real converters. Important 
+    # when missing identifying a positive outcome/ missing a converter is costly 
+    # (e.g., losing a high-value customer).
+
+    # 3. f1_score
+    # The harmonic mean of precision and recall - a single score that balances both.
+    # Formula: F1 = 2 × (precision × recall) / (precision + recall)
+
+    # 4. Accuracy
+    # Overall, what fraction of predictions (both convert and not convert) are correct?
+    # Formula: accuracy = (true_positives + true_negatives) / total_users
+    # Intuition: Simple and intuitive at first glance.
+    # Business takeaway: Almost never use accuracy as the primary metric in conversion 
+    # prediction. Always prefer AUC, precision, recall, or lift.
+
+    # 5. Lift
+    # How much better does our targeted group convert compared to the 
+    # average (base rate)?
+    # Formula: Lift = precision / base_rate
+    # Intuition: The most business-friendly metric. Answers: 'If I target these users, 
+    # how many times better do they perform than random selection?'
+
+#### Lesson 4F: Binary Classification Implementation (aligning model with real world use cases)
+
+    # Here, we focus on 3 questions: 
+
+    # 1. Do we have a 'valid' model?
+    # If AUC is significantly above 0.5 (ideally >0.8-0.9) and stable across train/
+    # test splits, you have a technically valid model. In practice, for most 
+    # real-world applications, AUC < 0.7 is considered too weak to be useful.
+    
+    # 2. Does the model address the business problem?
+    # We now need to make a decision on weather the business problem requires good
+    # efficiency, or good coverage. Model rarely have both. Efficiency and coverage 
+    # refer to two key trade-offs in binary classification models, particularly in 
+    # deployment scenarios like user targeting or conversion prediction. They aren't 
+    # standalone metrics but are closely tied to precision and recall:
+    # - Efficiency is primarily captured by precision. It focuses on how 'efficient' 
+    #   your positive predictions are-i.e., when you act on a prediction (e.g., target 
+    #   a user with an ad or offer), how often are you correct? High efficiency means 
+    #   minimizing wasted resources on false positives. For example, in a marketing 
+    #   campaign, high precision at the top percentiles (e.g., P95–P99) ensures you're 
+    #   only spending on users who are very likely to convert, making the campaign 
+    #   cost-effective. This is crucial when actions are expensive, like sending 
+    #   personalized incentives.
+    # - Coverage is primarily captured by recall. It focuses on how comprehensively 
+    #   you identify all the actual positives-i.e., how many of the real opportunities 
+    #   (e.g., positive outcomes/ actual converters) do you capture? High coverage 
+    #   means minimizing missed opportunities (false negatives). For instance, at lower 
+    #   percentiles (e.g., P1–P30), recall is higher because you're casting a wider net, 
+    #   but this often comes at the cost of lower precision. This is important in 
+    #   scenarios where missing a positive is costly, like retaining high-value 
+    #   customers or detecting rare events.
+    # In practice, there's a trade-off: Improving efficiency (precision) often reduces 
+    # coverage (recall), and vice versa. The F1 score helps balance them when you need 
+    # equal emphasis. Business decisions often involve choosing a threshold (e.g., via 
+    # percentile tables) that optimizes for your specific goals-e.g., prioritize 
+    # efficiency for budget-constrained campaigns or coverage for growth-focused ones.
+    
+    # 3. How well does the model address the business problem?
+    # Deploy when the model beats benchmarks (e.g., lift >2x, precision > base rate) 
+    # and aligns with costs/risks (step 2 above). Always validate on holdout data and 
+    # monitor in production for drift.
+
+
+
+
+
+
