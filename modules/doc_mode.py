@@ -77,6 +77,7 @@ class DocMode:
                 except:
                     pass
 
+                curses.curs_set(0)
                 stdscr.refresh()
                 need_redraw = False
 

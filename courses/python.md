@@ -665,7 +665,7 @@
     # Go back to default RangeIndex
     df = df.reset_index()
 
-#### Lesson 2A: Top 10 Things to Inspect the First Time You Access a Dataframe (1-3) 
+#### Lesson 2A: Top 11 Things to Inspect the First Time You Access a Dataframe (1-3) 
 
     # 1. Columns, Data types, schema, and sampling
     df.columns
@@ -699,7 +699,7 @@
     df = df[df.datetime_col.notna()] # Filter out rows with certain missing
 	values
 	
-#### Lesson 2B: Top 10 Things to Inspect the First Time You Access a Dataframe (4-6)
+#### Lesson 2B: Top 11 Things to Inspect the First Time You Access a Dataframe (4-6)
 
     # 4. Primary key
     df.set_index(['col1','col2'], verify_integrity=True) 
@@ -723,9 +723,14 @@
     df.describe(include='all')
     df.describe(include='all').loc['count'].T # deep dive aesthetically
 
-#### Lesson 2C: Top 10 Things to Inspect the First Time You Access a Dataframe (7-10) 
+#### Lesson 2C: Top 11 Things to Inspect the First Time You Access a Dataframe (7-11) 
 
-    # 7. Quantile Analysis 
+    # 7. Percentile Analysis
+    cut_off = np.percentile(df.probs, 90)
+    df['meets_cutoff'] = np.where(df.probs > cut_off,1,0)
+    df.meets_cutoff.values_count()
+
+    # 8. Quantile Distribution Analysis 
     # To examine Percentile Distibution - you can use this as a histogram replacement, 
     # to check if the dist is skewed on the right or left. For instance, the below data 
     # is skewed on the right.
@@ -743,24 +748,13 @@
     #! 1.0    312.47 # this is the max, or 100% of your data is below this
     #! Name: duration_hours_col, dtype: float64
 
-    # To identify outliers and alomalies via the IQR method 
-    num_cols = ['col1', 'col2']
-    Q1 = df[num_cols].quantile(0.25)
-    Q3 = df[num_cols].quantile(0.75)
-    IQR = Q3 - Q1
-    outlier_condition = (df[num_cols] < (Q1 - 1.5 * IQR)) | (df[num_cols] > (Q3 + 1.5 * IQR))
-    outliers = outlier_condition.sum()
-    # Filter out outliers
-    non_outlier_mask = ~outlier_condition.any(axis=1)
-    df_clean = df[non_outlier_mask]
-
-    # 8. Correlations & Multicollinearity
+    # 9. Correlations & Multicollinearity
     corr_matrix = df.corr(numeric_only=True)  
 
-    # 9. Domain Consistency & Business Logic Checks
+    # 10. Domain Consistency & Business Logic Checks
     assert (df.age_col >= 0).all(), 'Negative ages found!'
 
-    # 10. Quick filteration / masking based analysis
+    # 11. Quick filteration / masking based analysis
     row_condition = df.assigned_col.notna()
     df[['mobile', 'account_id', 'assigned', 'otp']][row_condition]
 
