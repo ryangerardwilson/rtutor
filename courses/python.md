@@ -1879,6 +1879,11 @@
     # and aligns with costs/risks (step 2 above). Always validate on holdout data and 
     # monitor in production for drift.
 
+    # Best model is one where data is spread out diagonally in a confusion
+    # matrix
+    # - rank order with respect to a target variable should hold good
+    # - there should be a good descrimination between 'good' and 'bad'
+
 
 
 
