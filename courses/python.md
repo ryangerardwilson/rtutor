@@ -1837,47 +1837,74 @@
     # Intuition: The most business-friendly metric. Answers: 'If I target these users, 
     # how many times better do they perform than random selection?'
 
-#### Lesson 4F: Binary Classification Implementation (aligning model with real world use cases)
+#### Lesson 4F: Binary Classification Implementation (is model valid, and does it address the business problem)
 
     # Here, we focus on 3 questions: 
 
     # 1. Do we have a 'valid' model?
     # If AUC is significantly above 0.5 (ideally >0.8-0.9) and stable across train/
     # test splits, you have a technically valid model. In practice, for most 
-    # real-world applications, AUC < 0.7 is considered too weak to be useful.
-    
+    # real-world applications, AUC < 0.6 is considered too weak to be useful.
+
     # 2. Does the model address the business problem?
-    # We now need to make a decision on weather the business problem requires good
-    # efficiency, or good coverage. Model rarely have both. Efficiency and coverage 
-    # refer to two key trade-offs in binary classification models, particularly in 
-    # deployment scenarios like user targeting or conversion prediction. They aren't 
-    # standalone metrics but are closely tied to precision and recall:
-    # - Efficiency is primarily captured by precision. It focuses on how 'efficient' 
-    #   your positive predictions are-i.e., when you act on a prediction (e.g., target 
-    #   a user with an ad or offer), how often are you correct? High efficiency means 
-    #   minimizing wasted resources on false positives. For example, in a marketing 
-    #   campaign, high precision at the top percentiles (e.g., P95–P99) ensures you're 
-    #   only spending on users who are very likely to convert, making the campaign 
-    #   cost-effective. This is crucial when actions are expensive, like sending 
-    #   personalized incentives.
-    # - Coverage is primarily captured by recall. It focuses on how comprehensively 
-    #   you identify all the actual positives-i.e., how many of the real opportunities 
-    #   (e.g., positive outcomes/ actual converters) do you capture? High coverage 
-    #   means minimizing missed opportunities (false negatives). For instance, at lower 
-    #   percentiles (e.g., P1–P30), recall is higher because you're casting a wider net, 
-    #   but this often comes at the cost of lower precision. This is important in 
-    #   scenarios where missing a positive is costly, like retaining high-value 
-    #   customers or detecting rare events.
-    # In practice, there's a trade-off: Improving efficiency (precision) often reduces 
-    # coverage (recall), and vice versa. The F1 score helps balance them when you need 
-    # equal emphasis. Business decisions often involve choosing a threshold (e.g., via 
-    # percentile tables) that optimizes for your specific goals-e.g., prioritize 
-    # efficiency for budget-constrained campaigns or coverage for growth-focused ones.
-    
+    # In the vast majority of real-world binary classification applications—such as 
+    # user targeting, conversion prediction, churn prevention, lead scoring, fraud 
+    # alerting, or credit risk-the primary deployment mode is ranking and selective 
+    # action, not automated hard yes/no decisions across the entire population. This 
+    # means we rarely classify every instance with a fixed threshold (e.g., 0.5) or 
+    # aim for balanced precision/recall globally. Instead, we use the model’s scores 
+    # to rank instances and act only on a constrained subset (e.g., users above 
+    # P60-P95 by score), where budget, capacity, or cost constraints apply.
+    # The key business decision therefore revolves around the efficiency vs. coverage 
+    # trade-off when selecting that actionable subset:
+    # - Efficiency (driven by precision at high percentiles, e.g., P95–P99). Measures 
+    #   how accurate your positive predictions are when you act on the highest-scored 
+    #   instances. High efficiency minimizes wasted resources on false positives. 
+    #   This is critical when actions are expensive (e.g., personalized incentives, 
+    #   manual reviews, high-value offers). Even models with modest overall AUC 
+    #   (0.60-0.70) can deliver strong efficiency if the P95-P99 range shows good lift 
+    #   and high precision.
+    # - Coverage (driven by recall at lower percentiles, e.g., P60–P90). Measures how 
+    #   many of the true positives you capture when casting a somewhat wider net (i.e., 
+    #   lowering the score threshold). High coverage reduces missed opportunities 
+    #   (false negatives). This matters when missing a positive is costly (e.g., losing 
+    #   high-value churners, failing to retain convertible users, or overlooking growth 
+    #   opportunities).
+    # In practice, these are in direct tension: tightening the threshold for higher 
+    # efficiency (acting only above P95-P99) almost always reduces coverage, and vice 
+    # versa (acting down to P70-P80 increases coverage at the cost of efficiency). The 
+    # F1 score can help when you truly need balance, but most production scenarios lean 
+    # toward one side based on constraints.The actionables here, can be sumamrized as 
+    # follows:
+    #!--------------------------------------------------------------------------
+    #!        goal | metric_focus | does_it_address_business_problem_threshold |
+    #!--------------------------------------------------------------------------
+    #!  efficiency | above P95    |      precision ≥50%, lift >4x, recall ≥30% |
+    #!  coverage   | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
+    #!--------------------------------------------------------------------------
+
+#### Lesson 4G: Binary Classification Implementation (how well does the model address the business problem)
+
     # 3. How well does the model address the business problem?
-    # Deploy when the model beats benchmarks (e.g., lift >2x, precision > base rate) 
-    # and aligns with costs/risks (step 2 above). Always validate on holdout data and 
-    # monitor in production for drift.
+    # - If efficiency is the goal: Focus on p95
+    #!-----------------------------------------------------------------------------
+    #! precision_above_p95 | lift_above_p95 | recall_above_p95 |          verdict |
+    #!-----------------------------------------------------------------------------
+    #!                ≥70% |            >6x |             ≥40% |        excellent |
+    #!              50-70% |           4-6x |             ≥30% |             good |
+    #!              40-60% |           2-4x |              any |       pilot_only |
+    #!                <40% |            <2x |              any |    improve_model |
+    #!-----------------------------------------------------------------------------
+    #! 
+    # - Else, coverage is the goal, so: Focus on p90
+    #!-----------------------------------------------------------------------------
+    #!    recall_above_p90 | precision_above_p90 | lift_above_p90 |       verdict |
+    #!-----------------------------------------------------------------------------
+    #!                ≥70% |                ≥50% |            >4x |     excellent |
+    #!              50-70% |                ≥40% |           3-5x |          good |
+    #!              40-60% |                 any |           2-4x |    pilot_only |
+    #!                <40% |                 any |            <2x | improve_model |
+    #!-----------------------------------------------------------------------------
 
     # Best model is one where data is spread out diagonally in a confusion
     # matrix
