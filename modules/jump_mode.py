@@ -1,5 +1,4 @@
 # ~/Apps/rtutor/modules/jump_mode.py
-
 import curses
 import sys
 from .structs import Lesson
@@ -28,9 +27,7 @@ class JumpMode:
                 processed_lines.append(non_tabs)
                 is_skip.append(line.lstrip().startswith(("#!", "//!", "--!")))
 
-            # Virtual scrolling state
             offset = 0
-            min_lines_below = 3
             current_line = 0
             user_inputs = [[] for _ in lines]
             lesson_finished = False
@@ -39,22 +36,29 @@ class JumpMode:
 
             while not completed:
                 max_y, max_x = stdscr.getmaxyx()
-                available_height = max(0, max_y - 4)  # header 2 + footer 2
+                available_height = max(0, max_y - 4)
                 content_start_y = 2
 
-                # Smart offset adjustment
+                # === Smooth, early scrolling + extra lookahead near end ===
                 if total_lines > available_height:
                     visible_top = offset
                     visible_bottom = offset + available_height - 1
+                    current_visible_row = current_line - offset
+
+                    # Trigger scroll when current line passes ~60% down the screen
+                    scroll_trigger_row = int(available_height * 0.6)
+
+                    if current_visible_row > scroll_trigger_row:
+                        scroll_amount = current_visible_row - scroll_trigger_row
+                        offset += scroll_amount
+
+                    # Near the end: extra push to show the 7 blank lines
                     lines_below = total_lines - 1 - current_line
+                    if lines_below <= 20:
+                        desired_offset = max(0, current_line - int(available_height * 0.3))
+                        offset = max(offset, desired_offset)
 
-                    if lines_below < min_lines_below and current_line > visible_bottom - min_lines_below:
-                        offset = max(0, current_line - (available_height - min_lines_below - 1))
-                    elif current_line < visible_top:
-                        offset = current_line
-                    elif current_line >= visible_top + available_height:
-                        offset = current_line - available_height + 1
-
+                    # Clamp
                     offset = max(0, min(offset, total_lines - available_height))
                 else:
                     offset = 0
@@ -72,14 +76,13 @@ class JumpMode:
                     except curses.error:
                         pass
 
-                    # Clear row 1
                     try:
                         stdscr.move(1, 0)
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
 
-                    # Render visible lines only
+                    # Render visible lines
                     for local_i, global_i in enumerate(visible_range):
                         row = content_start_y + local_i
                         line = lines[global_i]
@@ -126,12 +129,21 @@ class JumpMode:
                         except:
                             pass
 
-                    # Clear leftover rows
-                    for r in range(content_start_y + (end_idx - start_idx), max_y - 2):
+                    # Preserve blank lines at end
+                    content_end_row = content_start_y + (end_idx - start_idx)
+
+                    if total_lines - end_idx <= 7:
+                        clear_start = content_end_row
+                        clear_end = content_end_row
+                    else:
+                        clear_start = content_end_row
+                        clear_end = max_y - 2
+
+                    for r in range(clear_start, clear_end):
                         try:
                             stdscr.move(r, 0)
                             stdscr.clrtoeol()
-                        except:
+                        except curses.error:
                             pass
 
                     # Stats
@@ -148,7 +160,7 @@ class JumpMode:
                     try:
                         stdscr.addstr(max_y - 2, 0, stats + scroll_info, curses.color_pair(1))
                         stdscr.clrtoeol()
-                    except:
+                    except curses.error:
                         pass
 
                     # Instructions
@@ -156,7 +168,7 @@ class JumpMode:
                     try:
                         stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                         stdscr.clrtoeol()
-                    except:
+                    except curses.error:
                         pass
 
                     # Cursor
@@ -244,10 +256,8 @@ class JumpMode:
                 if changed:
                     need_redraw = True
 
-            # Next lesson
             self.current_idx += 1
 
-        # All done
         boom = Boom("Press any key to return to doc mode.")
         boom.display(stdscr)
         stdscr.getch()
