@@ -1837,7 +1837,7 @@
     # Intuition: The most business-friendly metric. Answers: 'If I target these users, 
     # how many times better do they perform than random selection?'
 
-#### Lesson 4F: Binary Classification Implementation (is model valid, and does it address the business problem)
+#### Lesson 4F: Binary Classification Implementation (applying the model to the real world)
 
     # Here, we focus on 3 questions: 
 
@@ -1882,8 +1882,6 @@
     #!  efficiency | above P95    |      precision ≥50%, lift >4x, recall ≥30% |
     #!  coverage   | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
     #!--------------------------------------------------------------------------
-
-#### Lesson 4G: Binary Classification Implementation (how well does the model address the business problem)
 
     # 3. How well does the model address the business problem?
     # - If efficiency is the goal: Focus on p95
