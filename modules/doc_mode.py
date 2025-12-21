@@ -1,6 +1,7 @@
 # ~/Apps/rtutor/modules/doc_mode.py
 import curses
 import sys
+import time
 from .structs import Lesson
 from .rote_mode import RoteMode
 from .jump_mode import JumpMode
@@ -21,6 +22,10 @@ class DocMode:
                     self.idx = i
                     break
 
+        # For detecting comma-then-j/k
+        self.last_comma_time = 0
+        self.COMMA_TIMEOUT = 0.35  # seconds to press j/k after comma
+
     def run(self, stdscr):
         curses.curs_set(0)
         stdscr.nodelay(True)
@@ -29,8 +34,7 @@ class DocMode:
 
         while True:
             current_lesson = self.sequencer.lessons[self.idx]
-            # lines = current_lesson.content.rstrip().splitlines()
-            lines = current_lesson.content.splitlines()  
+            lines = current_lesson.content.splitlines()
             total_lines = len(lines)
 
             max_y, max_x = stdscr.getmaxyx()
@@ -76,7 +80,7 @@ class DocMode:
                     except curses.error:
                         pass
 
-                # Simple clear below content
+                # Clear below content
                 for row in range(header_rows + len(visible_lines), max_y - footer_rows):
                     try:
                         stdscr.move(row, 0)
@@ -98,7 +102,7 @@ class DocMode:
                 except curses.error:
                     pass
 
-                instr = "l=next h=prev r=rote t=teleport i=edit b=mark k↑ j↓=scroll esc=back"
+                instr = "l=next h=prev r=rote t=teleport i=edit b=mark Ctrl+j/k=½page ,j=end ,k=top esc=back"
                 try:
                     stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                     stdscr.clrtoeol()
@@ -113,10 +117,59 @@ class DocMode:
                 continue
 
             redraw_needed = False
+            current_time = time.time()
 
-            if key == 3:
+            # Ctrl+J and Ctrl+K for half-page scrolling
+            if key == 10:  # Ctrl+J (often mapped to 10)
+                half_page = max(1, available_height // 2)
+                if self.offset < max(0, total_lines - available_height):
+                    self.offset = min(self.offset + half_page, max(0, total_lines - available_height))
+                    redraw_needed = True
+
+            elif key == 11:  # Ctrl+K
+                half_page = max(1, available_height // 2)
+                if self.offset > 0:
+                    self.offset = max(0, self.offset - half_page)
+                    redraw_needed = True
+
+            # Comma followed by j/k → go to end/start
+            elif key == ord(','):
+                self.last_comma_time = current_time
+                # Don't redraw yet — wait for possible j/k
+
+            elif key in (ord('j'), curses.KEY_DOWN):
+                # Check if comma was pressed recently
+                if (current_time - self.last_comma_time) < self.COMMA_TIMEOUT:
+                    # ,j → go to bottom
+                    if total_lines > available_height:
+                        self.offset = total_lines - available_height
+                    redraw_needed = True
+                else:
+                    # Normal single-line down
+                    if self.offset < max(0, total_lines - available_height):
+                        self.offset += 1
+                        redraw_needed = True
+
+            elif key in (ord('k'), curses.KEY_UP):
+                # Check if comma was pressed recently
+                if (current_time - self.last_comma_time) < self.COMMA_TIMEOUT:
+                    # ,k → go to top
+                    self.offset = 0
+                    redraw_needed = True
+                else:
+                    # Normal single-line up
+                    if self.offset > 0:
+                        self.offset -= 1
+                        redraw_needed = True
+
+            # Any other key cancels the pending comma
+            elif key not in (-1, ord(','), ord('j'), ord('k'), curses.KEY_DOWN, curses.KEY_UP, 10, 11):
+                self.last_comma_time = 0  # far in the past
+
+            # Existing navigation
+            if key == 3:  # Ctrl+C
                 sys.exit(0)
-            elif key == 27:
+            elif key == 27:  # ESC
                 return False
             elif key in (ord("l"), ord("L"), curses.KEY_RIGHT):
                 if self.idx < len(self.sequencer.lessons) - 1:
@@ -127,14 +180,6 @@ class DocMode:
                 if self.idx > 0:
                     self.idx -= 1
                     self.offset = 0
-                    redraw_needed = True
-            elif key in (ord("j"), curses.KEY_DOWN):
-                if self.offset < max(0, total_lines - available_height):
-                    self.offset += 1
-                    redraw_needed = True
-            elif key in (ord("k"), curses.KEY_UP):
-                if self.offset > 0:
-                    self.offset -= 1
                     redraw_needed = True
             elif key == ord("b"):
                 import os
