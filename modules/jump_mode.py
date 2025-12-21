@@ -18,7 +18,7 @@ class JumpMode:
 
         while self.current_idx < len(self.lessons):
             lesson = self.lessons[self.current_idx]
-            lines = lesson.content.rstrip().splitlines() or [""]
+            lines = lesson.content.splitlines() or [""]
             total_lines = len(lines)
 
             processed_lines = []

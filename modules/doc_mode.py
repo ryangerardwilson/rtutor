@@ -12,10 +12,9 @@ class DocMode:
     def __init__(self, sequencer):
         self.sequencer = sequencer
         self.idx = 0
-        self.offset = 0  # NEW: Scroll offset for long lesson content
+        self.offset = 0
         self.bookmarks = Bookmarks()
 
-        # If launched from bookmark, jump to target lesson
         if hasattr(sequencer, 'target_lesson_name'):
             for i, lesson in enumerate(sequencer.lessons):
                 if lesson.name == sequencer.target_lesson_name:
@@ -30,7 +29,8 @@ class DocMode:
 
         while True:
             current_lesson = self.sequencer.lessons[self.idx]
-            lines = current_lesson.content.rstrip().splitlines()  # Preserve empty lines, strip only trailing newline
+            # lines = current_lesson.content.rstrip().splitlines()
+            lines = current_lesson.content.splitlines()  
             total_lines = len(lines)
 
             max_y, max_x = stdscr.getmaxyx()
@@ -38,11 +38,10 @@ class DocMode:
             footer_rows = 2
             available_height = max(0, max_y - header_rows - footer_rows)
 
-            # === Adjust offset to keep view valid ===
+            # Clamp offset
             if total_lines <= available_height:
                 self.offset = 0
             else:
-                # Clamp offset
                 self.offset = max(0, min(self.offset, total_lines - available_height))
 
             if need_redraw:
@@ -56,28 +55,28 @@ class DocMode:
                 except curses.error:
                     pass
 
-                # Empty line below title
+                # Empty line
                 try:
                     stdscr.move(1, 0)
                     stdscr.clrtoeol()
                 except curses.error:
                     pass
 
-                # === Render only visible portion ===
+                # Render visible lines
                 start_line = self.offset
                 end_line = min(start_line + available_height, total_lines)
                 visible_lines = lines[start_line:end_line]
 
                 for i, line in enumerate(visible_lines):
                     row = header_rows + i
-                    disp = line.replace("\t", "    ")  # Show tabs as 4 spaces
+                    disp = line.replace("\t", "    ")
                     try:
                         stdscr.addstr(row, 0, disp[:max_x], curses.color_pair(1))
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
 
-                # Clear any leftover lines below content
+                # Simple clear below content
                 for row in range(header_rows + len(visible_lines), max_y - footer_rows):
                     try:
                         stdscr.move(row, 0)
@@ -85,7 +84,7 @@ class DocMode:
                     except curses.error:
                         pass
 
-                # Footer: lesson counter + scroll info
+                # Footer
                 counter = f"Lesson {self.idx + 1}/{len(self.sequencer.lessons)}"
                 scroll_info = ""
                 if total_lines > available_height:
@@ -99,7 +98,6 @@ class DocMode:
                 except curses.error:
                     pass
 
-                # Instructions
                 instr = "l=next h=prev r=rote t=teleport i=edit b=mark k↑ j↓=scroll esc=back"
                 try:
                     stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
@@ -110,50 +108,41 @@ class DocMode:
                 stdscr.refresh()
                 need_redraw = False
 
-            # === Input handling ===
             key = stdscr.getch()
             if key == -1:
                 continue
 
             redraw_needed = False
 
-            if key == 3:  # Ctrl+C
+            if key == 3:
                 sys.exit(0)
-
-            elif key == 27:  # ESC
+            elif key == 27:
                 return False
-
             elif key in (ord("l"), ord("L"), curses.KEY_RIGHT):
                 if self.idx < len(self.sequencer.lessons) - 1:
                     self.idx += 1
-                    self.offset = 0  # Reset scroll on lesson change
+                    self.offset = 0
                     redraw_needed = True
-
             elif key in (ord("h"), ord("H"), curses.KEY_LEFT):
                 if self.idx > 0:
                     self.idx -= 1
                     self.offset = 0
                     redraw_needed = True
-
             elif key in (ord("j"), curses.KEY_DOWN):
                 if self.offset < max(0, total_lines - available_height):
                     self.offset += 1
                     redraw_needed = True
-
             elif key in (ord("k"), curses.KEY_UP):
                 if self.offset > 0:
                     self.offset -= 1
                     redraw_needed = True
-
             elif key == ord("b"):
-                # Bookmark current lesson
                 import os
                 script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 courses_dir = os.path.join(script_dir, "courses")
                 from modules.course_parser import CourseParser
                 parser = CourseParser(courses_dir)
                 all_courses = parser.parse_courses()
-
                 self.bookmarks.add(all_courses, self.sequencer.name, current_lesson.name)
                 try:
                     stdscr.addstr(max_y - 1, 0, "Bookmarked!           ", curses.A_BOLD)
@@ -162,12 +151,10 @@ class DocMode:
                 except:
                     pass
                 redraw_needed = True
-
             elif key in (ord("r"), ord("R")):
                 rote = RoteMode(self.sequencer.name, current_lesson)
                 rote.run(stdscr)
                 redraw_needed = True
-
             elif key in (ord("t"), ord("T")):
                 jump = JumpMode(self.sequencer.name, self.sequencer.lessons, self.idx)
                 final_idx = jump.run(stdscr)
@@ -177,7 +164,6 @@ class DocMode:
                     self.idx = final_idx
                     self.offset = 0
                 redraw_needed = True
-
             elif key in (ord("i"), ord("I")):
                 editor = DocEditor(source_file)
                 result = editor.edit_lesson(stdscr, current_lesson.name, self.idx)

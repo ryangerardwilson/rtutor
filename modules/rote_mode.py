@@ -18,7 +18,7 @@ class RoteMode:
         ROTE_TARGET = 10
 
         # Preprocess lesson once
-        lines = self.lesson.content.rstrip().splitlines() or [""]
+        lines = self.lesson.content.splitlines() or [""]
         total_lines = len(lines)
 
         processed_lines = []
