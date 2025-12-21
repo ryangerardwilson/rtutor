@@ -184,7 +184,7 @@ class LessonSequencer:
                         pass
 
                     instr = ("Lesson complete! Hit l for next or esc to exit"
-                             if lesson_finished else "Ctrl+R → restart | ESC → quit")
+                             if lesson_finished else "Ctrl+R → restart | Alt+Enter → quit")
                     try:
                         stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                         stdscr.clrtoeol()
@@ -228,7 +228,7 @@ class LessonSequencer:
                     if lesson_finished:
                         if key in (ord('l'), ord('L')):
                             break
-                        elif key == 27:
+                        elif key in (ord('q'), ord('Q')):
                             return False
                     else:
                         if key == 18:

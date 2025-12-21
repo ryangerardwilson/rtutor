@@ -162,7 +162,7 @@ class RoteMode:
                     if lesson_finished:
                         instr = "Rep complete! Hit n for next rep or esc to quit rote"
                     else:
-                        instr = "Ctrl+R → restart rep | ESC → quit rote"
+                        instr = "Ctrl+R → restart rep | Alt+Enter → quit rote"
                     try:
                         stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                         stdscr.clrtoeol()
@@ -210,7 +210,7 @@ class RoteMode:
                                 reps_completed += 1
                                 rep_in_progress = False
                                 break
-                            elif key == 27:
+                            elif key in (ord('q'), ord('Q')):
                                 return False
                         else:
                             if key == 18:

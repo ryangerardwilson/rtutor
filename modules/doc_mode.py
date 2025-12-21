@@ -106,7 +106,7 @@ class DocMode:
                 except curses.error:
                     pass
 
-                # Bottom line
+                # Bottom line - UPDATED INSTRUCTIONS
                 if self.search_mode:
                     prompt = f"/{self.last_search_term}"
                     try:
@@ -115,7 +115,7 @@ class DocMode:
                     except curses.error:
                         pass
                 else:
-                    instr = "l=next h=prev r=rote t=teleport i=edit b=mark Ctrl+j/k=½page ,j=end ,k=top /=search esc=back"
+                    instr = "l=next h=prev r=rote t=teleport i=edit b=mark Ctrl+j/k=½page ,j=end ,k=top /=search Alt+Enter=back"
                     try:
                         stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                         stdscr.clrtoeol()
@@ -208,7 +208,7 @@ class DocMode:
 
                 continue
 
-            # === NORMAL MODE KEYS (unchanged) ===
+            # === NORMAL MODE KEYS ===
             redraw_needed = False
 
             if key == 10:  # Ctrl+J
@@ -247,7 +247,7 @@ class DocMode:
             elif key not in (-1, ord(','), ord('j'), ord('k'), curses.KEY_DOWN, curses.KEY_UP, 10, 11):
                 self.last_comma_time = 0
 
-            # Navigation & other keys (unchanged)
+            # Navigation & other keys
             if key == 3:
                 sys.exit(0)
             elif key == 27:

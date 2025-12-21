@@ -197,10 +197,9 @@ class Menu:
                     else:
                         need_redraw = True
 
-                elif key == 27:  # ESC
-                    stdscr.nodelay(False)
+                elif key in (ord('q'), ord('Q')): 
+                    stdscr.nodelay(False) if hasattr(stdscr, 'nodelay') else None
                     return
-
             if changed:
                 need_redraw = True
 
@@ -262,7 +261,7 @@ class Menu:
                     selected = (selected - 1) % total_items
                 elif key in (curses.KEY_DOWN, ord("j")):
                     selected = (selected + 1) % total_items
-                elif key in (curses.KEY_LEFT, ord("h")) or key == 27:
+                elif key in (curses.KEY_LEFT, ord("h")):
                     return
                 elif key in (curses.KEY_RIGHT, ord("l")):
                     part = course.parts[selected]
@@ -345,7 +344,7 @@ class Menu:
                     selected = (selected - 1) % total_items
                 elif key in (curses.KEY_DOWN, ord("j")):
                     selected = (selected + 1) % total_items
-                elif key in (curses.KEY_LEFT, ord("h")) or key == 27:
+                elif key in (curses.KEY_LEFT, ord("h")):
                     return
                 elif key in (curses.KEY_RIGHT, ord("l")):
                     section = part.sections[selected]

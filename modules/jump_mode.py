@@ -45,20 +45,17 @@ class JumpMode:
                     visible_bottom = offset + available_height - 1
                     current_visible_row = current_line - offset
 
-                    # Trigger scroll when current line passes ~60% down the screen
                     scroll_trigger_row = int(available_height * 0.6)
 
                     if current_visible_row > scroll_trigger_row:
                         scroll_amount = current_visible_row - scroll_trigger_row
                         offset += scroll_amount
 
-                    # Near the end: extra push to show the 7 blank lines
                     lines_below = total_lines - 1 - current_line
                     if lines_below <= 20:
                         desired_offset = max(0, current_line - int(available_height * 0.3))
                         offset = max(offset, desired_offset)
 
-                    # Clamp
                     offset = max(0, min(offset, total_lines - available_height))
                 else:
                     offset = 0
@@ -131,13 +128,8 @@ class JumpMode:
 
                     # Preserve blank lines at end
                     content_end_row = content_start_y + (end_idx - start_idx)
-
-                    if total_lines - end_idx <= 7:
-                        clear_start = content_end_row
-                        clear_end = content_end_row
-                    else:
-                        clear_start = content_end_row
-                        clear_end = max_y - 2
+                    clear_start = content_end_row if total_lines - end_idx <= 7 else content_end_row
+                    clear_end = max_y - 2
 
                     for r in range(clear_start, clear_end):
                         try:
@@ -163,8 +155,12 @@ class JumpMode:
                     except curses.error:
                         pass
 
-                    # Instructions
-                    instr = "Lesson complete! Hit n for next or esc to exit" if lesson_finished else "Ctrl+R → restart | ESC → quit"
+                    # Updated instructions
+                    if lesson_finished:
+                        instr = "Lesson complete! Hit n for next | Alt+Enter to return to doc mode"
+                    else:
+                        instr = "Ctrl+R → restart | Alt+Enter or ESC → return to doc mode"
+
                     try:
                         stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                         stdscr.clrtoeol()
@@ -207,22 +203,26 @@ class JumpMode:
                     if key == 3:  # Ctrl+C
                         sys.exit(0)
 
+                    # === NEW: Proper Alt+Enter and ESC handling ===
+                    if key == 27:  # ESC or start of Alt+ sequence
+                        next_key = stdscr.getch()
+                        if next_key == -1:
+                            # Plain ESC → return to DocMode at current lesson
+                            return self.current_idx
+                        elif next_key in (curses.KEY_ENTER, 10, 13):
+                            # Alt+Enter → return to DocMode at current lesson
+                            return self.current_idx
+                        # Other Alt+ combinations: ignore (do not re-inject)
+                        continue
+
                     if lesson_finished:
                         if key in (ord("n"), ord("N")):
                             completed = True
-                        elif key == 27:
-                            return self.current_idx
                     else:
                         if key == 18:  # Ctrl+R
                             user_inputs = [[] for _ in lines]
                             current_line = 0
                             lesson_finished = False
-                        elif key == 27:
-                            next_key = stdscr.getch()
-                            if next_key == -1:
-                                return self.current_idx
-                            else:
-                                key = next_key
                         elif is_skip[current_line]:
                             if key in (curses.KEY_ENTER, 10, 13):
                                 if current_line < total_lines - 1:
@@ -256,8 +256,10 @@ class JumpMode:
                 if changed:
                     need_redraw = True
 
+            # Advance to next lesson after completing this one with 'n'
             self.current_idx += 1
 
+        # All lessons completed in jump mode
         boom = Boom("Press any key to return to doc mode.")
         boom.display(stdscr)
         stdscr.getch()
