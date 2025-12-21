@@ -59,28 +59,23 @@ class LessonSequencer:
                 available_height = max(0, max_y - 4)
                 content_start_y = 2
 
-                # === NEW: Smooth, early scrolling — trigger when current_line is below mid-screen ===
+                # === Smooth scrolling logic ===
                 if total_lines > available_height:
                     visible_top = offset
                     visible_bottom = offset + available_height - 1
                     current_visible_row = current_line - offset
 
-                    # Trigger scroll when current line is past ~60% of the screen
                     scroll_trigger_row = int(available_height * 0.6)
 
                     if current_visible_row > scroll_trigger_row:
-                        # Scroll down by the amount exceeded
                         scroll_amount = current_visible_row - scroll_trigger_row
                         offset += scroll_amount
 
-                    # Near the end: extra push to show blank lines
                     lines_below = total_lines - 1 - current_line
                     if lines_below <= 20:
-                        # Force more lookahead
                         desired_offset = max(0, current_line - int(available_height * 0.3))
                         offset = max(offset, desired_offset)
 
-                    # Clamp offset
                     offset = max(0, min(offset, total_lines - available_height))
                 else:
                     offset = 0
@@ -149,15 +144,10 @@ class LessonSequencer:
                         except:
                             pass
 
-                    # Preserve blank lines at end
+                    # Clear remaining lines
                     content_end_row = content_start_y + (end_idx - start_idx)
-
-                    if total_lines - end_idx <= 7:
-                        clear_start = content_end_row
-                        clear_end = content_end_row
-                    else:
-                        clear_start = content_end_row
-                        clear_end = max_y - 2
+                    clear_start = content_end_row
+                    clear_end = max_y - 2 if total_lines - end_idx > 7 else content_end_row
 
                     for r in range(clear_start, clear_end):
                         try:
@@ -215,27 +205,31 @@ class LessonSequencer:
                     stdscr.refresh()
                     need_redraw = False
 
+                # === Input handling ===
                 changed = False
+                next_lesson = False
+
                 while True:
                     key = stdscr.getch()
                     if key == -1:
                         break
                     changed = True
 
-                    if key == 3:
+                    if key == 3:  # Ctrl+C
                         sys.exit(0)
 
                     if lesson_finished:
                         if key in (ord('l'), ord('L')):
-                            break
-                        elif key in (ord('q'), ord('Q')):
+                            next_lesson = True
+                            break  # exit key-drain loop early
+                        elif key in (ord('q'), ord('Q'), 27):  # q or Esc
                             return False
                     else:
-                        if key == 18:
+                        if key == 18:  # Ctrl+R
                             user_inputs = [[] for _ in lines]
                             current_line = 0
                             lesson_finished = False
-                        elif key == 27:
+                        elif key == 27:  # Esc / Alt
                             return False
                         elif is_skip[current_line]:
                             if key in (curses.KEY_ENTER, 10, 13):
@@ -249,19 +243,23 @@ class LessonSequencer:
                                 if user_inputs[current_line] == processed_lines[current_line]:
                                     if current_line < total_lines - 1:
                                         current_line += 1
-                            elif key == 9:
+                            elif key == 9:  # Tab
                                 cur_len = len(user_inputs[current_line])
                                 req_len = len(processed_lines[current_line])
                                 if cur_len < req_len:
                                     remaining = "".join(processed_lines[current_line][cur_len:])
                                     if remaining.startswith("    "):
                                         user_inputs[current_line].extend([" ", " ", " ", " "])
-                            else:
-                                if 32 <= key <= 126:
-                                    ch = chr(key)
-                                    if len(user_inputs[current_line]) < len(processed_lines[current_line]):
-                                        user_inputs[current_line].append(ch)
+                            elif 32 <= key <= 126:
+                                ch = chr(key)
+                                if len(user_inputs[current_line]) < len(processed_lines[current_line]):
+                                    user_inputs[current_line].append(ch)
 
+                # After processing all pending keys
+                if next_lesson:
+                    break  # Exit the outer while True → go to next lesson in for-loop
+
+                # Check if lesson just completed
                 if all(is_skip[i] or user_inputs[i] == processed_lines[i] for i in range(total_lines)):
                     lesson_finished = True
                     changed = True
@@ -269,7 +267,7 @@ class LessonSequencer:
                 if changed:
                     need_redraw = True
 
-        from .boom import Boom
+        # All lessons completed
         boom = Boom("Press any key to exit.")
         boom.display(stdscr)
         return True
