@@ -1680,78 +1680,22 @@
     # - subsample and colsample inject randomness 
     # Together, they make XGBoost robust without the drama of vanilla boosting.
 
-#### Lesson 4A: Binary Classification Implementation (test-train split)
+#### Lesson 4: Binary Classification Intuition
 
-    import pandas as pd
-    import numpy as np
-    import xgboost as xgb
-    from sklearn.model_selection import train_test_split
-    from sklearn.metrics import (
-        roc_auc_score,
-        precision_score,
-        recall_score,
-        f1_score,
-        accuracy_score,
-    )
+    # 1. Metrics
+    #!----------
 
-    tabular_data_df.head(5)
-
-    #!            feat_0    feat_1    feat_2   ...   feat_19  converted
-    #! user_id                                 ...
-    #! 0        0.025729  0.165038  0.072194   ...  0.018873          0
-    #! 1        0.054640  0.008674  0.019949   ...  0.033492          0
-    #! 2        0.006200  0.032563  0.001667   ...  0.018747          0
-    #! 3        0.026806  0.017243  0.096114   ...  0.006708          0
-    #! 4        0.120043  0.058937  0.024257   ...  0.006892          0
-
-    # Train-test split (using the combined df)
-    X_train, X_test, y_train, y_test = train_test_split(
-        tabular_data_df.drop('converted', axis=1),
-        tabular_data_df['converted'],
-        test_size=0.2,
-        random_state=42,
-        stratify=tabular_data_df['converted']
-    )
-
-#### Lesson 4B: Binary Classification Implementation (model training)
-
-    dtrain = xgb.DMatrix(X_train, label=y_train)
-    dtest = xgb.DMatrix(X_test, label=y_test)
-
-    params = {
-        'objective': 'binary:logistic',
-        'eval_metric': 'auc',
-        'max_depth': 6,
-        'eta': 0.1,
-        'subsample': 0.8,
-        'colsample_bytree': 0.8,
-    }
-
-    bst = xgb.train(
-        params,
-        dtrain,
-        num_boost_round=200,
-        evals=[(dtest, 'eval')],
-        early_stopping_rounds=20,
-        verbose_eval=False,
-    )
-
-    # Predictions on test set
-    y_pred_test = bst.predict(dtest)
-
-#### Lesson 4C: Binary Classification Implementation (base_rate & auc)
-
-    # 1. Base Rate
+    # 1.1. Base Rate
     # Base rate is simply the mean of the target column of the test data. It's the 
     # benchmark for 'doing nothing smart' - if you randomly selected users to 
     # target, your expected conversion rate would be exactly this base rate. It is 
     # important when we calculate lift (lift = precision/ base_rate).
-    base_rate = y_test.mean()
 
-    # 2. AUC
+    # 1.2. AUC
     # Imagine you randomly pick:
     # - one user who actually converted (positive class)
     # - one user who did not convert (negative class)
+    # 
     # The AUC is exactly the probability that your model assigns a 'higher 
     # predicted probability' to the 'positive class'/ 'actual converter' than to 
     # the 'negative class'/'non-converter'.
@@ -1760,51 +1704,17 @@
     # - AUC = 0.5 -> Model is no better than random guessing (like flipping a coin)
     # - AUC < 0.5 -> Worse than random (the model is systematically wrong — you 
     #   could just invert its predictions).
-    auc_test = roc_auc_score(y_test, y_pred_test)
-    print(f'AUC on test set: {auc_test:.4f}\n')
+    #
+    # AUC does not indicate the model's performance at p90 and p95. Despite this, we 
+    # don't have a widely adopted, standardized metric called 'percentile AUC' because 
+    # the full AUC is designed as a threshold-independent, overall ranking metric that 
+    # captures the model's ability to discriminate across all possible operating points.
+    #
+    # Can a good performing model at p90 and 095 model have a < 0.5 AUC? No, because if 
+    # the model performs well at the very top, it should at least have an overall 
+    # performance that is better than random. 
 
-#### Lesson 4D: Binary Classification Implementation (creating metrics_df)
-
-    percentiles = [1] + list(range(5, 100, 5)) + [99]
-    results = []
-    for p in percentiles:
-        cutoff = np.percentile(y_pred_test, p)
-        y_pred_binary = (y_pred_test >= cutoff).astype(int)
-        precision = precision_score(y_test, y_pred_binary, zero_division=0)
-        recall = recall_score(y_test, y_pred_binary, zero_division=0)
-        f1 = f1_score(y_test, y_pred_binary, zero_division=0)
-        accuracy = accuracy_score(y_test, y_pred_binary)
-        lift = precision / base_rate if base_rate > 0 and precision > 0 else 0
-        results.append({
-            'percentile': f'P{p}',
-            'cutoff_prob': round(cutoff, 4),
-            'precision': round(precision, 4),
-            'recall': round(recall, 4),
-            'f1_score': round(f1, 4),
-            'accuracy': round(accuracy, 4),
-            'lift': round(lift, 2),
-        })
-
-    # Create metrics DataFrame
-    metrics_df = pd.DataFrame(results)
-    metrics_df = metrics_df.set_index('percentile')
-    print(metrics_df.to_string())
-    #!             cutoff_prob  precision  recall  f1_score  accuracy  lift
-    #! percentile
-    #! P1               0.0493     0.1303  0.9923    0.2304     0.138  1.00
-    #! P5               0.0587     0.1321  0.9654    0.2324     0.171  1.02
-    #! ...
-    #! P70              0.1363     0.1933  0.4462    0.2698     0.686  1.49
-    #! P75              0.1481     0.2040  0.3923    0.2684     0.722  1.57
-    #! P80              0.1596     0.2175  0.3346    0.2636     0.757  1.67
-    #! P85              0.1766     0.2367  0.2731    0.2536     0.791  1.82
-    #! P90              0.2003     0.2450  0.1885    0.2130     0.819  1.88
-    #! P95              0.2452     0.2700  0.1038    0.1500     0.847  2.08
-    #! P99              0.3478     0.3500  0.0269    0.0500     0.867  2.69
-
-#### Lesson 4E: Binary Classification Implementation (understanding metrics_df - precision, recall, f1_score, accuracy, lift)
-
-    # 1. precision
+    # 1.3. precision
     # Of the users we predict will convert (i.e., we target/select them), what 
     # fraction actually convert? If precision = 0.80 at top 5%, that means 80% 
     # of the users we target actually convert -> very efficient campaign.
@@ -1812,40 +1722,60 @@
     # Intuition: High precision -> When we say 'this user will convert', we're 
     # usually right. This metric is critical when false positives are expensive 
 
-    # 2. recall (also called sensitivity or true_positive_rate)
+    # 1.4. recall (also called sensitivity or true_positive_rate)
     # Of all the users who actually convert, what fraction did we correctly identify?
     # Formula: Recall = true_positives / (true_positives + false_negatives)
     # Intuition: High recall -> We capture most of the real converters. Important 
     # when missing identifying a positive outcome/ missing a converter is costly 
     # (e.g., losing a high-value customer).
 
-    # 3. f1_score
+    # 1.5. f1_score
     # The harmonic mean of precision and recall - a single score that balances both.
     # Formula: F1 = 2 × (precision × recall) / (precision + recall)
 
-    # 4. Accuracy
+    # 1.6. Accuracy
     # Overall, what fraction of predictions (both convert and not convert) are correct?
     # Formula: accuracy = (true_positives + true_negatives) / total_users
     # Intuition: Simple and intuitive at first glance.
     # Business takeaway: Almost never use accuracy as the primary metric in conversion 
     # prediction. Always prefer AUC, precision, recall, or lift.
 
-    # 5. Lift
+    # 1.7. Lift
     # How much better does our targeted group convert compared to the 
     # average (base rate)?
     # Formula: Lift = precision / base_rate
     # Intuition: The most business-friendly metric. Answers: 'If I target these users, 
     # how many times better do they perform than random selection?'
 
-#### Lesson 4F: Binary Classification Implementation (applying the model to the real world)
+    # 2. Real world application
+    #!-------------------------
 
-    # Here, we focus on 3 questions: 
+    # 2.1. Classical Statistical Balance Test
+    # 
+    # Academically, as per classical statistics, the 'best model' is one where 
+    # - data is spread out diagonally in a confusion matrix
+    # - rank order with respect to a target variable should hold good
+    # - there should be a good descrimination between 'good' and 'bad'
+    # Emphasizing overall class separation and balance, which naturally leads to models 
+    # that perform well symmetrically (good precision and recall at a threshold near the 
+    # event rate). 
+    # 
+    # However the reverse is not necessarily true. This is because, you can have excellent 
+    # tail performance with only modest global performance. This happens frequently when 
+    # positives are rare and clustered in feature space - the model learns to rank the 
+    # 'easy' positives very high but struggles with harder ones lower down.
 
+    # 2.2. Business Impact Test
+    # Even if a model does not have 'academic balance', it may nevertheless
+    # have business impact (which is the ultimate judge). This approach accepts tail (above 
+    # p90 and above p95) performance as 'good enough' (or even excellent) for business use.
+    # This may be 'uglier' on paper, but it ships value faster and more reliably.
+    # 
     # 1. Do we have a 'valid' model?
     # If AUC is significantly above 0.5 (ideally >0.8-0.9) and stable across train/
     # test splits, you have a technically valid model. In practice, for most 
     # real-world applications, AUC < 0.6 is considered too weak to be useful.
-
+    # 
     # 2. Does the model address the business problem?
     # In the vast majority of real-world binary classification applications—such as 
     # user targeting, conversion prediction, churn prevention, lead scoring, fraud 
@@ -1881,8 +1811,9 @@
     #!--------------------------------------------------------------------------
     #!  efficiency | above P95    |      precision ≥50%, lift >4x, recall ≥30% |
     #!  coverage   | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
+    #!  coverage   | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
     #!--------------------------------------------------------------------------
-
+    # 
     # 3. How well does the model address the business problem?
     # - If efficiency is the goal: Focus on p95
     #!-----------------------------------------------------------------------------
@@ -1904,11 +1835,109 @@
     #!                <40% |                 any |            <2x | improve_model |
     #!-----------------------------------------------------------------------------
 
-    # Best model is one where data is spread out diagonally in a confusion
-    # matrix
-    # - rank order with respect to a target variable should hold good
-    # - there should be a good descrimination between 'good' and 'bad'
+#### Lesson 5: Binary Classification Implementation 
 
+    import pandas as pd
+    import numpy as np
+    import xgboost as xgb
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import (
+        roc_auc_score,
+        precision_score,
+        recall_score,
+        f1_score,
+        accuracy_score,
+    )
+
+    tabular_data_df.head(5)
+
+    #!            feat_0    feat_1    feat_2   ...   feat_19  converted
+    #! user_id                                 ...
+    #! 0        0.025729  0.165038  0.072194   ...  0.018873          0
+    #! 1        0.054640  0.008674  0.019949   ...  0.033492          0
+    #! 2        0.006200  0.032563  0.001667   ...  0.018747          0
+    #! 3        0.026806  0.017243  0.096114   ...  0.006708          0
+    #! 4        0.120043  0.058937  0.024257   ...  0.006892          0
+
+    # 1. Train-test split (using the combined df)
+    X_train, X_test, y_train, y_test = train_test_split(
+        tabular_data_df.drop('converted', axis=1),
+        tabular_data_df['converted'],
+        test_size=0.2,
+        random_state=42,
+        stratify=tabular_data_df['converted']
+    )
+
+    # 2. Model training
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    dtest = xgb.DMatrix(X_test, label=y_test)
+
+    params = {
+        'objective': 'binary:logistic',
+        'eval_metric': 'auc',
+        'max_depth': 6,
+        'eta': 0.1,
+        'subsample': 0.8,
+        'colsample_bytree': 0.8,
+    }
+
+    bst = xgb.train(
+        params,
+        dtrain,
+        num_boost_round=200,
+        evals=[(dtest, 'eval')],
+        early_stopping_rounds=20,
+        verbose_eval=False,
+    )
+
+    # 3. Predictions on test set
+    y_pred_test = bst.predict(dtest)
+
+    # 4. Base Rate
+    base_rate = y_test.mean()
+
+    # 5. AUC
+    auc_test = roc_auc_score(y_test, y_pred_test)
+    print(f'AUC on test set: {auc_test:.4f}\n')
+
+    # 6. Creating metrics_df
+    percentiles = [1] + list(range(5, 100, 5)) + [99]
+    results = []
+    for p in percentiles:
+        cutoff = np.percentile(y_pred_test, p)
+        y_pred_binary = (y_pred_test >= cutoff).astype(int)
+        precision = precision_score(y_test, y_pred_binary, zero_division=0)
+        recall = recall_score(y_test, y_pred_binary, zero_division=0)
+        f1 = f1_score(y_test, y_pred_binary, zero_division=0)
+        accuracy = accuracy_score(y_test, y_pred_binary)
+        lift = precision / base_rate if base_rate > 0 and precision > 0 else 0
+        results.append({
+            'percentile': f'P{p}',
+            'cutoff_prob': round(cutoff, 4),
+            'precision': round(precision, 4),
+            'recall': round(recall, 4),
+            'f1_score': round(f1, 4),
+            'accuracy': round(accuracy, 4),
+            'lift': round(lift, 2),
+        })
+
+    metrics_df = pd.DataFrame(results)
+    metrics_df = metrics_df.set_index('percentile')
+    print(metrics_df.to_string())
+    #!             cutoff_prob  precision  recall  f1_score  accuracy  lift
+    #! percentile
+    #! P1               0.0493     0.1303  0.9923    0.2304     0.138  1.00
+    #! P5               0.0587     0.1321  0.9654    0.2324     0.171  1.02
+    #! ...
+    #! P70              0.1363     0.1933  0.4462    0.2698     0.686  1.49
+    #! P75              0.1481     0.2040  0.3923    0.2684     0.722  1.57
+    #! P80              0.1596     0.2175  0.3346    0.2636     0.757  1.67
+    #! P85              0.1766     0.2367  0.2731    0.2536     0.791  1.82
+    #! P90              0.2003     0.2450  0.1885    0.2130     0.819  1.88
+    #! P95              0.2452     0.2700  0.1038    0.1500     0.847  2.08
+    #! P99              0.3478     0.3500  0.0269    0.0500     0.867  2.69
+    # NOTE: percentile index column above represents a range >= the indicated 
+    # percentile
 
 
 
