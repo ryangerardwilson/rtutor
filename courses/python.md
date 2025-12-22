@@ -1837,9 +1837,9 @@
         accuracy_score,
     )
 
-    tabular_data_df.head(5)
-
-    #!            feat_0    feat_1    feat_2   ...   feat_19  converted
+    #! features = ['feat_0', 'feat_1', ... 'feat_19']
+    #! tabular_data_df.head(5)
+    #!            feat_0    feat_1    feat_2   ...   feat_19     target
     #! user_id                                 ...
     #! 0        0.025729  0.165038  0.072194   ...  0.018873          0
     #! 1        0.054640  0.008674  0.019949   ...  0.033492          0
@@ -1847,19 +1847,18 @@
     #! 3        0.026806  0.017243  0.096114   ...  0.006708          0
     #! 4        0.120043  0.058937  0.024257   ...  0.006892          0
 
-    # 1. Train-test split (using the combined df)
+    # 1. Train-test split 
     X_train, X_test, y_train, y_test = train_test_split(
-        tabular_data_df.drop('converted', axis=1),
-        tabular_data_df['converted'],
+        tabular_data_df[features],
+        tabular_data_df.target,
         test_size=0.2,
         random_state=42,
-        stratify=tabular_data_df['converted']
+        stratify=tabular_data_df.target
     )
 
     # 2. Model training
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dtest = xgb.DMatrix(X_test, label=y_test)
-
     params = {
         'objective': 'binary:logistic',
         'eval_metric': 'auc',
@@ -1868,8 +1867,7 @@
         'subsample': 0.8,
         'colsample_bytree': 0.8,
     }
-
-    bst = xgb.train(
+    model = xgb.train(
         params,
         dtrain,
         num_boost_round=200,
@@ -1879,7 +1877,7 @@
     )
 
     # 3. Predictions on test set
-    y_pred_test = bst.predict(dtest)
+    y_pred_test = model.predict(dtest)
 
     # 4. Base Rate
     base_rate = y_test.mean()
@@ -1934,7 +1932,7 @@
     # - tp, fp, fn, tn represent the confusion matrix values
 
     # 7. Creating best_features_df
-    importance_gain = bst.get_score(importance_type='gain')
+    importance_gain = model.get_score(importance_type='gain')
     total_gain = sum(importance_gain.values())
     normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
     sorted_importance = sorted(normalized_gain.items(), key=lambda x: x[1], reverse=True)
@@ -1952,7 +1950,11 @@
     #! 19                feat_3                    0.042200
     #! 20               feat_19                    0.038720
 
-
+    # 8. Making a prediction
+    example_df = tabular_data_df.iloc[[0]][feature_names]
+    dexample = xgb.DMatrix(example_df)
+    example_pred = model.predict(dexample)[0]
+    print(f'Predicted target: {example_pred}')
 
 #### Lesson 6: Linear Regression Intuition
 
@@ -2089,6 +2091,7 @@
     import pandas as pd
     import numpy as np
     import xgboost as xgb
+    from scipy.stats import skew
 
     from sklearn.model_selection import train_test_split
     from sklearn.metrics import (
@@ -2097,61 +2100,90 @@
         r2_score,
         root_mean_squared_error,
     )
+    
+    #! features = ['feat_0', 'feat_1', ... 'feat_19']
+    #! print(tabular_data_df.head(10))
+    #!       feat_0    feat_1    feat_2  ...   feat_18   feat_19    target
+    #! id                                ...
+    #! 0   0.496714 -0.138264  0.647689  ... -0.908024 -1.412304  7.100724
+    #! 1   1.465649 -0.225776  0.067528  ... -1.328186  0.196861  4.862268
+    #! 2   0.738467  0.171368 -0.115648  ...  0.331263  0.975545  2.674120
+    #! 3  -0.479174 -0.185659 -1.106335  ...  0.091761 -1.987569  1.147614
+    #! 4  -0.219672  0.357113  1.477894  ...  0.005113 -0.234587  2.540443
+    #! 5  -1.415371 -0.420645 -0.342715  ...  1.142823  0.751933  0.917154
+    #! 6   0.791032 -0.909387  1.402794  ...  0.813517 -1.230864  6.398368
+    #! 7   0.227460  1.307143 -1.607483  ... -1.191303  0.656554  1.595872
+    #! 8  -0.974682  0.787085  1.158596  ... -0.264657  2.720169  1.484465
+    #! 9   0.625667 -0.857158 -1.070892  ...  0.058209 -1.142970  3.685111
 
-    print(tabular_data_df.head(10))
-    #!       feat_0    feat_1  ...    feat_18   feat_19     target
-    #! id                      ...
-    #! 0   0.496714 -0.138264  ...  -0.908024 -1.412304  19.601967
-    #! 1   1.465649 -0.225776  ...  -1.328186  0.196861  15.815050
-    #! 2   0.738467  0.171368  ...   0.331263  0.975545   9.836205
-    #! 3  -0.479174 -0.185659  ...   0.091761 -1.987569   1.376850
-    #! 4  -0.219672  0.357113  ...   0.005113 -0.234587   9.323384
-    #! 5  -1.415371 -0.420645  ...   1.142823  0.751933  -0.864802
-    #! 6   0.791032 -0.909387  ...   0.813517 -1.230864  18.560430
-    #! 7   0.227460  1.307143  ...  -1.191303  0.656554   4.674201
-    #! 8  -0.974682  0.787085  ...  -0.264657  2.720169   3.950544
-    #! 9   0.625667 -0.857158  ...   0.058209 -1.142970  13.043008
-    #! [10 rows x 21 columns]
+    # 1. Skewness check and possible target variable transformation
+    skew_value = skew(tabular_data_df['target'])
+    log_transformation_needed = abs(skew_value) > 0.5
+    if log_transformation_needed:
+        tabular_data_df['target'] = np.log(tabular_data_df['target'])
+    #!       feat_0    feat_1    feat_2  ...   feat_18   feat_19    target
+    #! id                                ...
+    #! 0   0.496714 -0.138264  0.647689  ... -0.908024 -1.412304  1.960197
+    #! 1   1.465649 -0.225776  0.067528  ... -1.328186  0.196861  1.581505
+    #! 2   0.738467  0.171368 -0.115648  ...  0.331263  0.975545  0.983620
+    #! 3  -0.479174 -0.185659 -1.106335  ...  0.091761 -1.987569  0.137685
+    #! 4  -0.219672  0.357113  1.477894  ...  0.005113 -0.234587  0.932338
+    #! 5  -1.415371 -0.420645 -0.342715  ...  1.142823  0.751933 -0.086480
+    #! 6   0.791032 -0.909387  1.402794  ...  0.813517 -1.230864  1.856043
+    #! 7   0.227460  1.307143 -1.607483  ... -1.191303  0.656554  0.467420
+    #! 8  -0.974682  0.787085  1.158596  ... -0.264657  2.720169  0.395054
+    #! 9   0.625667 -0.857158 -1.070892  ...  0.058209 -1.142970  1.304301
 
-    # 1. Train-test split and naive baseline
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
+    # 2. Train-test split and naive baseline
+    X_train, X_test, y_train, y_test = train_test_split(
+        tabular_data_df[features], 
+        tabular_data_df.target, 
+        test_size=0.2, 
+        random_state=42
+    )
     # In machine learning, particularly for regression tasks, a 'baseline mean' refers
     # to a simple, naive model that always predicts the average (mean) value of the
     # target variable from the training data for every input in the test set
     mean_target = y_train.mean()
     baseline_pred = np.full_like(y_test, mean_target)
 
-    # 2. Model training
-    model = xgb.XGBRegressor(
-        objective='reg:squarederror',
-        n_estimators=300,
-        learning_rate=0.1,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        random_state=42,
-        n_jobs=-1
+    # 3. Train model
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    dtest = xgb.DMatrix(X_test, label=y_test)
+    params = {
+        'objective': 'reg:squarederror',
+        'eval_metric': 'rmse',
+        'max_depth': 6,
+        'eta': 0.1,
+        'subsample': 0.8,
+        'colsample_bytree': 0.8,
+        'seed': 42,
+    }
+    model = xgb.train(
+        params,
+        dtrain,
+        num_boost_round=300,
+        evals=[(dtest, 'eval')],
+        early_stopping_rounds=None, 
+        verbose_eval=False,
     )
 
-    model.fit(X_train, y_train)
+    # 4. Invoke model on test data
+    y_pred_test = model.predict(dtest)
+    # Back-transform if necessary
+    y_pred_test = np.exp(y_pred_test) if log_transformation_needed else y_pred_test
 
-    # Predictions
-    y_pred_test = model.predict(X_test)
-
-    # 3. Metrics
+    # 5. Detailed Evaluation Metrics
     # Baseline metrics
-    baseline_mse = mean_squared_error(y_test, baseline_pred)
-    baseline_rmse = root_mean_squared_error(y_test, baseline_pred)
-    baseline_mae = mean_absolute_error(y_test, baseline_pred)
-    baseline_r2 = r2_score(y_test, baseline_pred)
-
+    baseline_mse = mean_squared_error(y_original_test, baseline_pred)
+    baseline_rmse = root_mean_squared_error(y_original_test, baseline_pred)
+    baseline_mae = mean_absolute_error(y_original_test, baseline_pred)
+    baseline_r2 = r2_score(y_original_test, baseline_pred)
     # XGBoost metrics
-    xgb_mse = mean_squared_error(y_test, y_pred_test)
-    xgb_rmse = root_mean_squared_error(y_test, y_pred_test)
-    xgb_mae = mean_absolute_error(y_test, y_pred_test)
-    xgb_r2 = r2_score(y_test, y_pred_test)
-
+    xgb_mse = mean_squared_error(y_original_test, y_pred_test)
+    xgb_rmse = root_mean_squared_error(y_original_test, y_pred_test)
+    xgb_mae = mean_absolute_error(y_original_test, y_pred_test)
+    xgb_r2 = r2_score(y_original_test, y_pred_test)
     # Create a single DataFrame for metrics
     metrics_data = {
         'method': ['baseline_mean_model', 'xgb_model'],
@@ -2160,28 +2192,40 @@
         'mae': [round(baseline_mae, 4), round(xgb_mae, 4)],
         'R_squared': [round(baseline_r2, 4), round(xgb_r2, 4)],
     }
-
     metrics_df = pd.DataFrame(metrics_data)
     metrics_df = metrics_df.set_index('method')
-
     print(metrics_df.to_string())
 
-    # 4. Feature Importance (XGBoost's interpretability)
-    importances = model.feature_importances_  
+    # 6. Creating best_features_df
+    importance_gain = model.get_score(importance_type='gain')
+    total_gain = sum(importance_gain.values())
+    normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
     best_features_df = pd.DataFrame({
-        'feature': feature_names,
-        'importance_gain_normalized': importances,
+        'feature': list(normalized_gain.keys()),
+        'importance_gain_normalized': list(normalized_gain.values()),
     }).sort_values(by='importance_gain_normalized', ascending=False)
-
     best_features_df['importance_rank'] = range(1, len(best_features_df) + 1)
     best_features_df = best_features_df.set_index('importance_rank')
-    #!                  feature  importance_gain_normalized
-    #! importance_rank
-    #! 1                 feat_0                      0.5048
-    #! 2                 feat_1                      0.1951
-    #! 3                 feat_2                      0.0954
-    #! 5                feat_19                      0.0101
-    #! ...
-    #! 18               feat_12                      0.0079
-    #! 19               feat_11                      0.0077
-    #! 20                feat_7                      0.0077
+    print(best_features_df.to_string())
+
+    # 7. Making a prediction
+    example_df = tabular_data_df.iloc[[0]][feature_names]
+    dexample = xgb.DMatrix(example_df)
+    example_pred = model.predict(dexample)[0]
+    example_pred = np.exp(example_pred) if log_transformation_needed else example_pred
+    print(f'Predicted target: {example_pred}')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
