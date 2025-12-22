@@ -1889,10 +1889,10 @@
     print(f'AUC on test set: {auc_test:.4f}\n')
 
     # 6. Creating metrics_df
-    percentiles = [1] + list(range(5, 100, 5)) + [99]
+    percentiles = [99] + list(range(95, 0, -5)) + [1] # to ensure p99 comes on top
     results = []
     for p in percentiles:
-        cutoff = np.percentile(y_pred_test, 100 - p)
+        cutoff = np.percentile(y_pred_test, p)
         y_pred_binary = (y_pred_test >= cutoff).astype(int)
         tn, fp, fn, tp = confusion_matrix(y_test, y_pred_binary).ravel()
         precision = precision_score(y_test, y_pred_binary, zero_division=0)
