@@ -2063,5 +2063,104 @@
     #!         <0.3 |                      >20% |                 >20% |   improve_model |
     #!------------------------------------------------------------------------------------
 
+#### Lesson 5: Supervised Regression Implementation 
 
+    import pandas as pd
+    import numpy as np
+    import xgboost as xgb
 
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import (
+        mean_squared_error,
+        mean_absolute_error,
+        r2_score,
+        root_mean_squared_error,
+    )
+
+    print(tabular_data_df.head(10))
+    #!       feat_0    feat_1  ...    feat_18   feat_19     target
+    #! id                      ...
+    #! 0   0.496714 -0.138264  ...  -0.908024 -1.412304  19.601967
+    #! 1   1.465649 -0.225776  ...  -1.328186  0.196861  15.815050
+    #! 2   0.738467  0.171368  ...   0.331263  0.975545   9.836205
+    #! 3  -0.479174 -0.185659  ...   0.091761 -1.987569   1.376850
+    #! 4  -0.219672  0.357113  ...   0.005113 -0.234587   9.323384
+    #! 5  -1.415371 -0.420645  ...   1.142823  0.751933  -0.864802
+    #! 6   0.791032 -0.909387  ...   0.813517 -1.230864  18.560430
+    #! 7   0.227460  1.307143  ...  -1.191303  0.656554   4.674201
+    #! 8  -0.974682  0.787085  ...  -0.264657  2.720169   3.950544
+    #! 9   0.625667 -0.857158  ...   0.058209 -1.142970  13.043008
+    #! [10 rows x 21 columns]
+
+    # 1. Train-test split and naive baseline
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # In machine learning, particularly for regression tasks, a "baseline mean" refers
+    # to a simple, naive model that always predicts the average (mean) value of the
+    # target variable from the training data for every input in the test set
+    mean_target = y_train.mean()
+    baseline_pred = np.full_like(y_test, mean_target)
+
+    # 2. Model training
+    model = xgb.XGBRegressor(
+        objective='reg:squarederror',
+        n_estimators=300,
+        learning_rate=0.1,
+        max_depth=6,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    model.fit(X_train, y_train)
+
+    # Predictions
+    y_pred_test = model.predict(X_test)
+
+    # 3. Metrics
+    # Baseline metrics
+    baseline_mse = mean_squared_error(y_test, baseline_pred)
+    baseline_rmse = root_mean_squared_error(y_test, baseline_pred)
+    baseline_mae = mean_absolute_error(y_test, baseline_pred)
+    baseline_r2 = r2_score(y_test, baseline_pred)
+
+    # XGBoost metrics
+    xgb_mse = mean_squared_error(y_test, y_pred_test)
+    xgb_rmse = root_mean_squared_error(y_test, y_pred_test)
+    xgb_mae = mean_absolute_error(y_test, y_pred_test)
+    xgb_r2 = r2_score(y_test, y_pred_test)
+
+    # Create a single DataFrame for metrics
+    metrics_data = {
+        "method": ["baseline_mean_model", "xgb_model"],
+        "mse": [round(baseline_mse, 4), round(xgb_mse, 4)],
+        "rmse": [round(baseline_rmse, 4), round(xgb_rmse, 4)],
+        "mae": [round(baseline_mae, 4), round(xgb_mae, 4)],
+        "R_squared": [round(baseline_r2, 4), round(xgb_r2, 4)],
+    }
+
+    metrics_df = pd.DataFrame(metrics_data)
+    metrics_df = metrics_df.set_index("method")
+
+    print(metrics_df.to_string())
+
+    # 4. Feature Importance (XGBoost's interpretability)
+    importances = model.feature_importances_  
+    feature_importance_df = pd.DataFrame({
+        "feature": feature_names,
+        "importance": importances,
+        "true_coeff": true_coeffs,
+        "abs_true_coeff": np.abs(true_coeffs)
+    }).sort_values(by="importance", ascending=False)
+    #! feature  importance  true_coeff
+    #!  feat_0    0.504764         5.0
+    #!  feat_1    0.195141        -3.0
+    #!  feat_2    0.095428         2.0
+    #!  feat_3    0.065251         1.5
+    #! feat_19    0.010090         0.0
+    #! feat_15    0.009848         0.0
+    #! feat_16    0.009462         0.0
+    #! feat_10    0.009386         0.0
+    #!  feat_6    0.009300         0.0
+    #! feat_17    0.009213         0.0
