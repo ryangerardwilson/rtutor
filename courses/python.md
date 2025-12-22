@@ -1704,15 +1704,22 @@
     # - AUC = 0.5 -> Model is no better than random guessing (like flipping a coin)
     # - AUC < 0.5 -> Worse than random (the model is systematically wrong — you 
     #   could just invert its predictions).
-    #
-    # AUC does not indicate the model's performance at p90 and p95. Despite this, we 
-    # don't have a widely adopted, standardized metric called 'percentile AUC' because 
-    # the full AUC is designed as a threshold-independent, overall ranking metric that 
-    # captures the model's ability to discriminate across all possible operating points.
-    #
-    # Can a good performing model at p90 and 095 model have a < 0.5 AUC? No, because if 
-    # the model performs well at the very top, it should at least have an overall 
-    # performance that is better than random. 
+    # 
+    # In XGBoost lingo, when we say that a model 'ranks well', we mean that it
+    # 'ranks well above' i.e.
+    # - You sort all instances by the model's output score (descending: highest 
+    #   probability first).
+    # - A 'good ranking' model places as many true positives as possible above 
+    #   (i.e., with higher scores than) true negatives. 
+    #   - If the model does this well (auc > 0.7), the top of the list (e.g., your 
+    #     P95/ P90) will be enriched with positives - high precision, high lift, 
+    #     good recall.
+    #   - If it does poorly (auc < 0.6), positives and negatives are likely 
+    #     intermixed throughout the list, leading to low enrichment even at the 
+    #     top.
+    #   - between 0.6 and 0.7, AUC may not conclusively indicate the model's 
+    #     performance at p90 and p95. In such cases, we need to see if the
+    #     is nevertheless useful for specific real world applications.
 
     # 1.3. precision
     # Of the users we predict will convert (i.e., we target/select them), what 
@@ -1747,34 +1754,15 @@
     # Intuition: The most business-friendly metric. Answers: 'If I target these users, 
     # how many times better do they perform than random selection?'
 
-    # 2. Real world application
+    # 2. Real World Impact Test
     #!-------------------------
 
-    # 2.1. Classical Statistical Balance Test
-    # 
-    # Academically, as per classical statistics, the 'best model' is one where 
-    # - data is spread out diagonally in a confusion matrix
-    # - rank order with respect to a target variable should hold good
-    # - there should be a good descrimination between 'good' and 'bad'
-    # Emphasizing overall class separation and balance, which naturally leads to models 
-    # that perform well symmetrically (good precision and recall at a threshold near the 
-    # event rate). 
-    # 
-    # However the reverse is not necessarily true. This is because, you can have excellent 
-    # tail performance with only modest global performance. This happens frequently when 
-    # positives are rare and clustered in feature space - the model learns to rank the 
-    # 'easy' positives very high but struggles with harder ones lower down.
-
-    # 2.2. Business Impact Test
-    # Even if a model does not have 'academic balance', it may nevertheless
-    # have business impact (which is the ultimate judge). This approach accepts tail (above 
-    # p90 and above p95) performance as 'good enough' (or even excellent) for business use.
-    # This may be 'uglier' on paper, but it ships value faster and more reliably.
+    # In the real world, we accepts tail (above p90 and above p95) performance as 
+    # 'good enough' (or even excellent) for business use. 
     # 
     # 1. Do we have a 'valid' model?
-    # If AUC is significantly above 0.5 (ideally >0.8-0.9) and stable across train/
-    # test splits, you have a technically valid model. In practice, for most 
-    # real-world applications, AUC < 0.6 is considered too weak to be useful.
+    # - auc >= 0.6: yes
+    # - auc < 0.6: hard no. Too weak to be useful.
     # 
     # 2. Does the model address the business problem?
     # In the vast majority of real-world binary classification applications—such as 
