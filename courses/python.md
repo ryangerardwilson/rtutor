@@ -1892,41 +1892,46 @@
     percentiles = [1] + list(range(5, 100, 5)) + [99]
     results = []
     for p in percentiles:
-        cutoff = np.percentile(y_pred_test, p)
+        cutoff = np.percentile(y_pred_test, 100 - p)
         y_pred_binary = (y_pred_test >= cutoff).astype(int)
+        tn, fp, fn, tp = confusion_matrix(y_test, y_pred_binary).ravel()
         precision = precision_score(y_test, y_pred_binary, zero_division=0)
         recall = recall_score(y_test, y_pred_binary, zero_division=0)
         f1 = f1_score(y_test, y_pred_binary, zero_division=0)
         accuracy = accuracy_score(y_test, y_pred_binary)
         lift = precision / base_rate if base_rate > 0 and precision > 0 else 0
         results.append({
-            'percentile': f'P{p}',
-            'cutoff_prob': round(cutoff, 4),
-            'precision': round(precision, 4),
-            'recall': round(recall, 4),
-            'f1_score': round(f1, 4),
-            'accuracy': round(accuracy, 4),
-            'lift': round(lift, 2),
+            "percentile": f"P{p}",
+            "cutoff_prob": round(cutoff, 4),
+            "tp": int(tp),
+            "fp": int(fp),
+            "fn": int(fn),
+            "tn": int(tn),
+            "precision": round(precision, 4),
+            "recall": round(recall, 4),
+            "f1": round(f1, 4),
+            "accuracy": round(accuracy, 4),
+            "lift": round(lift, 2),
         })
 
     metrics_df = pd.DataFrame(results)
     metrics_df = metrics_df.set_index('percentile')
     print(metrics_df.to_string())
-    #!             cutoff_prob  precision  recall  f1_score  accuracy  lift
+    #!             cutoff_prob   tp    fp   fn    tn  precision  recall      f1  accuracy  lift
     #! percentile
-    #! P1               0.0493     0.1303  0.9923    0.2304     0.138  1.00
-    #! P5               0.0587     0.1321  0.9654    0.2324     0.171  1.02
+    #! P1               0.3478    7    13  253  1727     0.3500  0.0269  0.0500     0.867  2.69
+    #! P5               0.2452   27    73  233  1667     0.2700  0.1038  0.1500     0.847  2.08
     #! ...
-    #! P70              0.1363     0.1933  0.4462    0.2698     0.686  1.49
-    #! P75              0.1481     0.2040  0.3923    0.2684     0.722  1.57
-    #! P80              0.1596     0.2175  0.3346    0.2636     0.757  1.67
-    #! P85              0.1766     0.2367  0.2731    0.2536     0.791  1.82
-    #! P90              0.2003     0.2450  0.1885    0.2130     0.819  1.88
-    #! P95              0.2452     0.2700  0.1038    0.1500     0.847  2.08
-    #! P99              0.3478     0.3500  0.0269    0.0500     0.867  2.69
-    # NOTE: percentile index column above represents a range >= the indicated 
-    # percentile
-
+    #! P70              0.0879  207  1193   53   547     0.1479  0.7962  0.2494     0.377  1.14
+    #! P75              0.0829  215  1285   45   455     0.1433  0.8269  0.2443     0.335  1.10
+    #! P80              0.0776  223  1377   37   363     0.1394  0.8577  0.2398     0.293  1.07
+    #! P85              0.0725  232  1468   28   272     0.1365  0.8923  0.2367     0.252  1.05
+    #! P90              0.0663  243  1557   17   183     0.1350  0.9346  0.2359     0.213  1.04
+    #! P95              0.0587  251  1649    9    91     0.1321  0.9654  0.2324     0.171  1.02
+    #! P99              0.0493  258  1722    2    18     0.1303  0.9923  0.2304     0.138  1.00
+    # NOTE: 
+    # - percentile index column above represents a range >= the indicated percentile
+    # - tp, fp, fn, tn represent the confusion matrix values
 
 
 
