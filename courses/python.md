@@ -1901,17 +1901,17 @@
         accuracy = accuracy_score(y_test, y_pred_binary)
         lift = precision / base_rate if base_rate > 0 and precision > 0 else 0
         results.append({
-            "percentile": f"P{p}",
-            "cutoff_prob": round(cutoff, 4),
-            "tp": int(tp),
-            "fp": int(fp),
-            "fn": int(fn),
-            "tn": int(tn),
-            "precision": round(precision, 4),
-            "recall": round(recall, 4),
-            "f1": round(f1, 4),
-            "accuracy": round(accuracy, 4),
-            "lift": round(lift, 2),
+            'percentile': f'P{p}',
+            'cutoff_prob': round(cutoff, 4),
+            'tp': int(tp),
+            'fp': int(fp),
+            'fn': int(fn),
+            'tn': int(tn),
+            'precision': round(precision, 4),
+            'recall': round(recall, 4),
+            'f1': round(f1, 4),
+            'accuracy': round(accuracy, 4),
+            'lift': round(lift, 2),
         })
 
     metrics_df = pd.DataFrame(results)
@@ -1932,6 +1932,27 @@
     # NOTE: 
     # - percentile index column above represents a range >= the indicated percentile
     # - tp, fp, fn, tn represent the confusion matrix values
+
+    # 7. Creating best_features_df
+    importance_gain = bst.get_score(importance_type='gain')
+    total_gain = sum(importance_gain.values())
+    normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
+    sorted_importance = sorted(normalized_gain.items(), key=lambda x: x[1], reverse=True)
+    best_features_df = pd.DataFrame(sorted_importance, columns=['feature', 'importance_gain_normalized'])
+    best_features_df['importance_rank'] = range(1, len(best_features_df) + 1)
+    best_features_df = best_features_df.set_index('importance_rank')
+    print(best_features_df.to_string())
+    #!                  feature  importance_gain_normalized
+    #! importance_rank
+    #! 1                 feat_0                    0.091244
+    #! 2                 feat_1                    0.055604
+    #! ...
+    #! 17               feat_15                    0.044492
+    #! 18               feat_13                    0.043124
+    #! 19                feat_3                    0.042200
+    #! 20               feat_19                    0.038720
+
+
 
 #### Lesson 6: Linear Regression Intuition
 
@@ -2063,7 +2084,7 @@
     #!         <0.3 |                      >20% |                 >20% |   improve_model |
     #!------------------------------------------------------------------------------------
 
-#### Lesson 5: Supervised Regression Implementation 
+#### Lesson 7: Supervised Regression Implementation 
 
     import pandas as pd
     import numpy as np
@@ -2095,7 +2116,7 @@
     # 1. Train-test split and naive baseline
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # In machine learning, particularly for regression tasks, a "baseline mean" refers
+    # In machine learning, particularly for regression tasks, a 'baseline mean' refers
     # to a simple, naive model that always predicts the average (mean) value of the
     # target variable from the training data for every input in the test set
     mean_target = y_train.mean()
@@ -2133,34 +2154,34 @@
 
     # Create a single DataFrame for metrics
     metrics_data = {
-        "method": ["baseline_mean_model", "xgb_model"],
-        "mse": [round(baseline_mse, 4), round(xgb_mse, 4)],
-        "rmse": [round(baseline_rmse, 4), round(xgb_rmse, 4)],
-        "mae": [round(baseline_mae, 4), round(xgb_mae, 4)],
-        "R_squared": [round(baseline_r2, 4), round(xgb_r2, 4)],
+        'method': ['baseline_mean_model', 'xgb_model'],
+        'mse': [round(baseline_mse, 4), round(xgb_mse, 4)],
+        'rmse': [round(baseline_rmse, 4), round(xgb_rmse, 4)],
+        'mae': [round(baseline_mae, 4), round(xgb_mae, 4)],
+        'R_squared': [round(baseline_r2, 4), round(xgb_r2, 4)],
     }
 
     metrics_df = pd.DataFrame(metrics_data)
-    metrics_df = metrics_df.set_index("method")
+    metrics_df = metrics_df.set_index('method')
 
     print(metrics_df.to_string())
 
     # 4. Feature Importance (XGBoost's interpretability)
     importances = model.feature_importances_  
-    feature_importance_df = pd.DataFrame({
-        "feature": feature_names,
-        "importance": importances,
-        "true_coeff": true_coeffs,
-        "abs_true_coeff": np.abs(true_coeffs)
-    }).sort_values(by="importance", ascending=False)
-    #! feature  importance  true_coeff
-    #!  feat_0    0.504764         5.0
-    #!  feat_1    0.195141        -3.0
-    #!  feat_2    0.095428         2.0
-    #!  feat_3    0.065251         1.5
-    #! feat_19    0.010090         0.0
-    #! feat_15    0.009848         0.0
-    #! feat_16    0.009462         0.0
-    #! feat_10    0.009386         0.0
-    #!  feat_6    0.009300         0.0
-    #! feat_17    0.009213         0.0
+    best_features_df = pd.DataFrame({
+        'feature': feature_names,
+        'importance_gain_normalized': importances,
+    }).sort_values(by='importance_gain_normalized', ascending=False)
+
+    best_features_df['importance_rank'] = range(1, len(best_features_df) + 1)
+    best_features_df = best_features_df.set_index('importance_rank')
+    #!                  feature  importance_gain_normalized
+    #! importance_rank
+    #! 1                 feat_0                      0.5048
+    #! 2                 feat_1                      0.1951
+    #! 3                 feat_2                      0.0954
+    #! 5                feat_19                      0.0101
+    #! ...
+    #! 18               feat_12                      0.0079
+    #! 19               feat_11                      0.0077
+    #! 20                feat_7                      0.0077
