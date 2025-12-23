@@ -401,28 +401,17 @@
 
 #### Lesson 1: Using Count and Group By for Quick Inspections
 
-    -- 1. Count all records from a relation
-    SELECT
-        COUNT(*)
-    FROM your_cte_or_table;
+    -- 1. Check if a specific column is a key candidate by itself
+    SELECT COUNT(*) FROM your_table;
+    SELECT COUNT(DISTINCT potential_candidate_key) FROM your_table;
 
     -- 2. Count all rows of each unique value of the source column
-    SELECT
-        source,
-        COUNT(*) AS row_count
-    FROM actions
-    GROUP BY source
-    ORDER BY row_count DESC;
+    SELECT source, COUNT(*) AS row_count FROM actions 
+    GROUP BY source ORDER BY row_count DESC;
 
     -- 3. Count all rows of each unique combination of source and action_type
-    SELECT
-        source,
-        action_type,
-        COUNT(*) AS row_count
-    FROM actions
-    GROUP BY source, action_type
-    ORDER BY row_count DESC
-    LIMIT 20;
+    SELECT source, action_type, COUNT(*) AS row_count FROM actions 
+    GROUP BY source, action_type ORDER BY row_count DESC LIMIT 20;
 
 #### Lesson 2A: Using Subset Aggregation for Cohort Analysis of Log Tables
 
