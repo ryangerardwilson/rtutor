@@ -1828,6 +1828,7 @@
     import pandas as pd
     import numpy as np
     import xgboost as xgb
+    import optuna
     from sklearn.model_selection import train_test_split
     from sklearn.metrics import (
         roc_auc_score,
@@ -1847,7 +1848,10 @@
     #! 3        0.026806  0.017243  0.096114   ...  0.006708          0
     #! 4        0.120043  0.058937  0.024257   ...  0.006892          0
 
-    # 1. Train-test split 
+    # 1. Model training
+    #! ========================================================================
+    #! 1.1. Option A: Manual Tinkering ----------------------------------------
+    #! ========================================================================
     X_train, X_test, y_train, y_test = train_test_split(
         tabular_data_df[features],
         tabular_data_df.target,
@@ -1855,8 +1859,6 @@
         random_state=42,
         stratify=tabular_data_df.target
     )
-
-    # 2. Model training
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dtest = xgb.DMatrix(X_test, label=y_test)
     params = {
@@ -1876,17 +1878,90 @@
         verbose_eval=False,
     )
 
-    # 3. Predictions on test set
+    #! ========================================================================
+    #! 1.2. Option B: Automated Hyperparameter Tuning -------------------------
+    #! ========================================================================
+    X_train_full, X_test, y_train_full, y_test = train_test_split(
+        tabular_data_df.drop('converted', axis=1),
+        tabular_data_df['converted'],
+        test_size=0.2,
+        random_state=42,
+        stratify=tabular_data_df['converted']
+    )
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_full,
+        y_train_full,
+        test_size=0.2,
+        random_state=42,
+        stratify=y_train_full
+    )
+
+    # Define the objective function for Optuna
+    def objective(trial):
+        max_depth = trial.suggest_categorical('max_depth', [3,4,5,6,7,8,9,10])
+        eta = trial.suggest_float('eta', 0.01, 0.3, log=True)
+        subsample = trial.suggest_categorical('subsample', [0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+        colsample_bytree = trial.suggest_categorical('colsample_bytree', [0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+        params = {
+            'objective': 'binary:logistic',
+            'eval_metric': 'auc',
+            'max_depth': max_depth,
+            'eta': eta,
+            'subsample': subsample,
+            'colsample_bytree': colsample_bytree,
+        }
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
+        model = xgb.train(
+            params,
+            dtrain,
+            num_boost_round=1000,
+            evals=[(dval, 'eval')],
+            early_stopping_rounds=20,
+            verbose_eval=False,
+        )
+        y_pred_val = model.predict(dval)
+        auc = roc_auc_score(y_val, y_pred_val)
+        return auc
+
+    # Create and optimize the study
+    study = optuna.create_study(direction='maximize')
+    study.optimize(objective, n_trials=50)
+
+    # Get the best parameters
+    best_params = study.best_params
+    best_params['objective'] = 'binary:logistic'
+    best_params['eval_metric'] = 'auc'
+
+    print('Best hyperparameters found by Optuna:')
+    print(best_params)
+
+    # Train the final model with best params on full train set
+    dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full)
+    dtest = xgb.DMatrix(X_test, label=y_test)
+
+    model = xgb.train(
+        best_params,
+        dtrain_full,
+        num_boost_round=1000,
+        evals=[(dtest, 'eval')],
+        early_stopping_rounds=20,
+        verbose_eval=False,
+    )
+
+    #! ------------------------------------------------------------------------
+
+    # 2. Predictions on test set
     y_pred_test = model.predict(dtest)
 
-    # 4. Base Rate
+    # 3. Base Rate
     base_rate = y_test.mean()
 
-    # 5. AUC
+    # 4. AUC
     auc_test = roc_auc_score(y_test, y_pred_test)
     print(f'AUC on test set: {auc_test:.4f}\n')
 
-    # 6. Creating metrics_df
+    # 5. Creating metrics_df
     percentiles = [99] + list(range(95, 0, -5)) + [1] # to ensure p99 comes on top
     results = []
     for p in percentiles:
@@ -1931,7 +2006,7 @@
     # - percentile index column above represents a range >= the indicated percentile
     # - tp, fp, fn, tn represent the confusion matrix values
 
-    # 7. Creating best_features_df
+    # 6. Creating best_features_df
     importance_gain = model.get_score(importance_type='gain')
     total_gain = sum(importance_gain.values())
     normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
@@ -1950,7 +2025,7 @@
     #! 19                feat_3                    0.042200
     #! 20               feat_19                    0.038720
 
-    # 8. Making a prediction
+    # 7. Making a prediction
     example_df = tabular_data_df.iloc[[0]][feature_names]
     dexample = xgb.DMatrix(example_df)
     example_pred = model.predict(dexample)[0]
@@ -2091,8 +2166,8 @@
     import pandas as pd
     import numpy as np
     import xgboost as xgb
+    import optuna
     from scipy.stats import skew
-
     from sklearn.model_selection import train_test_split
     from sklearn.metrics import (
         mean_squared_error,
@@ -2116,7 +2191,7 @@
     #! 8  -0.974682  0.787085  1.158596  ... -0.264657  2.720169  1.484465
     #! 9   0.625667 -0.857158 -1.070892  ...  0.058209 -1.142970  3.685111
 
-    # 1. Skewness check and possible target variable transformation
+    # 2. Skewness check and possible target variable transformation
     skew_value = skew(tabular_data_df['target'])
     log_transformation_needed = abs(skew_value) > 0.5
     if log_transformation_needed:
@@ -2134,20 +2209,23 @@
     #! 8  -0.974682  0.787085  1.158596  ... -0.264657  2.720169  0.395054
     #! 9   0.625667 -0.857158 -1.070892  ...  0.058209 -1.142970  1.304301
 
-    # 2. Train-test split and naive baseline
+    # 2. Model training
+    #! ========================================================================
+    #! 2.1. Option A: Manual Tinkering ----------------------------------------
+    #! ========================================================================
     X_train, X_test, y_train, y_test = train_test_split(
         tabular_data_df[features], 
         tabular_data_df.target, 
         test_size=0.2, 
         random_state=42
     )
-    # In machine learning, particularly for regression tasks, a 'baseline mean' refers
-    # to a simple, naive model that always predicts the average (mean) value of the
-    # target variable from the training data for every input in the test set
+    # In machine learning, particularly for regression tasks, a 'baseline mean' 
+    # refers to a simple, naive model that always predicts the average (mean) 
+    # value of the target variable from the training data for every input in the 
+    # test set
     mean_target = y_train.mean()
     baseline_pred = np.full_like(y_test, mean_target)
 
-    # 3. Train model
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dtest = xgb.DMatrix(X_test, label=y_test)
     params = {
@@ -2167,13 +2245,98 @@
         early_stopping_rounds=None, 
         verbose_eval=False,
     )
+    #! ------------------------------------------------------------------------
 
-    # 4. Invoke model on test data
+    #! ========================================================================
+    #! 2.2. Option B: Automated Hyperparamter Tuning --------------------------
+    #! ========================================================================
+    X_train_full, X_test, y_train_full, y_test = train_test_split(
+        X, 
+        tabular_data_df['target'], 
+        test_size=0.2, 
+        random_state=42
+    )
+
+    # Further split train_full into train and val for hyperparameter tuning
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_full,
+        y_train_full,
+        test_size=0.2,
+        random_state=42,
+    )
+
+    # Recover original scale for evaluation
+    y_original_train_full = np.exp(y_train_full) if log_transformation_needed else y_train_full
+    y_original_test = np.exp(y_test) if log_transformation_needed else y_test
+
+    # In machine learning, particularly for regression tasks, a 'baseline mean' refers 
+    # to a simple, naive model that always predicts the average (mean) value of the 
+    # target variable from the training data for every input in the test set
+    mean_target = y_original_train_full.mean()
+    baseline_pred = np.full_like(y_original_test, mean_target)
+
+    # Define the objective function for Optuna
+    def objective(trial):
+        max_depth = trial.suggest_categorical('max_depth', [3,4,5,6,7,8,9,10])
+        eta = trial.suggest_float('eta', 0.01, 0.3, log=True)
+        subsample = trial.suggest_categorical('subsample', [0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+        colsample_bytree = trial.suggest_categorical('colsample_bytree', [0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+        params = {
+            'objective': 'reg:squarederror',
+            'eval_metric': 'rmse',
+            'max_depth': max_depth,
+            'eta': eta,
+            'subsample': subsample,
+            'colsample_bytree': colsample_bytree,
+            'seed': 42,
+        }
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
+        bst = xgb.train(
+            params,
+            dtrain,
+            num_boost_round=1000,
+            evals=[(dval, 'eval')],
+            early_stopping_rounds=20,
+            verbose_eval=False,
+        )
+        y_pred_val = bst.predict(dval)
+        rmse = root_mean_squared_error(y_val, y_pred_val)
+        return rmse
+
+    # Create and optimize the study
+    study = optuna.create_study(direction='minimize')
+    study.optimize(objective, n_trials=50)
+
+    # Get the best parameters
+    best_params = study.best_params
+    best_params['objective'] = 'reg:squarederror'
+    best_params['eval_metric'] = 'rmse'
+    best_params['seed'] = 42
+
+    print('Best hyperparameters found by Optuna:')
+    print(best_params)
+
+    # Train the final model with best params on full train set
+    dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full)
+    dtest = xgb.DMatrix(X_test, label=y_test)
+
+    model = xgb.train(
+        best_params,
+        dtrain_full,
+        num_boost_round=1000,
+        evals=[(dtest, 'eval')],
+        early_stopping_rounds=20,
+        verbose_eval=False,
+    )
+    #! ------------------------------------------------------------------------
+
+    # 3. Invoke model on test data
     y_pred_test = model.predict(dtest)
     # Back-transform if necessary
     y_pred_test = np.exp(y_pred_test) if log_transformation_needed else y_pred_test
 
-    # 5. Detailed Evaluation Metrics
+    # 4. Detailed Evaluation Metrics
     # Baseline metrics
     baseline_mse = mean_squared_error(y_original_test, baseline_pred)
     baseline_rmse = root_mean_squared_error(y_original_test, baseline_pred)
@@ -2196,7 +2359,7 @@
     metrics_df = metrics_df.set_index('method')
     print(metrics_df.to_string())
 
-    # 6. Creating best_features_df
+    # 5. Creating best_features_df
     importance_gain = model.get_score(importance_type='gain')
     total_gain = sum(importance_gain.values())
     normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
@@ -2208,7 +2371,7 @@
     best_features_df = best_features_df.set_index('importance_rank')
     print(best_features_df.to_string())
 
-    # 7. Making a prediction
+    # 6. Making a prediction
     example_df = tabular_data_df.iloc[[0]][feature_names]
     dexample = xgb.DMatrix(example_df)
     example_pred = model.predict(dexample)[0]
