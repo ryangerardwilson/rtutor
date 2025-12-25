@@ -1,6 +1,5 @@
 # RTutor
 
-
 AI slop is a problem. Inculcating great programming taste is the antidote. rtutor is an attempt to disseminate that antidote.
 
 ## Table of Contents
