@@ -37,7 +37,7 @@ class RoteMode:
             while rep_in_progress:
                 max_y, max_x = stdscr.getmaxyx()
                 available_height = max(0, max_y - 4)
-                content_start_y = 2
+                content_start_y = 3
 
                 # === Smooth, early scrolling + extra lookahead near end ===
                 if total_lines > available_height:
@@ -65,15 +65,21 @@ class RoteMode:
                 visible_range = range(start_idx, end_idx)
 
                 if need_redraw:
-                    title = f"Rote Mode: {self.sequencer_name} | {self.lesson.name} | Rep {reps_completed + 1}/{ROTE_TARGET}"
+
+                    # Title on two lines
+                    line1 = self.sequencer_name
+                    line2 = f"ROTE_MODE: {self.lesson.name}"
                     try:
-                        stdscr.addstr(0, 0, title[:max_x], curses.color_pair(1))
+                        stdscr.addstr(0, 0, line1[:max_x], curses.color_pair(1) | curses.A_BOLD)
+                        stdscr.addstr(1, 0, line2[:max_x], curses.color_pair(1) | curses.A_BOLD)
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
 
+
+
                     try:
-                        stdscr.move(1, 0)
+                        stdscr.move(2, 0)
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
