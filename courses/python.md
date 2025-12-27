@@ -1505,7 +1505,6 @@
     # 2. Normalisation often requrires usage of id attributes, whare are, in
     #    essence, just identifiers - and feeding an ML model an id column will
     #    cause it to learn nothing.
-    #
 
     # 2. Mathematical Data Structures
 
