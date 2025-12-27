@@ -1478,30 +1478,36 @@
 
 ### Section 2: Machine Learning (XGBoost)
 
-#### Lesson 1A: Data Visualization Fundamentals (Normalised vs. De-normalised data)
+#### Lesson 1: Data Visualization Fundamentals 
+
+    # 1. Normalised vs. De-normalised data
 
 	# Normalization (in the original Codd/1970 relational database sense) =
 	# organizing tables to eliminate redundancy and update anomalies by
 	# splitting data into many narrow, tightly linked tables following strict
 	# normal forms
-
+    #!
 	# Core Idea: Every piece of information appears exactly once, and everything else
 	# references it via keys.
-
+    #!
 	#! Real-world example - fully normalized version of the same data:
-	#! Table	   		   Key 	   	 	   Columns
-	#! customers  		   customer_id	   customer_id, name, birth_date, city
-	#! orders	   		   order_id		   order_id, customer_id, order_date, amount
-	#! order_items		   item_id		   item_id, order_id, product_id, qty, price
-	#! products		   product_id	   product_id, product_name, category
-	#! payments		   payment_id	   payment_id, order_id, payment_date, method
+	#! Table                Key 	   	 	   Columns
+	#! customers            customer_id	   customer_id, name, birth_date, city
+	#! orders               order_id	   order_id, customer_id, order_date, amount
+	#! order_items          item_id		   item_id, order_id, product_id, qty, price
+	#! products             product_id	   product_id, product_name, category
+	#! payments             payment_id	   payment_id, order_id, payment_date, method
+    #!
+	# Why Normalization Is the Enemy of Real-World ML? 
+    # 1. To train a model you would have to execute massive star-schema joins + window 
+    #    aggregations on-the-fly for every single prediction or training row. That's 
+    #    100-1000x slower and leaks like crazy if you're not extremely careful.
+    # 2. Normalisation often requrires usage of id attributes, whare are, in
+    #    essence, just identifiers - and feeding an ML model an id column will
+    #    cause it to learn nothing.
+    #
 
-	# Why Normalization Is the Enemy of Real-World ML? To train a model you
-	# would have to execute massive star-schema joins + window aggregations
-	# on-the-fly for every single prediction or training row. That's 100-1000x
-	# slower and leaks like crazy if you're not extremely careful
-
-#### Lesson 1B: Data Visualization Fundamentals (Mathematical Data Structures)
+    # 2. Mathematical Data Structures
 
 	# Generally speaking, data appears in the real world in the following
 	# mathematical forms:
@@ -1510,41 +1516,48 @@
 	#    that this is not a relation, but a matrix, which is a superset of a relation.
 	# c. Codd's original 1970 relational model - a time-varying relation that holds
 	#    only currently valid tuples
-
+    #!
 	# What is a good data set to model?
-	# A good dataset for supervised learning is a point-in-time feature table, rooted in the REAL WORLD,
-	# meeting the following conditions:
-	# - Each row corresponds to a unique real world entity (e.g., customer, vehicle, patient, etc.)
-	#   observed at a specific prediction timestamp t_pred, collectively, creating a 'Monte-Carlo'
-	#   sample (Whats a Monte-Carlo sample? Let reality roll the dice for you, then write down what
-	#   actually happened. You repeat that many times, and you get a bunch of real-world random samples.
-	# - The target variable y_i is the outcome of interest that materializes strictly after t_pred
-	#   (e.g., failure within next 30 days, churn in the following month, etc.)
-	# - For every feature x_i, the value j in the row must be known or computable using only
-	#   information available at or before t_pred. No feature may incorporate data from any time > t_pred
-	#   (this prohibition is called 'future leakage' or 'target leakage')
+	# A good dataset for supervised learning is a point-in-time feature table, rooted 
+    # in the REAL WORLD, meeting the following conditions:
+	# - Each row corresponds to a unique real world entity (e.g., customer, vehicle, 
+    #   patient, etc.) observed at a specific prediction timestamp t_pred, collectively, 
+    #   creating a 'Monte-Carlo' sample (Whats a Monte-Carlo sample? Let reality roll 
+    #   the dice for you, then write down what actually happened. You repeat that many 
+    #   times, and you get a bunch of real-world random samples.
+	# - The target variable y_i is the outcome of interest that materializes strictly 
+    #   after t_pred (e.g., failure within next 30 days, churn in the following month, 
+    #   etc.)
+	# - For every feature x_i, the value j in the row must be known or computable using 
+    #   only information available at or before t_pred. No feature may incorporate data 
+    #   from any time > t_pred (this prohibition is called 'future leakage' or 'target 
+    #   leakage')
 	# - There are no duplicate rows that are invalid Monte-Carlo samples
-	
-	# Why do 'good' duplicates (i.e. duplicates that are valid Monte-Carlo samples) actually add value?
-	# - They teach the model the actual odds: when everything looks exactly like this, it fails x% of the time.
-	# - If you delete all of them and keep only one, the model thinks 'this never happens' or 'this always
-	#   happens', causing totally wrong probabilities.
-	# - Every extra copy is like flipping the real-world coin one more time and writing down what actually happened.
+    # - There is no id column as a feature - else, the model will learn nothing.
+    #! 	
+	# Why do 'good' duplicates (i.e. duplicates that are valid Monte-Carlo samples) 
+    # actually add value?
+	# - They teach the model the actual odds: when everything looks exactly like this, 
+    #   it fails x% of the time.
+	# - If you delete all of them and keep only one, the model thinks 'this never 
+    #   happens' or 'this always happens', causing totally wrong probabilities.
+	# - Every extra copy is like flipping the real-world coin one more time and writing 
+    #   down what actually happened.
 
-#### Lesson 1C: Using Definitional Precision to Prevent Target Leakage
+    # 3. Using Definitional Precision to Prevent Target Leakage
 
 	# Now, the following definitions become clear:
 	# Feature: Anything known ON_OR_BEFORE prediction_time
 	# Target: A value that is realized AFTER prediction_time. For instance,
 	# - for linear regression: number OR log(number) AFTER {prediction_time}
 	# - for binary classification: 1 IF {condition} AFTER {prediction_time} ELSE 0
-
+    #!
 	# To understand the importance of the above definitions, lets say we define our
 	# target as follows: WITH {prediction_time}: 1 IF {condition} ELSE 0
 	# The problem that is created is called 'target leakage', where the rule
 	# governing the impact of prediction_time on the outcome is ambiguously
 	# stated.
-
+    #!
 	# Thus, in preprocessing raw data, it is imperative to ensure that the data
 	# filtered such that:
 	# - target is AFTER prediction_time
