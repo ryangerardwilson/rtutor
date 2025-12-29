@@ -665,7 +665,7 @@
     # Go back to default RangeIndex
     df = df.reset_index()
 
-#### Lesson 2A: Top 11 Things to Inspect the First Time You Access a Dataframe (1-3) 
+#### Lesson 2: Top 11 Things to Inspect the First Time You Access a Dataframe 
 
     # 1. Columns, Data types, schema, and sampling
     df.columns
@@ -688,6 +688,10 @@
 	df['col'] = df.col.astype('datetime64[ns]')
 	df.col.dt.year.unique() 
     df.sort_values(by='col',ascending=False)
+    # Filter rows and columns
+    row_condition = df.assigned_col.notna()
+    df[['mobile', 'account_id', 'assigned', 'otp']][row_condition]
+    corr_matrix = df.corr(numeric_only=True)  
 
     # 2. Duplicate rows & subset
     df.duplicated().sum()
@@ -698,8 +702,6 @@
     df.isnull().mean() * 100  # % missing
     df = df[df.datetime_col.notna()] # Filter out rows with certain missing
 	values
-	
-#### Lesson 2B: Top 11 Things to Inspect the First Time You Access a Dataframe (4-6)
 
     # 4. Primary key
     df.set_index(['col1','col2'], verify_integrity=True) 
@@ -712,25 +714,25 @@
 	pd.crosstab(df.user_id, df.category)
 	# Now to get the %distribution of values of col_b
 	pd.crosstab(df.user_id, df.category, normalize='index')
-	
+
+    # 6. Value counts
     df.col.value_counts() # Chain: .sort_index(), .round(n), nlargest(n), nsmallest(n)
+    df[['categorical_col_1', 'categorical_col_2']].value_counts()
     df.groupby('col').size() # same logic as df.value_counts(), both return Series
     df.groupby(['col1','col2']).size() # works with a list of columns
 	
-    # 6. Summary stats - look for impossible values (e.g., negative age),
+    # 7. Summary stats - look for impossible values (e.g., negative age),
     # extreme outliers, or unexpected categories. Gives: count, unique, mean, freq, 
     # top (mode), std, min, max, quantiles
     df.describe(include='all')
     df.describe(include='all').loc['count'].T # deep dive aesthetically
 
-#### Lesson 2C: Top 11 Things to Inspect the First Time You Access a Dataframe (7-11) 
-
-    # 7. Quantile Analysis
+    # 8. Quantile Analysis
     cut_off = df.probs.quantile(0.90)      
     df['meets_cutoff'] = np.where(df.probs > cut_off,1,0)
     print(df.meets_cutoff.value_counts())
 
-    # 8. Quantile Distribution Analysis 
+    # 9. Quantile Distribution Analysis 
     # To examine Percentile Distibution - you can use this as a histogram replacement, 
     # to check if the dist is skewed on the right or left. For instance, the below data 
     # is skewed on the right.
@@ -747,16 +749,6 @@
     #! 0.9     28.94 # 90% of your data is below this 
     #! 1.0    312.47 # this is the max, or 100% of your data is below this
     #! Name: duration_hours_col, dtype: float64
-
-    # 9. Correlations & Multicollinearity
-    corr_matrix = df.corr(numeric_only=True)  
-
-    # 10. Domain Consistency & Business Logic Checks
-    assert (df.age_col >= 0).all(), 'Negative ages found!'
-
-    # 11. Quick filteration / masking based analysis
-    row_condition = df.assigned_col.notna()
-    df[['mobile', 'account_id', 'assigned', 'otp']][row_condition]
 
 #### Lesson 3: Impact of Scope on Dataframe Mutations
 
@@ -1561,8 +1553,58 @@
 	# filtered such that:
 	# - target is AFTER prediction_time
 	# - all features exist ON_OR_BEFORE prediction_time
-	
-#### Lesson 2: Decision Trees
+
+#### Lesson 2: Feature Engineering Checklist
+
+    # 1. prediction_time, num_features, cat_features, and target should be defined 
+    from datetime import datetime
+    prediction_time = datetime(2025, 12, 29, 14, 30, 0)  
+    print(prediction_time)  
+    #! 2025-12-29 14:30:00
+    num_features = []
+    cat_features = []
+    target = 'target_col'
+    
+    # 2. the set of rows should have no duplicates and constitue a 'monte carlo' sample
+    df = df.drop_duplicates()
+    
+    # 3. column names should have consistent lower case formatting
+    # df.columns = df.columns.str.lower()
+
+    # 4. all numeric features must have numeric dtypes
+    failed_cols = []
+    for col in num_features:
+        try:
+            df[col] = pd.to_numeric(df[col])
+        except Exception as e:
+            print(f'Needs more work: {col}')
+            print(e)
+            failed_cols.append(col)
+     
+    # 5. the 'no-category' value in categorical features should be consistently be 
+    #   'unknown'
+    df['credit_mix'] = df.credit_mix.str.replace('_', 'unknown')
+    
+    # 6. an id column should never be a feature, unless it is more or less a
+    #    categorical feature 
+    num_features.remove('id')
+
+    # 7. There should be no feature leakage - remove any column that highly correlates 
+    # with target (>0.9)
+    high_corr = df.corr()[target].abs() > 0.9
+    leakage_from_corr = high_corr[high_corr].index.tolist()
+    leakage_from_corr = [col for col in leakage_from_corr if col != target]
+    for col in leakage_from_corr:
+        if col in num_features:
+            num_features.remove(col)
+            print(f"Removed high-correlation leakage feature: {col} (corr > 0.9 with target)")
+        elif col in cat_features:
+            cat_features.remove(col)
+            print(f"Removed high-correlation leakage feature: {col}")
+    
+    df = df[num_features + cat_features + [target]]
+
+#### Lesson 3: Decision Trees
 
     # A decision tree is like a flowchart for making predictions. It starts at the 
     # root (top question), splits into branches based on features (e.g., 'Is the 
@@ -1586,7 +1628,7 @@
     #!  2014 |        XGBoost |   Scalable, regularized gradient boosting with tree pruning and parallelism |
     #! -----------------------------------------------------------------------------------------------------|
 
-#### Lesson 3A: XGBoost Intuition (gradient boosting, overfitting, regularization)
+#### Lesson 4: XGBoost Intuition
 
     # 1. Gradient Boosting
     # Think of gradient boosting like building a team of weaklings who, together, 
@@ -1613,9 +1655,6 @@
     # big weights more than small ones (unlike L1, which uses absolute values and 
     # can zero 'em out entirely). So, L2 smooths things out gently, shrinking 
     # weights toward zero without killing 'em off, which helps with variance
-
-
-#### Lesson 3B: XGBoost Intuition (learning rate/ eta, max_depth, num_boost_roung/ n_estimators)
 
     # 3. Learning Rate/ eta
     # This is like your gas pedal control. It's a number (usually 0.01 to 0.3) that 
@@ -1646,8 +1685,6 @@
     # rate/ eta.
     # - Low learning rate/eta -> requires higher n_estimators (500+)
     # - High learning rate/eta -> requires low n_estimators (50-100) 
-
-#### Lesson 3C: XGBoost Intuition (lambda, subsample, colsample_bytree)
 
     # 6. lambda (L2 regularization)
     # Lambda is XGBoost's knob for L2 regularization. Adds a penalty for big, 
@@ -1692,7 +1729,7 @@
     # - subsample and colsample inject randomness 
     # Together, they make XGBoost robust without the drama of vanilla boosting.
 
-#### Lesson 4: Binary Classification Intuition
+#### Lesson 5: Binary Classification Intuition
 
     # 1. Metrics
     #!----------
@@ -1835,7 +1872,7 @@
     #!                <40% |                 any |            <2x | improve_model |
     #!-----------------------------------------------------------------------------
 
-#### Lesson 5: Binary Classification Implementation 
+#### Lesson 6: Binary Classification Implementation 
 
     import pandas as pd
     import numpy as np
@@ -2043,7 +2080,7 @@
     example_pred = model.predict(dexample)[0]
     print(f'Predicted target: {example_pred}')
 
-#### Lesson 6: Linear Regression Intuition
+#### Lesson 7: Linear Regression Intuition
 
     # 1. Metrics
     #!----------
@@ -2173,7 +2210,7 @@
     #!         <0.3 |                      >20% |                 >20% |   improve_model |
     #!------------------------------------------------------------------------------------
 
-#### Lesson 7: Supervised Regression Implementation 
+#### Lesson 8: Supervised Regression Implementation 
 
     import pandas as pd
     import numpy as np
