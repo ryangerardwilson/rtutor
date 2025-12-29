@@ -1561,8 +1561,11 @@
     prediction_time = datetime(2025, 12, 29, 14, 30, 0)  
     print(prediction_time)  
     #! 2025-12-29 14:30:00
+    event_timestamp = 'date' # This is the name of the col used to do a
+                             # test-train split qua the prediction_time
     num_features = []
     cat_features = []
+    event_timestamp = []
     target = 'target_col'
     
     # 2. the set of rows should have no duplicates and constitue a 'monte carlo' sample
@@ -1571,25 +1574,39 @@
     # 3. column names should have consistent lower case formatting
     # df.columns = df.columns.str.lower()
 
-    # 4. all numeric features must have numeric dtypes
-    failed_cols = []
-    for col in num_features:
+    # 4. the target column must have a numeric dtype - either 0/1 for binary
+    # classification, or a number like price, category code, etc. 
+    # - If the target column is categorical in nature, assign a number to each 
+    #   category, as is shown below.
+    target_number_dict = {'Poor': 0, 'Standard': 1, 'Good': 2}
+    df[target] = df[target].map(target_number_dict)
+    # - If the target column is boolean type (for binary classification),
+    #   do as below.
+    df[target] = df[target].astype(int)
+
+    # 5. all numeric features must have pandas numeric dtype, and all categorical
+    # features must have category dtype. 
+    for col in df.columns.to_list():
         try:
-            df[col] = pd.to_numeric(df[col])
+            if col in num_features:
+                df[col] = pd.to_numeric(df[col])
+            elif col in cat_features:
+                df[col] = df[col].astype('category')
+            else:
+                pass
         except Exception as e:
             print(f'Needs more work: {col}')
             print(e)
-            failed_cols.append(col)
-     
-    # 5. the 'no-category' value in categorical features should be consistently be 
-    #   'unknown'
+
+    # 6. the 'no-category' value in categorical features should be consistently be 
+    # 'unknown'
     df['credit_mix'] = df.credit_mix.str.replace('_', 'unknown')
     
-    # 6. an id column should never be a feature, unless it is more or less a
-    #    categorical feature 
+    # 7. an id column should never be a feature, unless it is more or less a
+    # categorical feature 
     num_features.remove('id')
 
-    # 7. There should be no feature leakage - remove any column that highly correlates 
+    # 8. There should be no feature leakage - remove any column that highly correlates 
     # with target (>0.9)
     high_corr = df.corr()[target].abs() > 0.9
     leakage_from_corr = high_corr[high_corr].index.tolist()
@@ -1597,12 +1614,28 @@
     for col in leakage_from_corr:
         if col in num_features:
             num_features.remove(col)
-            print(f"Removed high-correlation leakage feature: {col} (corr > 0.9 with target)")
+            print(f'Removed high-correlation leakage feature: {col} (corr > 0.9 with target)')
         elif col in cat_features:
             cat_features.remove(col)
-            print(f"Removed high-correlation leakage feature: {col}")
+            print(f'Removed high-correlation leakage feature: {col}')
     
-    df = df[num_features + cat_features + [target]]
+    df = df[event_timestamp + num_features + cat_features + [target]]
+
+    # 9. Transfer the data from the Feature Engineering API to the Model API
+    df.to_parquet('step1.parquet')
+    with open('step1_lists.pkl', 'wb') as f:
+        pickle.dump({
+            'event_timestamp': event_timestamp,
+            'num_features': num_features,
+            'cat_features': cat_features,
+            'target': target
+        }, f)
+
+    # Access the data from the Model API
+    df = pd.read_parquet('step1.parquet')
+    with open('step1_lists.pkl', 'rb') as f:
+        loaded_data = pickle.load(f)
+        locals().update(loaded_data)
 
 #### Lesson 3: Decision Trees
 
@@ -1908,8 +1941,8 @@
         random_state=42,
         stratify=tabular_data_df.target
     )
-    dtrain = xgb.DMatrix(X_train, label=y_train)
-    dtest = xgb.DMatrix(X_test, label=y_test)
+    dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
+    dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
     params = {
         'objective': 'binary:logistic',
         'eval_metric': 'auc',
@@ -1959,8 +1992,8 @@
             'subsample': subsample,
             'colsample_bytree': colsample_bytree,
         }
-        dtrain = xgb.DMatrix(X_train, label=y_train)
-        dval = xgb.DMatrix(X_val, label=y_val)
+        dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
+        dval = xgb.DMatrix(X_val, label=y_val, enable_categorical=True)
         model = xgb.train(
             params,
             dtrain,
@@ -1986,8 +2019,8 @@
     print(best_params)
 
     # Train the final model with best params on full train set
-    dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full)
-    dtest = xgb.DMatrix(X_test, label=y_test)
+    dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
+    dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
 
     model = xgb.train(
         best_params,
@@ -2073,10 +2106,11 @@
     #! 18               feat_13                    0.043124
     #! 19                feat_3                    0.042200
     #! 20               feat_19                    0.038720
+    # If a certainf feature has a very strong gain, target leakage may be possible
 
     # 7. Making a prediction
     example_df = tabular_data_df.iloc[[0]][feature_names]
-    dexample = xgb.DMatrix(example_df)
+    dexample = xgb.DMatrix(example_df, enable_categorical=True)
     example_pred = model.predict(dexample)[0]
     print(f'Predicted target: {example_pred}')
 
@@ -2240,7 +2274,7 @@
     #! 8  -0.974682  0.787085  1.158596  ... -0.264657  2.720169  1.484465
     #! 9   0.625667 -0.857158 -1.070892  ...  0.058209 -1.142970  3.685111
 
-    # 2. Skewness check and possible target variable transformation
+    # 1. Skewness check and possible target variable transformation
     skew_value = skew(tabular_data_df['target'])
     log_transformation_needed = abs(skew_value) > 0.5
     if log_transformation_needed:
@@ -2275,8 +2309,8 @@
     mean_target = y_train.mean()
     baseline_pred = np.full_like(y_test, mean_target)
 
-    dtrain = xgb.DMatrix(X_train, label=y_train)
-    dtest = xgb.DMatrix(X_test, label=y_test)
+    dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
+    dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
     params = {
         'objective': 'reg:squarederror',
         'eval_metric': 'rmse',
@@ -2339,9 +2373,9 @@
             'colsample_bytree': colsample_bytree,
             'seed': 42,
         }
-        dtrain = xgb.DMatrix(X_train, label=y_train)
-        dval = xgb.DMatrix(X_val, label=y_val)
-        bst = xgb.train(
+        dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
+        dval = xgb.DMatrix(X_val, label=y_val, enable_categorical=True)
+        model = xgb.train(
             params,
             dtrain,
             num_boost_round=1000,
@@ -2349,7 +2383,7 @@
             early_stopping_rounds=20,
             verbose_eval=False,
         )
-        y_pred_val = bst.predict(dval)
+        y_pred_val = model.predict(dval)
         rmse = root_mean_squared_error(y_val, y_pred_val)
         return rmse
 
@@ -2367,8 +2401,8 @@
     print(best_params)
 
     # Train the final model with best params on full train set
-    dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full)
-    dtest = xgb.DMatrix(X_test, label=y_test)
+    dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
+    dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
 
     model = xgb.train(
         best_params,
@@ -2419,14 +2453,272 @@
     best_features_df['importance_rank'] = range(1, len(best_features_df) + 1)
     best_features_df = best_features_df.set_index('importance_rank')
     print(best_features_df.to_string())
+    # If a certain feature has a very strong gain, target leakage may be possible
 
     # 6. Making a prediction
     example_df = tabular_data_df.iloc[[0]][feature_names]
-    dexample = xgb.DMatrix(example_df)
+    dexample = xgb.DMatrix(example_df, enable_categorical=True)
     example_pred = model.predict(dexample)[0]
     example_pred = np.exp(example_pred) if log_transformation_needed else example_pred
     print(f'Predicted target: {example_pred}')
 
+#### Lesson 9: Multi-Class Classification Intuition
+
+    # Work to be done
+
+#### Lesson 10: Multi-Class Classification Implementation
+
+    import pandas as pd
+    import numpy as np
+    import xgboost as xgb
+    import optuna
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import (
+        confusion_matrix,
+        roc_auc_score,
+        precision_score,
+        recall_score,
+        f1_score,
+        accuracy_score,
+    )
+
+    #! features = ['feat_0', 'feat_1', ... 'feat_19']
+    #! print(tabular_data_df.head(10))
+    #!            feat_0    feat_1  ...   feat_17   feat_18   feat_19  class
+    #! user_id                      ...
+    #! 0        0.025729  0.165038  ...  0.040788  0.031007  0.018873      2
+    #! 1        0.054640  0.008674  ...  0.005934  0.066555  0.033492      2
+    #! 2        0.006200  0.032563  ...  0.010392  0.002205  0.018747      2
+    #! 3        0.026806  0.017243  ...  0.004190  0.024178  0.006708      2
+    #! 4        0.120043  0.058937  ...  0.033674  0.001554  0.006892      2
+    #! 5        0.001613  0.051109  ...  0.010431  0.112692  0.039155      2
+    #! 6        0.081659  0.112238  ...  0.060182  0.022404  0.176855      1
+    #! 7        0.171431  0.015151  ...  0.074897  0.014173  0.068047      2
+    #! 8        0.031450  0.068625  ...  0.033538  0.189332  0.010147      2
+    #! 9        0.017432  0.005033  ...  0.095035  0.091150  0.063252      1
+
+    # 1. Compute base_rate for each class
+    base_rates = y.value_counts(normalize=True).sort_index()
+    print('Class base rates:')
+    for cls, rate in base_rates.items():
+        print(f'Class {cls}: {rate:.2%}')
+    print()
+
+    # 2. Model training
+    #! ========================================================================
+    #! 2.1. Option A: Manual Tinkering ----------------------------------------
+    #! ========================================================================
+    X_train, X_test, y_train, y_test = train_test_split(
+        tabular_data_df.drop('class', axis=1),
+        tabular_data_df['class'],
+        test_size=0.2,
+        random_state=42,
+        stratify=tabular_data_df['class']
+    )
+
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    dtest = xgb.DMatrix(X_test, label=y_test)
+    params = {
+        'objective': 'multi:softprob',
+        'num_class': n_classes,
+        'eval_metric': 'auc',
+        'max_depth': 6,
+        'eta': 0.1,
+        'subsample': 0.8,
+        'colsample_bytree': 0.8,
+    }
+    model = xgb.train(
+        params,
+        dtrain,
+        num_boost_round=200,
+        evals=[(dtest, 'eval')],
+        early_stopping_rounds=20,
+        verbose_eval=False,
+    )
+    #! ------------------------------------------------------------------------
+
+    #! ========================================================================
+    #! 2.2. Option B: Hyperparameter Tuning -----------------------------------
+    #! ========================================================================
+
+    # Train-test split (using the combined df)
+    X_train_full, X_test, y_train_full, y_test = train_test_split(
+        tabular_data_df.drop('class', axis=1),
+        tabular_data_df['class'],
+        test_size=0.2,
+        random_state=42,
+        stratify=tabular_data_df['class']
+    )
+
+    # Further split train_full into train and val for hyperparameter tuning
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_full,
+        y_train_full,
+        test_size=0.2,
+        random_state=42,
+        stratify=y_train_full
+    )
+
+    # Define the objective function for Optuna
+    def objective(trial):
+        max_depth = trial.suggest_categorical('max_depth', [3,4,5,6,7,8,9,10])
+        eta = trial.suggest_float('eta', 0.01, 0.3, log=True)
+        subsample = trial.suggest_categorical('subsample', [0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+        colsample_bytree = trial.suggest_categorical('colsample_bytree', [0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+
+        params = {
+            'objective': 'multi:softprob',
+            'num_class': n_classes,
+            'eval_metric': 'mlogloss',
+            'max_depth': max_depth,
+            'eta': eta,
+            'subsample': subsample,
+            'colsample_bytree': colsample_bytree,
+        }
+
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
+
+        model = xgb.train(
+            params,
+            dtrain,
+            num_boost_round=1000,
+            evals=[(dval, 'eval')],
+            early_stopping_rounds=20,
+            verbose_eval=False,
+        )
+
+        y_pred_val = model.predict(dval)
+        auc = roc_auc_score(y_val, y_pred_val, multi_class='ovr')
+        return auc
+
+    # Create and optimize the study
+    study = optuna.create_study(direction='maximize')
+    study.optimize(objective, n_trials=50)
+
+    # Get the best parameters
+    best_params = study.best_params
+    best_params['objective'] = 'multi:softprob'
+    best_params['num_class'] = n_classes
+    best_params['eval_metric'] = 'mlogloss'
+
+    print('Best hyperparameters found by Optuna:')
+    print(best_params)
+
+    # Train the final model with best params on full train set
+    dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full)
+    dtest = xgb.DMatrix(X_test, label=y_test)
+
+    model = xgb.train(
+        best_params,
+        dtrain_full,
+        num_boost_round=1000,
+        evals=[(dtest, 'eval')],
+        early_stopping_rounds=20,
+        verbose_eval=False,
+    )
+
+    #! ------------------------------------------------------------------------
+
+    # 3. Invoke model on test data
+    y_pred_test = model.predict(dtest)  # (n_samples, n_classes)
+
+    # 4. AUC (one-vs-rest average)
+    auc_test = roc_auc_score(y_test, y_pred_test, multi_class='ovr')
+    print(f'AUC (ovr) on test set: {auc_test:.4f}\n')
+
+    # 5. Confusion matrix for full argmax
+    preds = np.argmax(y_pred_test, axis=1)
+    cm = confusion_matrix(y_test, preds)
+    cm_df = pd.DataFrame(cm, index=[f'Actual {i}' for i in range(n_classes)], columns=[f'Pred {i}' for i in range(n_classes)])
+    print('=== Confusion Matrix (Full Argmax) ===')
+    print(cm_df.to_string())
+    print()
+
+    # 6. Creating metrics_df
+    percentiles = [99] + list(range(95, 0, -5)) + [1] # to ensure p99 comes on top
+    results = []
+    # Compute max probs (confidences)
+    max_probs = np.max(y_pred_test, axis=1)
+    for p in percentiles:
+        cutoff = np.percentile(max_probs, p)
+        confident_mask = max_probs >= cutoff
+        if num_classified > 0:
+            y_test_conf = y_test[confident_mask]
+            preds_conf = np.argmax(y_pred_test[confident_mask], axis=1)
+            precision_macro = precision_score(
+                y_test_conf, 
+                preds_conf, 
+                average='macro', 
+                zero_division=0
+            )
+            recall_macro = recall_score(
+                y_test_conf, 
+                preds_conf, 
+                average='macro', 
+                zero_division=0
+            )
+            f1_macro = f1_score(
+                y_test_conf, 
+                preds_conf, 
+                average='macro', 
+                zero_division=0
+            )
+            accuracy = accuracy_score(y_test_conf, preds_conf)
+        else:
+            precision_macro = recall_macro = f1_macro = accuracy = 0
+            coverage = 0
+        results.append({
+            'percentile': f'P{p}',
+            'cutoff_prob': round(cutoff, 4),
+            'precision_macro': round(precision_macro, 4),
+            'recall_macro': round(recall_macro, 4),
+            'f1_macro': round(f1_macro, 4),
+            'accuracy': round(accuracy, 4),
+        })
+
+    metrics_df = pd.DataFrame(results)
+    metrics_df = metrics_df.set_index('percentile')
+    print(metrics_df.to_string())
+    #!             cutoff_prob  precision_macro  recall_macro  f1_macro  accuracy
+    #! percentile
+    #! P99              0.8358           0.2333        0.3333    0.2745    0.7000
+    #! P95              0.7752           0.2267        0.3333    0.2698    0.6800
+    #! P90              0.7388           0.2317        0.3333    0.2734    0.6950
+    #! P85              0.7100           0.2311        0.3333    0.2730    0.6933
+    #! ...
+    #! P10              0.5130           0.2097        0.3330    0.2574    0.6289
+    #! P5               0.4836           0.3042        0.3331    0.2592    0.6253
+    #! P1               0.4316           0.3244        0.3348    0.2640    0.6197
+    #! 
+    # === Added: Feature Importance Section ===
+
+    # 7. Creating best_features_df
+    importance_gain = model.get_score(importance_type='gain')
+    total_gain = sum(importance_gain.values())
+    normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
+    sorted_importance = sorted(normalized_gain.items(), key=lambda x: x[1], reverse=True)
+    best_features_df = pd.DataFrame(sorted_importance, columns=['feature', 'importance_gain_normalized'])
+    best_features_df['importance_rank'] = range(1, len(best_features_df) + 1)
+    best_features_df = best_features_df.set_index('importance_rank')
+    print(best_features_df.to_string())
+    #!                  feature  importance_gain_normalized
+    #! importance_rank
+    #! 1                 feat_5                    0.059368
+    #! 2                 feat_0                    0.057109
+    #! 3                 feat_2                    0.055155
+    #! 4                 feat_1                    0.050607
+    #! 5                feat_19                    0.050209
+    #! 6                feat_18                    0.050156
+    #! 7                feat_16                    0.050140
+    #! 8                feat_14                    0.050108
+
+    # 8. Making a prediction
+    example_df = tabular_data_df.iloc[[0]][feature_names]
+    dexample = xgb.DMatrix(example_df)
+    example_pred = model.predict(dexample)[0]
+    print(f'Predicted class probabilities: {example_pred}')
+    print(f'Predicted class: {np.argmax(example_pred)}')
 
 
 
