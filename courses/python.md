@@ -1568,13 +1568,13 @@
     event_timestamp = []
     target = 'target_col'
     
-    # 2. the set of rows should have no duplicates and constitue a 'monte carlo' sample
+    # 2. The set of rows should have no duplicates and constitue a 'monte carlo' sample
     df = df.drop_duplicates()
     
-    # 3. column names should have consistent lower case formatting
+    # 3. Column names should have consistent lower case formatting
     # df.columns = df.columns.str.lower()
 
-    # 4. the target column must have a numeric dtype - either 0/1 for binary
+    # 4. The target column must have a numeric dtype - either 0/1 for binary
     # classification, or a number like price, category code, etc. 
     # - If the target column is categorical in nature, assign a number to each 
     #   category, as is shown below.
@@ -1584,7 +1584,7 @@
     #   do as below.
     df[target] = df[target].astype(int)
 
-    # 5. all numeric features must have pandas numeric dtype, and all categorical
+    # 5. All numeric features must have pandas numeric dtype, and all categorical
     # features must have category dtype. 
     for col in df.columns.to_list():
         try:
@@ -1598,7 +1598,7 @@
             print(f'Needs more work: {col}')
             print(e)
 
-    # 6. the 'no-category' value in categorical features should be consistently be 
+    # 6. The 'no-category' value in categorical features should be consistently be 
     # 'unknown'
     df['credit_mix'] = df['credit_mix'].cat.add_categories('unknown')   
     df['credit_mix'] = df['credit_mix'].fillna('unknown')         
@@ -1613,66 +1613,13 @@
         if n_unique <= 2:
             print(f'Action required for column: {col}')
     
-    # 8. an id column should never be a feature, unless it is more or less a
+    # 8. An id column should never be a feature, unless it is more or less a
     # categorical feature 
     num_features.remove('id')
 
-    # 9. Assess the snr and correlation df, to ascertain your expectations:
-    # - if most features have snr < 0 OR corr < 0.3 (which means they are 'noisy'), 
-    #   your model is unlikely to be useful/ have an auc > 0.8 (or R_squared >
-    #   0.5, in case of a liner regression). If auc falls below 0.7 (or
-    #   R_squared below 0.3, you would need to reconsider your features
-    # - if any feautre has a corr > 0.9, 'target leakage' is highly likely.
-    #   There is no need to model, you might as well use that feature as a
-    #   trigger.
-    from scipy.stats import f_oneway
-
-    def get_snr_corr_df(df, num_features, cat_features, target):
-        def compute_snr_proxy(corr):
-            if np.isnan(corr) or abs(corr) >= 1:  
-                return np.nan
-            r_squared = corr ** 2
-            snr_linear = r_squared / (1 - r_squared) if (1 - r_squared) > 0 else np.inf
-            snr_db = 10 * np.log10(snr_linear) if snr_linear != np.inf else np.nan
-            return snr_db
-
-        all_features = num_features + cat_features
-        results = []
-        for feat in all_features:
-            if feat in num_features:
-                corr = df[feat].corr(df[target])
-                snr_db = compute_snr_proxy(corr)
-                results.append({'feature': feat, 'snr_db': snr_db, 'correlation': corr})
-            elif feat in cat_features:
-                # Check number of categories
-                unique_categories = df[feat].unique()
-                n_categories = len(unique_categories)
-                if n_categories <= 2:
-                    raise ValueError(f'Categorical feature {feat} has <= 2 categories')
-                groups = [
-                    df[target][df[feat] == cat].values 
-                    for cat in unique_categories 
-                    if not df[target][df[feat] == cat].empty
-                ]
-                f, p = f_oneway(*groups)
-                df_b = len(groups) - 1
-                df_w = len(df) - len(groups)  # n - k
-                if df_w <= 0 or np.isnan(f) or f <= 0:
-                    eta2 = 0
-                else:
-                    eta2 = (f * df_b) / (f * df_b + df_w)
-                corr = np.sqrt(eta2)  # Correlation ratio (eta)
-                snr_db = compute_snr_proxy(corr)
-                results.append({'feature': feat, 'snr_db': snr_db, 'correlation': corr})
-            else:
-                pass
-
-        snr_corr_df = pd.DataFrame(results)
-        snr_corr_df = snr_corr_df.sort_values(by=['snr_db', 'snr_db'], ascending=False)
-        return snr_corr_df
-
-    # Invoke the function
-    snr_corr_df = get_snr_corr_df(tabular_data_df, num_features, cat_features, 'target')
+    # 9. Do NOT eliminate features at this stage, becuase the simplest
+    # test of target leakage/ weak features is the best_features_df which we
+    # will create after training the model.
 
     # 10. Transfer the data from the Feature Engineering API to the Model API
     df.to_parquet('step1.parquet')
@@ -1893,9 +1840,9 @@
     #!-------------------------
 
     # 1. Do we have a 'valid' model?
-    # - AUC >= 0.7: yes (for noisy/imbalanced data like user behaviors)
-    # - AUC >= 0.8: yes (for more structured data like product categorization)
-    # - AUC < 0.7: hard no. Too weak—back to the drawing board.
+    # - if AUC >= 0.8: yes 
+    # - else if AUC >= 0.7: yes (implies features set is noisy/imbalanced, for example - user behaviors)
+    # - else AUC < 0.7: hard no. Too weak—back to the drawing board.
 
     # 2. Does the model address the business problem?
     # In the vast majority of real-world binary classification applications—such as 
@@ -2246,9 +2193,9 @@
     #!-------------------------
 
     # 1. Do we have a 'valid' model?
-    # - R_squared >= 0.3: yes (for noisy data like social/behavioral predictions)
-    # - R_squared >= 0.5: yes (for more structured data like finance or engineering)
-    # - R_squared < 0.3: hard no. Too weak—back to the drawing board.
+    # - if R_squared >= 0.5: yes 
+    # - else if R_squared >= 0.3: yes (implies features set is noisy/imbalanced)
+    # - else R_squared < 0.3: hard no. Too weak—back to the drawing board.
 
     # 2. Does the model address the business problem?
     # In most real-world regression applications-like sales forecasting, price prediction, 
@@ -2596,9 +2543,9 @@
     #!-------------------------
 
     # 1. Do we have a 'valid' model?
-    # - AUC >= 0.7: yes (for noisy/imbalanced data like fraud types or user behaviors)
-    # - AUC >= 0.8: yes (for more structured data like product categorization)
-    # - AUC < 0.7: hard no. Too weak—back to the drawing board.
+    # - if AUC >= 0.8: yes 
+    # - else if AUC >= 0.7: yes (implies features set is noisy/imbalanced, for example - user behaviors)
+    # - else AUC < 0.7: hard no. Too weak—back to the drawing board.
 
     # 2. Does the model address the business problem?
     # In most real-world multi-class classification applications—like customer segmentation, 
