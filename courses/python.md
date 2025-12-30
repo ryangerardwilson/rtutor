@@ -1888,27 +1888,6 @@
     #!  efficiency | above P95    |      precision ≥50%, lift >4x, recall ≥30% |
     #!  coverage   | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
     #!--------------------------------------------------------------------------
-    # 
-    # 3. How well does the model address the business problem?
-    # - If efficiency is the goal: Focus on p95
-    #!-----------------------------------------------------------------------------
-    #! precision_above_p95 | lift_above_p95 | recall_above_p95 |          verdict |
-    #!-----------------------------------------------------------------------------
-    #!                ≥70% |            >6x |             ≥40% |        excellent |
-    #!              50-70% |           4-6x |             ≥30% |             good |
-    #!              40-60% |           2-4x |              any |       pilot_only |
-    #!                <40% |            <2x |              any |    improve_model |
-    #!-----------------------------------------------------------------------------
-    #! 
-    # - Else, coverage is the goal, so: Focus on p90
-    #!-----------------------------------------------------------------------------
-    #!    recall_above_p90 | precision_above_p90 | lift_above_p90 |       verdict |
-    #!-----------------------------------------------------------------------------
-    #!                ≥70% |                ≥50% |            >4x |     excellent |
-    #!              50-70% |                ≥40% |           3-5x |          good |
-    #!              40-60% |                 any |           2-4x |    pilot_only |
-    #!                <40% |                 any |            <2x | improve_model |
-    #!-----------------------------------------------------------------------------
 
 #### Lesson 6: Binary Classification Implementation 
 
@@ -2476,27 +2455,6 @@
     #!    accuracy |     RMSE/MAE |         RMSE < 10% of mean target, R_squared > 0.6 |
     #!  robustness | CV R_squared | CV R_squared > 0.5, drop <10% from train R_squared |
     #!----------------------------------------------------------------------------------
-
-    # 3. How well does the model address the business problem?
-    # - If accuracy is the goal: Focus on overall errors
-    #!------------------------------------------------------------------------------
-    #!      R_squared | RMSE (% of mean) | MAE (% of mean) |               verdict |
-    #!------------------------------------------------------------------------------
-    #!           >0.8 |              <5% |             <4% |             excellent |
-    #!        0.6-0.8 |            5-10% |            4-8% |                  good |
-    #!        0.4-0.6 |           10-15% |           8-12% |            pilot_only |
-    #!           <0.4 |             >15% |            >12% |         improve_model |
-    #!------------------------------------------------------------------------------
-
-    # - If robustness/forecasting is the goal: Focus on out-of-sample performance
-    #!------------------------------------------------------------------------------------
-    #! CV R_squared | Train-Test R_squared Drop | Error in Tails (P90) |         verdict |
-    #!------------------------------------------------------------------------------------
-    #!         >0.7 |                       <5% |                 <10% |       excellent |
-    #!       0.5-0.7|                     5-10% |               10-15% |            good |
-    #!       0.3-0.5|                    10-20% |               15-20% |      pilot_only |
-    #!         <0.3 |                      >20% |                 >20% |   improve_model |
-    #!------------------------------------------------------------------------------------
 
 #### Lesson 8: Supervised Regression Implementation 
 
@@ -3149,27 +3107,6 @@
     #!      recall |    macro_recall |    macro_recall > 0.6, macro_F1 > 0.5, AUC > 0.8 |
     #!  robustness |     CV macro_F1 | CV macro_F1 > 0.5, drop <10% from train macro_F1 |
     #!-----------------------------------------------------------------------------------
-
-    # 3. How well does the model address the business problem?
-    # - If precision is the goal: Focus on minimizing false positives
-    #!---------------------------------------------------------------------------
-    #! macro_F1 | macro_precision (% above baseline) | accuracy |       verdict |
-    #!---------------------------------------------------------------------------
-    #!     >0.8 |                               >30% |     >0.9 |     excellent |
-    #!  0.6-0.8 |                             20-30% |  0.8-0.9 |          good |
-    #!  0.4-0.6 |                             10-20% |  0.7-0.8 |    pilot_only |
-    #!     <0.4 |                               <10% |     <0.7 | improve_model |
-    #!------------------------------------------------------------------------------
-
-    # - If recall/robustness is the goal: Focus on out-of-sample performance and coverage
-    #!---------------------------------------------------------------------------------
-    #! CV macro_F1 | Train-Test F1 Drop | Error in Rare Classes (P90) |       verdict |
-    #!---------------------------------------------------------------------------------
-    #!        >0.7 |                <5% |                        <10% |     excellent |
-    #!     0.5-0.7 |              5-10% |                      10-15% |          good |
-    #!     0.3-0.5 |             10-20% |                      15-20% |    pilot_only |
-    #!        <0.3 |               >20% |                        >20% | improve_model |
-    #!---------------------------------------------------------------------------------
 
     # - Confidence thresholding intuition: By setting a minimum probability cutoff (e.g., 
     #   at P90 percentile of max predicted probs), you classify only high-confidence cases, 
