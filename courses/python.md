@@ -1626,7 +1626,8 @@
     #   This happens because leaky features often provide 'shortcut' information that's 
     #   too directly tied to the target, making them overly influential in tree splits.
     # - Features with near-zero normalized gain (e.g., below 0.01 i.e. 1%, contribute 
-    #   little and can often be dropped without harming performance.
+    #   little and can often be dropped without harming performance. You can do
+    #   this manually, or by using recursive feature elimination.
 
     # 10. Transfer the data from the Feature Engineering API to the Model API
     df.to_parquet('step1.parquet')
