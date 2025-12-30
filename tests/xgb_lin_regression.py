@@ -1,5 +1,4 @@
-# ~/Apps/rtutor/tests/xgb_lin_regression.py
-# ~/y.py
+# Updated ~/Apps/rtutor/tests/xgb_lin_regression.py
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -50,9 +49,10 @@ print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
 class R2Maximizer:
-    def __init__(self, tabular_data_df, features):
+    def __init__(self, tabular_data_df, features, target):
         self.tabular_data_df = tabular_data_df
         self.features = features
+        self.target = target
         self.n_features_to_select = 10
         self.n_trials = 30
         self.test_size = 0.2
@@ -97,12 +97,12 @@ class R2Maximizer:
         self.best_features_df = None
 
         # Skewness Check and log transformation of target
-        skew_value = skew(self.tabular_data_df["target"])
+        skew_value = skew(self.tabular_data_df[self.target])
         print(f"\nSkewness of original target: {skew_value:.4f}")
         if abs(skew_value) > 0.5:
             print("Target is skewed. Applying log transformation.")
-            self.tabular_data_df["target"] = np.log(self.tabular_data_df["target"])
-            skew_transformed = skew(self.tabular_data_df["target"])
+            self.tabular_data_df[self.target] = np.log(self.tabular_data_df[self.target])
+            skew_transformed = skew(self.tabular_data_df[self.target])
             print(f"Skewness after log transformation: {skew_transformed:.4f}")
             self.log_transformation_needed = True
         else:
@@ -111,7 +111,7 @@ class R2Maximizer:
     def compute_baseline(self):
         X_train, _, y_train, y_test = train_test_split(
             self.tabular_data_df[self.features],
-            self.tabular_data_df["target"],
+            self.tabular_data_df[self.target],
             test_size=self.test_size,
             random_state=self.random_state,
         )
@@ -127,7 +127,7 @@ class R2Maximizer:
     def manual_without_rfe(self):
         X_train, X_test, y_train, y_test = train_test_split(
             self.tabular_data_df[self.features],
-            self.tabular_data_df["target"],
+            self.tabular_data_df[self.target],
             test_size=self.test_size,
             random_state=self.random_state,
         )
@@ -151,7 +151,7 @@ class R2Maximizer:
     def manual_with_rfe(self):
         X_train, X_test, y_train, y_test = train_test_split(
             self.tabular_data_df[self.features],
-            self.tabular_data_df["target"],
+            self.tabular_data_df[self.target],
             test_size=self.test_size,
             random_state=self.random_state,
         )
@@ -188,8 +188,8 @@ class R2Maximizer:
 
     def automated_without_rfe(self):
         X_train_full, X_test, y_train_full, y_test = train_test_split(
-            self.tabular_data_df.drop('target', axis=1),
-            self.tabular_data_df['target'],
+            self.tabular_data_df.drop(self.target, axis=1),
+            self.tabular_data_df[self.target],
             test_size=self.test_size,
             random_state=self.random_state,
         )
@@ -263,8 +263,8 @@ class R2Maximizer:
 
     def automated_with_rfe(self):
         X_train_full, X_test, y_train_full, y_test = train_test_split(
-            self.tabular_data_df.drop('target', axis=1),
-            self.tabular_data_df['target'],
+            self.tabular_data_df.drop(self.target, axis=1),
+            self.tabular_data_df[self.target],
             test_size=self.test_size,
             random_state=self.random_state,
         )
@@ -499,7 +499,7 @@ class MetricsComputer:
         return metrics.round(4)
 
 # Example usage
-maximizer = R2Maximizer(tabular_data_df, features)
+maximizer = R2Maximizer(tabular_data_df, features, 'target')
 results = maximizer.optimize()
 maximizer.print_results()
 
