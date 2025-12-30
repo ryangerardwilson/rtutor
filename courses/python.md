@@ -1600,28 +1600,81 @@
 
     # 6. the 'no-category' value in categorical features should be consistently be 
     # 'unknown'
-    df['credit_mix'] = df.credit_mix.str.replace('_', 'unknown')
+    df['credit_mix'] = df['credit_mix'].cat.add_categories('unknown')   
+    df['credit_mix'] = df['credit_mix'].fillna('unknown')         
+    df.loc[df['credit_mix'] == '_', 'credit_mix'] = 'unknown'  
+    df['credit_mix'] = df['credit_mix'].cat.remove_unused_categories()  
+
+    # 7. All categorical feautures should have >2 categories, else they should
+    # transformed as 0/1 numeric feautres
+    for col in cat_features:
+        n_unique = df[col].nunique()
+        unique_vals = non_null.unique().tolist()
+        if n_unique <= 2:
+            print(f'Action required for column: {col}')
     
-    # 7. an id column should never be a feature, unless it is more or less a
+    # 8. an id column should never be a feature, unless it is more or less a
     # categorical feature 
     num_features.remove('id')
 
-    # 8. There should be no feature leakage - remove any column that highly correlates 
-    # with target (>0.9)
-    high_corr = df.corr()[target].abs() > 0.9
-    leakage_from_corr = high_corr[high_corr].index.tolist()
-    leakage_from_corr = [col for col in leakage_from_corr if col != target]
-    for col in leakage_from_corr:
-        if col in num_features:
-            num_features.remove(col)
-            print(f'Removed high-correlation leakage feature: {col} (corr > 0.9 with target)')
-        elif col in cat_features:
-            cat_features.remove(col)
-            print(f'Removed high-correlation leakage feature: {col}')
-    
-    df = df[event_timestamp + num_features + cat_features + [target]]
+    # 9. Assess the snr and correlation df, to ascertain your expectations:
+    # - if most features have snr < 0 OR corr < 0.3 (which means they are 'noisy'), 
+    #   your model is unlikely to be useful/ have an auc > 0.8 (or R_squared >
+    #   0.5, in case of a liner regression). If auc falls below 0.7 (or
+    #   R_squared below 0.3, you would need to reconsider your features
+    # - if any feautre has a corr > 0.9, 'target leakage' is highly likely.
+    #   There is no need to model, you might as well use that feature as a
+    #   trigger.
+    from scipy.stats import f_oneway
 
-    # 9. Transfer the data from the Feature Engineering API to the Model API
+    def get_snr_corr_df(df, num_features, cat_features, target):
+        def compute_snr_proxy(corr):
+            if np.isnan(corr) or abs(corr) >= 1:  
+                return np.nan
+            r_squared = corr ** 2
+            snr_linear = r_squared / (1 - r_squared) if (1 - r_squared) > 0 else np.inf
+            snr_db = 10 * np.log10(snr_linear) if snr_linear != np.inf else np.nan
+            return snr_db
+
+        all_features = num_features + cat_features
+        results = []
+        for feat in all_features:
+            if feat in num_features:
+                corr = df[feat].corr(df[target])
+                snr_db = compute_snr_proxy(corr)
+                results.append({'feature': feat, 'snr_db': snr_db, 'correlation': corr})
+            elif feat in cat_features:
+                # Check number of categories
+                unique_categories = df[feat].unique()
+                n_categories = len(unique_categories)
+                if n_categories <= 2:
+                    raise ValueError(f'Categorical feature {feat} has <= 2 categories')
+                groups = [
+                    df[target][df[feat] == cat].values 
+                    for cat in unique_categories 
+                    if not df[target][df[feat] == cat].empty
+                ]
+                f, p = f_oneway(*groups)
+                df_b = len(groups) - 1
+                df_w = len(df) - len(groups)  # n - k
+                if df_w <= 0 or np.isnan(f) or f <= 0:
+                    eta2 = 0
+                else:
+                    eta2 = (f * df_b) / (f * df_b + df_w)
+                corr = np.sqrt(eta2)  # Correlation ratio (eta)
+                snr_db = compute_snr_proxy(corr)
+                results.append({'feature': feat, 'snr_db': snr_db, 'correlation': corr})
+            else:
+                pass
+
+        snr_corr_df = pd.DataFrame(results)
+        snr_corr_df = snr_corr_df.sort_values(by=['snr_db', 'snr_db'], ascending=False)
+        return snr_corr_df
+
+    # Invoke the function
+    snr_corr_df = get_snr_corr_df(tabular_data_df, num_features, cat_features, 'target')
+
+    # 10. Transfer the data from the Feature Engineering API to the Model API
     df.to_parquet('step1.parquet')
     with open('step1_lists.pkl', 'wb') as f:
         pickle.dump({
@@ -1839,13 +1892,11 @@
     # 2. Real World Impact Test
     #!-------------------------
 
-    # In the real world, we accepts tail (above p90 and above p95) performance as 
-    # 'good enough' (or even excellent) for business use. 
-    # 
     # 1. Do we have a 'valid' model?
-    # - auc >= 0.6: yes
-    # - auc < 0.6: hard no. Too weak to be useful.
-    # 
+    # - AUC >= 0.7: yes (for noisy/imbalanced data like user behaviors)
+    # - AUC >= 0.8: yes (for more structured data like product categorization)
+    # - AUC < 0.7: hard no. Too weak—back to the drawing board.
+
     # 2. Does the model address the business problem?
     # In the vast majority of real-world binary classification applications—such as 
     # user targeting, conversion prediction, churn prevention, lead scoring, fraud 
@@ -2194,9 +2245,6 @@
     # 2. Real World Impact Test
     #!-------------------------
 
-    # In the real world, we accept models with moderate performance (e.g., R_squared 0.5-0.8) 
-    # as 'good enough' for business use, depending on the domain's noise level.
-
     # 1. Do we have a 'valid' model?
     # - R_squared >= 0.3: yes (for noisy data like social/behavioral predictions)
     # - R_squared >= 0.5: yes (for more structured data like finance or engineering)
@@ -2464,7 +2512,145 @@
 
 #### Lesson 9: Multi-Class Classification Intuition
 
-    # Work to be done
+    # 1. Metrics
+    #!----------
+
+    # 1.1. Baseline Accuracy (Majority Class Baseline)
+    # The baseline accuracy is the accuracy you'd get by always predicting the most common 
+    # class in the test data. It's the benchmark for 'doing nothing smart'-if you ignored 
+    # all features and just used the majority class as your prediction for every instance, 
+    # this would be your performance level. It's crucial for calculating relative 
+    # improvements (e.g., how much better your model is than this naive approach). In 
+    # multi-class classification, the class distribution (base rates) acts like the 
+    # 'variance' equivalent, and metrics like accuracy or F1 compare your model's 
+    # performance to this baseline.
+
+    # 1.2. Accuracy
+    # Accuracy measures the proportion of correct predictions out of all predictions.
+    # Formula: 
+    accuracy = number_of_correct_predictions / total_number_of_predictions
+    # Intuition: Simple and intuitive-e.g., 80% accuracy means you get 8 out of 10 right. 
+    # However, it's misleading in imbalanced datasets (e.g., if 90% of data is one class, 
+    # predicting that class always gives 90% accuracy but ignores minorities). Use when 
+    # classes are balanced and all errors cost the same, like in image recognition for 
+    # everyday objects.
+
+    # 1.3. Precision (Macro-Averaged)
+    # Precision measures, for each class, the proportion of predicted positives that are 
+    # actually positive, then averages across classes (macro treats each class equally).
+    # Formula (per class): 
+    precision_class = true_positives_class / (true_positives_class + false_positives_class)
+    macro_precision = average(precision_class for each class)
+    # Intuition: High precision means few false alarms-your 'yes' predictions are reliable. 
+    # Low precision indicates many wrong positives. Use macro when all classes matter 
+    # equally, even if imbalanced (e.g., rare disease detection where false positives 
+    # waste resources).
+
+    # 1.4. Recall (Macro-Averaged)
+    # Recall measures, for each class, the proportion of actual positives that are correctly 
+    # predicted, then averages across classes.
+    # Formula (per class): 
+    recall_class = true_positives_class / (true_positives_class + false_negatives_class)
+    macro_recall = average(recall_class for each class)
+    # Intuition: High recall means you catch most true cases-few misses. Low recall means 
+    # many actual positives slip through. Critical when missing a class is costly (e.g., 
+    # fraud detection across multiple types where missing any hurts).
+
+    # 1.5. F1-Score (Macro-Averaged)
+    # F1 is the harmonic mean of precision and recall, balancing both.
+    # Formula (per class): 
+    f1_class = 2 * (precision_class * recall_class) / (precision_class + recall_class)
+    macro_f1 = average(f1_class for each class)
+    # Intuition: Useful when you need a single metric that penalizes extremes (low precision 
+    # or low recall). Macro-F1 ensures minority classes aren't ignored. Aim for high F1 in 
+    # imbalanced multi-class problems, like sentiment analysis with rare emotions.
+
+    # 1.6. ROC AUC (One-vs-Rest, OVR)
+    # ROC AUC measures the model's ability to distinguish between classes, averaged over 
+    # one-vs-rest (treat each class as positive vs. all others).
+    # Intuition:
+    # - AUC = 1.0 -> Perfect separation: model ranks all positives above negatives.
+    # - AUC = 0.5 -> No better than random guessing.
+    # - AUC < 0.5 -> Worse than random (invert predictions?).
+    # Business takeaway: AUC > 0.8 often means a strong model for many applications, but 
+    # context matters (e.g., in noisy multi-class like customer segmentation, >0.7 might 
+    # be decent). It's probability-based, so great for ranking or confidence-aware decisions.
+
+    # 1.7. Log Loss (Multi-Class Cross-Entropy)
+    # Log Loss penalizes wrong predictions based on predicted probabilities—harsh on confident 
+    # wrongs.
+    # Formula: 
+    log_loss = - (1 / N) * sum(y_true * log(y_pred) for each sample and class)
+    # Intuition: Low log loss means predictions are not just correct but confidently correct. 
+    # High log loss indicates overconfidence in errors. Use when probabilities matter, like 
+    # in betting or risk scoring across multiple outcomes.
+
+    # 1.8. Confusion Matrix
+    # A table showing actual vs. predicted classes, highlighting errors (off-diagonals).
+    # Intuition: Visualizes where the model confuses classes (e.g., mistaking class 1 for 2). 
+    # Diagonal = correct; rows = actuals, columns = predictions. Essential for debugging 
+    # multi-class issues, like in medical diagnosis where confusing benign/malignant is worse 
+    # than others.
+
+    # 2. Real World Impact Test
+    #!-------------------------
+
+    # 1. Do we have a 'valid' model?
+    # - AUC >= 0.7: yes (for noisy/imbalanced data like fraud types or user behaviors)
+    # - AUC >= 0.8: yes (for more structured data like product categorization)
+    # - AUC < 0.7: hard no. Too weak—back to the drawing board.
+
+    # 2. Does the model address the business problem?
+    # In most real-world multi-class classification applications—like customer segmentation, 
+    # defect type detection, sentiment labeling, or disease classification-the goal is 
+    # reliable categorization under uncertainty, not perfect accuracy. We deploy models to 
+    # guide decisions, balancing precision (avoid false positives), recall (catch true cases), 
+    # and coverage (how many instances we confidently classify).
+    # Key trade-offs:
+    # - Precision (avoid false alarms): Critical when wrong positives are costly (e.g., 
+    #   mislabeling a customer segment leads to wasted marketing).
+    # - Recall (minimize misses): Vital when missing a class hurts (e.g., failing to detect 
+    #   a rare defect type in manufacturing).
+    # - Confidence thresholding: Use predicted probabilities to 'abstain' on low-confidence 
+    #   cases—trade coverage for higher precision/recall on confident subsets. Useful in 
+    #   high-stakes scenarios (e.g., only act on P90+ confidence predictions).
+    # In practice, focus on per-class errors via confusion matrix and macro metrics to ensure 
+    # fairness across classes.
+    # The actionables can be summarized as follows:
+    #!-----------------------------------------------------------------------------------
+    #!        goal |    metric_focus |       does_it_address_business_problem_threshold |
+    #!-----------------------------------------------------------------------------------
+    #!   precision | macro_precision | macro_precision > 0.6, macro_F1 > 0.5, AUC > 0.8 |
+    #!      recall |    macro_recall |    macro_recall > 0.6, macro_F1 > 0.5, AUC > 0.8 |
+    #!  robustness |     CV macro_F1 | CV macro_F1 > 0.5, drop <10% from train macro_F1 |
+    #!-----------------------------------------------------------------------------------
+
+    # 3. How well does the model address the business problem?
+    # - If precision is the goal: Focus on minimizing false positives
+    #!---------------------------------------------------------------------------
+    #! macro_F1 | macro_precision (% above baseline) | accuracy |       verdict |
+    #!---------------------------------------------------------------------------
+    #!     >0.8 |                               >30% |     >0.9 |     excellent |
+    #!  0.6-0.8 |                             20-30% |  0.8-0.9 |          good |
+    #!  0.4-0.6 |                             10-20% |  0.7-0.8 |    pilot_only |
+    #!     <0.4 |                               <10% |     <0.7 | improve_model |
+    #!------------------------------------------------------------------------------
+
+    # - If recall/robustness is the goal: Focus on out-of-sample performance and coverage
+    #!---------------------------------------------------------------------------------
+    #! CV macro_F1 | Train-Test F1 Drop | Error in Rare Classes (P90) |       verdict |
+    #!---------------------------------------------------------------------------------
+    #!        >0.7 |                <5% |                        <10% |     excellent |
+    #!     0.5-0.7 |              5-10% |                      10-15% |          good |
+    #!     0.3-0.5 |             10-20% |                      15-20% |    pilot_only |
+    #!        <0.3 |               >20% |                        >20% | improve_model |
+    #!---------------------------------------------------------------------------------
+
+    # - Confidence thresholding intuition: By setting a minimum probability cutoff (e.g., 
+    #   at P90 percentile of max predicted probs), you classify only high-confidence cases, 
+    #   boosting precision/recall at the cost of coverage. E.g., at P99, you might classify 
+    #   only 1% of data but with near-perfect metrics-ideal for automation where humans 
+    #   handle the rest.
 
 #### Lesson 10: Multi-Class Classification Implementation
 
@@ -2540,8 +2726,7 @@
     #! ========================================================================
     #! 2.2. Option B: Hyperparameter Tuning -----------------------------------
     #! ========================================================================
-
-    # Train-test split (using the combined df)
+    # Train-test split 
     X_train_full, X_test, y_train_full, y_test = train_test_split(
         tabular_data_df.drop('class', axis=1),
         tabular_data_df['class'],
@@ -2690,8 +2875,6 @@
     #! P10              0.5130           0.2097        0.3330    0.2574    0.6289
     #! P5               0.4836           0.3042        0.3331    0.2592    0.6253
     #! P1               0.4316           0.3244        0.3348    0.2640    0.6197
-    #! 
-    # === Added: Feature Importance Section ===
 
     # 7. Creating best_features_df
     importance_gain = model.get_score(importance_type='gain')
