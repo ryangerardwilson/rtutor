@@ -1887,7 +1887,6 @@
     #!--------------------------------------------------------------------------
     #!  efficiency | above P95    |      precision ≥50%, lift >4x, recall ≥30% |
     #!  coverage   | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
-    #!  coverage   | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
     #!--------------------------------------------------------------------------
     # 
     # 3. How well does the model address the business problem?
