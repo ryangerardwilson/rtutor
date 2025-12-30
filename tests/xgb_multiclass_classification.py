@@ -43,11 +43,11 @@ print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
 class AUCMaximizer:
-    def __init__(self, tabular_data_df, features, target, n_classes):
+    def __init__(self, tabular_data_df, features, target):
         self.tabular_data_df = tabular_data_df
         self.features = features
         self.target = target
-        self.n_classes = n_classes
+        self.n_classes = self.tabular_data_df[self.target].nunique()
         self.n_features_to_select = 10
         self.n_trials = 30
         self.test_size = 0.2
@@ -350,11 +350,11 @@ class AUCMaximizer:
     def build_comparative(self):
         comparative_data = {
             'model': list(self.results.keys()),
-            'auc_ovr': [self.results[k][0] for k in self.results],
+            'auc': [self.results[k][0] for k in self.results],
             'num_features': [len(self.results[k][4]) for k in self.results]
         }
         self.comparative_df = pd.DataFrame(comparative_data)
-        self.comparative_df = self.comparative_df.sort_values(by='auc_ovr', ascending=False).reset_index(drop=True)
+        self.comparative_df = self.comparative_df.sort_values(by='auc', ascending=False).reset_index(drop=True)
 
     def select_best(self):
         self.best_name = self.comparative_df.iloc[0]['model']
@@ -531,7 +531,7 @@ class MetricsComputer:
         return overall_metrics_df, cm_df, confidence_metrics_df
 
 # Example usage
-maximizer = AUCMaximizer(tabular_data_df, features, 'class', n_classes)
+maximizer = AUCMaximizer(tabular_data_df, features, 'class')
 results = maximizer.optimize()
 maximizer.print_results()
 
