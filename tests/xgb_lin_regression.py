@@ -1,4 +1,3 @@
-# Updated ~/Apps/rtutor/tests/xgb_lin_regression.py
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -481,22 +480,31 @@ class MetricsComputer:
         self.base_mean = base_mean
 
     def compute_metrics(self):
-        temp = pd.DataFrame({'pred': self.y_pred_orig, 'actual': self.y_test_orig})
-        temp['decile'] = pd.qcut(temp['pred'], 10, labels=range(1, 11))
-        grouped = temp.groupby('decile', observed=True)
-        metrics = grouped.agg(
-            count=('pred', 'count'),
-            min_pred=('pred', 'min'),
-            max_pred=('pred', 'max'),
-            avg_pred=('pred', 'mean'),
-            avg_actual=('actual', 'mean'),
-        )
-        metrics['mae'] = grouped.apply(lambda g: mean_absolute_error(g['actual'], g['pred']), include_groups=False)
-        metrics['rmse'] = grouped.apply(lambda g: root_mean_squared_error(g['actual'], g['pred']), include_groups=False)
-        metrics['lift'] = metrics['avg_actual'] / self.base_mean
-        metrics = metrics[['count', 'min_pred', 'max_pred', 'avg_pred', 'avg_actual', 'mae', 'rmse', 'lift']]
-        metrics = metrics.sort_index(ascending=False)  # Decile 10 first
-        return metrics.round(4)
+        percentiles = [99] + list(range(95, 0, -5)) + [1]
+        table_rows = []
+        for p in percentiles:
+            cutoff = np.percentile(self.y_pred_orig, p)
+            mask = self.y_pred_orig >= cutoff
+            if not np.any(mask):
+                continue
+            sub_pred = self.y_pred_orig[mask]
+            sub_actual = self.y_test_orig[mask]
+            avg_pred = np.mean(sub_pred)
+            avg_actual = np.mean(sub_actual)
+            mae_val = mean_absolute_error(sub_actual, sub_pred)
+            rmse_val = root_mean_squared_error(sub_actual, sub_pred)
+            lift = avg_actual / self.base_mean if self.base_mean > 0 else 0
+            table_rows.append({
+                'percentile': f'P{p}',
+                'cutoff': cutoff,
+                'avg_pred': avg_pred,
+                'avg_actual': avg_actual,
+                'mae': mae_val,
+                'rmse': rmse_val,
+                'lift': lift,
+            })
+        metrics_df = pd.DataFrame(table_rows).set_index('percentile')
+        return metrics_df.round(4)
 
 # Example usage
 maximizer = R2Maximizer(tabular_data_df, features, 'target')
@@ -508,12 +516,12 @@ print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
 metrics_comp = MetricsComputer(results['y_test_orig'], results['y_pred_orig'], results['base_mean'])
 metrics_df = metrics_comp.compute_metrics()
-print("\n=== Performance by Decile (Best Model) ===")
+print("\n=== Performance by Percentile Threshold (Best Model) ===")
 print(metrics_df.to_string())
 
 print("\nNOTE:")
-print("- 'Decile 10' means top 10% with highest predicted values")
-print("- Higher decile = higher precision in predictions, ideally")
+print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
+print("- Higher percentile = stricter threshold = higher lift, lower count")
 print("- Lift = avg_actual / base_mean")
 
 # Demonstrate making a prediction
