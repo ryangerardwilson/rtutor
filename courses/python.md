@@ -2086,31 +2086,6 @@
     # - percentile index column above represents a range >= the indicated percentile
     # - tp, fp, fn, tn represent the confusion matrix values
 
-    # 6. Creating best_features_df
-    importance_gain = model.get_score(importance_type='gain')
-    total_gain = sum(importance_gain.values())
-    normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
-    sorted_importance = sorted(normalized_gain.items(), key=lambda x: x[1], reverse=True)
-    best_features_df = pd.DataFrame(sorted_importance, columns=['feature', 'importance_gain_normalized'])
-    best_features_df['importance_rank'] = range(1, len(best_features_df) + 1)
-    best_features_df = best_features_df.set_index('importance_rank')
-    print(best_features_df.to_string())
-    #!                  feature  importance_gain_normalized
-    #! importance_rank
-    #! 1                 feat_0                    0.091244
-    #! 2                 feat_1                    0.055604
-    #! ...
-    #! 17               feat_15                    0.044492
-    #! 18               feat_13                    0.043124
-    #! 19                feat_3                    0.042200
-    #! 20               feat_19                    0.038720
-    # If a certainf feature has a very strong gain, target leakage may be possible
-
-    # 7. Making a prediction
-    example_df = tabular_data_df.iloc[[0]][feature_names]
-    dexample = xgb.DMatrix(example_df, enable_categorical=True)
-    example_pred = model.predict(dexample)[0]
-    print(f'Predicted target: {example_pred}')
 
 #### Lesson 7: Linear Regression Intuition
 
@@ -2437,26 +2412,6 @@
     metrics_df = metrics_df.set_index('method')
     print(metrics_df.to_string())
 
-    # 5. Creating best_features_df
-    importance_gain = model.get_score(importance_type='gain')
-    total_gain = sum(importance_gain.values())
-    normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
-    best_features_df = pd.DataFrame({
-        'feature': list(normalized_gain.keys()),
-        'importance_gain_normalized': list(normalized_gain.values()),
-    }).sort_values(by='importance_gain_normalized', ascending=False)
-    best_features_df['importance_rank'] = range(1, len(best_features_df) + 1)
-    best_features_df = best_features_df.set_index('importance_rank')
-    print(best_features_df.to_string())
-    # If a certain feature has a very strong gain, target leakage may be possible
-
-    # 6. Making a prediction
-    example_df = tabular_data_df.iloc[[0]][feature_names]
-    dexample = xgb.DMatrix(example_df, enable_categorical=True)
-    example_pred = model.predict(dexample)[0]
-    example_pred = np.exp(example_pred) if log_transformation_needed else example_pred
-    print(f'Predicted target: {example_pred}')
-
 #### Lesson 9: Multi-Class Classification Intuition
 
     # 1. Metrics
@@ -2612,7 +2567,7 @@
         precision_score,
         recall_score,
         f1_score,
-        accuracy_score,
+        accuracy_score
     )
 
     #! features = ['feat_0', 'feat_1', ... 'feat_19']
@@ -2757,15 +2712,22 @@
 
     # 4. AUC (one-vs-rest average)
     auc_test = roc_auc_score(y_test, y_pred_test, multi_class='ovr')
-    print(f'AUC (ovr) on test set: {auc_test:.4f}\n')
+    print(f'AUC on test set: {auc_test:.4f}\n')
 
     # 5. Confusion matrix for full argmax
     preds = np.argmax(y_pred_test, axis=1)
     cm = confusion_matrix(y_test, preds)
-    cm_df = pd.DataFrame(cm, index=[f'Actual {i}' for i in range(n_classes)], columns=[f'Pred {i}' for i in range(n_classes)])
+    cm_df = pd.DataFrame(
+        cm, 
+        index=[f'Actual {i}' for i in range(n_classes)], 
+        columns=[f'Pred {i}' for i in range(n_classes)]
+    )
     print('=== Confusion Matrix (Full Argmax) ===')
     print(cm_df.to_string())
-    print()
+    #!           Pred 0  Pred 1  Pred 2
+    #! Actual 0       0       2     249
+    #! Actual 1       1       7     496
+    #! Actual 2       2      14    1229
 
     # 6. Creating metrics_df
     percentiles = [99] + list(range(95, 0, -5)) + [1] # to ensure p99 comes on top
@@ -2823,7 +2785,16 @@
     #! P5               0.4836           0.3042        0.3331    0.2592    0.6253
     #! P1               0.4316           0.3244        0.3348    0.2640    0.6197
 
-    # 7. Creating best_features_df
+#### Lesson 11: Evaluating Feature Importance
+
+    # Creating best_features_df
+    # - If one or a few features dominate the importance scores (e.g., one feature 
+    #   with 0.5+ normalized gain while others are near zero), it could signal leakage. 
+    #   This happens because leaky features often provide 'shortcut' information that's 
+    #   too directly tied to the target, making them overly influential in tree splits.
+    # - Features with near-zero normalized gain (e.g., below 0.01 i.e. 1%, contribute 
+    #   little and can often be dropped without harming performance.
+
     importance_gain = model.get_score(importance_type='gain')
     total_gain = sum(importance_gain.values())
     normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
@@ -2834,32 +2805,24 @@
     print(best_features_df.to_string())
     #!                  feature  importance_gain_normalized
     #! importance_rank
-    #! 1                 feat_5                    0.059368
-    #! 2                 feat_0                    0.057109
-    #! 3                 feat_2                    0.055155
-    #! 4                 feat_1                    0.050607
-    #! 5                feat_19                    0.050209
-    #! 6                feat_18                    0.050156
-    #! 7                feat_16                    0.050140
-    #! 8                feat_14                    0.050108
+    #! 1                 feat_0                    0.091244
+    #! 2                 feat_1                    0.055604
+    #! ...
+    #! 17               feat_15                    0.044492
+    #! 18               feat_13                    0.043124
+    #! 19                feat_3                    0.042200
+    #! 20               feat_19                    0.038720
 
-    # 8. Making a prediction
+#### Lesson 12: Making a Prediction
+
+    # To make a prediction, you need to ensure that the new data is in the same
+    # format in terms of dtypes and column names, as the tabular_data_df used
+    # train the model
+
     example_df = tabular_data_df.iloc[[0]][feature_names]
-    dexample = xgb.DMatrix(example_df)
+    dexample = xgb.DMatrix(example_df, enable_categorical=True)
     example_pred = model.predict(dexample)[0]
-    print(f'Predicted class probabilities: {example_pred}')
-    print(f'Predicted class: {np.argmax(example_pred)}')
-
-
-
-
-
-
-
-
-
-
-
+    print(f'Predicted target: {example_pred}')
 
 
 
