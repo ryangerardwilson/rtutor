@@ -177,8 +177,8 @@ class LessonSequencer:
                     except curses.error:
                         pass
 
-                    instr = ("Lesson complete! Hit l for next or esc to exit"
-                             if lesson_finished else "Ctrl+R → restart | Alt+Enter → quit")
+                    instr = ("Lesson complete! Hit n for next or esc to exit"
+                             if lesson_finished else "Ctrl+R → restart | Esc → quit")
                     try:
                         stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                         stdscr.clrtoeol()
@@ -223,7 +223,7 @@ class LessonSequencer:
                         sys.exit(0)
 
                     if lesson_finished:
-                        if key in (ord('l'), ord('L')):
+                        if key in (ord('n'), ord('N')):
                             next_lesson = True
                             break  # exit key-drain loop early
                         elif key in (ord('q'), ord('Q'), 27):  # q or Esc
@@ -233,7 +233,7 @@ class LessonSequencer:
                             user_inputs = [[] for _ in lines]
                             current_line = 0
                             lesson_finished = False
-                        elif key == 27:  # Esc / Alt
+                        elif key == 27:  # Esc 
                             return False
                         elif is_skip[current_line]:
                             if key in (curses.KEY_ENTER, 10, 13):

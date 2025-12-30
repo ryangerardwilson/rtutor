@@ -157,9 +157,9 @@ class JumpMode:
 
                     # Updated instructions
                     if lesson_finished:
-                        instr = "Lesson complete! Hit n for next | Alt+Enter to return to doc mode"
+                        instr = "Lesson complete! Hit n for next | ESC to return to doc mode"
                     else:
-                        instr = "Ctrl+R → restart | Alt+Enter or ESC → return to doc mode"
+                        instr = "Ctrl+R → restart | ESC → return to doc mode"
 
                     try:
                         stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
@@ -203,16 +203,13 @@ class JumpMode:
                     if key == 3:  # Ctrl+C
                         sys.exit(0)
 
-                    # === NEW: Proper Alt+Enter and ESC handling ===
-                    if key == 27:  # ESC or start of Alt+ sequence
+                    # === NEW: Proper ESC handling ===
+                    if key == 27:  # ESC 
                         next_key = stdscr.getch()
                         if next_key == -1:
-                            # Plain ESC → return to DocMode at current lesson
                             return self.current_idx
                         elif next_key in (curses.KEY_ENTER, 10, 13):
-                            # Alt+Enter → return to DocMode at current lesson
                             return self.current_idx
-                        # Other Alt+ combinations: ignore (do not re-inject)
                         continue
 
                     if lesson_finished:

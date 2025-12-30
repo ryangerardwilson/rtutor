@@ -171,7 +171,7 @@ class DocMode:
             "Other:",
             "ya: copy entire lesson",
             "?: this help",
-            "Alt+Enter or esc: back to menu"
+            "Esc: back to menu"
         ]
         start_y = 1
         for i, line in enumerate(help_text):
@@ -547,7 +547,7 @@ class DocMode:
                         redraw_needed = True
                 elif key == 3:  # Ctrl+C
                     sys.exit(0)
-                elif key == 27:  # Esc/Alt
+                elif key == 27:  # Esc
                     return False
                 elif key == ord("b"):
                     import os
