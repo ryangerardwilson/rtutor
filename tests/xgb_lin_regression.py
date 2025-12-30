@@ -76,6 +76,19 @@ class TestTrainSplitter:
         print(f"Test data rows: {len(test_df)}")
         return train_df, test_df
 
+    def time_percentile_split(self, timestamp_col, percentile=0.8):
+        if not 0.01 <= percentile <= 1.00:
+            raise ValueError("percentile must be between 0.01 and 1.00")
+        df_sorted = self.df.sort_values(by=timestamp_col)
+        split_idx = int(len(df_sorted) * percentile)
+        train_df = df_sorted.iloc[:split_idx]
+        test_df = df_sorted.iloc[split_idx:]
+        if len(test_df) < 0.1 * len(train_df):
+            raise ValueError("Test data is less than 10% of train data.")
+        print(f"Train data rows: {len(train_df)}")
+        print(f"Test data rows: {len(test_df)}")
+        return train_df, test_df
+
 class R2Maximizer:
     def __init__(self, train_df, test_df, features, target):
         self.train_df = train_df.copy()
@@ -550,8 +563,10 @@ class MetricsComputer:
 
 # Example usage
 splitter = TestTrainSplitter(tabular_data_df, features, 'target')
+# train_df, test_df = splitter.time_percentile_split(timestamp_col='timestamp', percentile=0.8)
 # train_df, test_df = splitter.time_split(timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
-train_df, test_df = splitter.random_split()
+train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
+
 maximizer = R2Maximizer(train_df, test_df, features, 'target')
 results = maximizer.optimize()
 
