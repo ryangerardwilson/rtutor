@@ -1849,7 +1849,7 @@
 
     # 1. Do we have a 'valid' model?
     # - if AUC >= 0.8: yes 
-    # - else if AUC >= 0.7: yes (implies features set is noisy/imbalanced, for example - user behaviors)
+    # - else if AUC >= 0.7: yes (implies features set is noisy/imbalanced)
     # - else AUC < 0.7: hard no. Too weak—back to the drawing board.
 
     # 2. Does the model address the business problem?
@@ -3080,7 +3080,7 @@
 
     # 1. Do we have a 'valid' model?
     # - if AUC >= 0.8: yes 
-    # - else if AUC >= 0.7: yes (implies features set is noisy/imbalanced, for example - user behaviors)
+    # - else if AUC >= 0.7: yes (implies features set is noisy/imbalanced)
     # - else AUC < 0.7: hard no. Too weak—back to the drawing board.
 
     # 2. Does the model address the business problem?
