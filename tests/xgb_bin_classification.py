@@ -48,13 +48,14 @@ print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
 class TestTrainSplitter:
-    def __init__(self, df, features, target, test_size=0.2, random_state=42, timestamp_col=None):
+    def __init__(self, df, features, target, test_size=0.2, random_state=42, timestamp_col=None, split_timestamp=None):
         self.df = df
         self.features = features
         self.target = target
         self.test_size = test_size
         self.random_state = random_state
         self.timestamp_col = timestamp_col
+        self.split_timestamp = pd.to_datetime(split_timestamp) if split_timestamp else None
 
     def random_split(self, stratify=True):
         strat = self.df[self.target] if stratify else None
@@ -64,23 +65,19 @@ class TestTrainSplitter:
             random_state=self.random_state,
             stratify=strat
         )
+        print(f"Train data rows: {len(df_train)}")
+        print(f"Test data rows: {len(df_test)}")
         return df_train, df_test
 
-    def time_split(self, timestamp_col):
-        df_sorted = self.df.sort_values(by=timestamp_col)
-        n = len(df_sorted)
-        split_idx = int(n * (1 - self.test_size))
-        df_train = df_sorted.iloc[:split_idx]
-        df_test = df_sorted.iloc[split_idx:]
-        if len(df_test) < 0.1 * len(df_train):
+    def time_split(self):
+        if self.split_timestamp is None:
+            raise ValueError("split_timestamp must be provided for time_split")
+        if self.timestamp_col is None:
+            raise ValueError("timestamp_col must be provided for time_split")
+        train_df = self.df[self.df[self.timestamp_col] < self.split_timestamp]
+        test_df = self.df[self.df[self.timestamp_col] >= self.split_timestamp]
+        if len(test_df) < 0.1 * len(train_df):
             raise ValueError("Test data is less than 10% of train data.")
-        return df_train, df_test
-
-    def split(self, stratify=True):
-        if self.timestamp_col is not None:
-            train_df, test_df = self.time_split(self.timestamp_col)
-        else:
-            train_df, test_df = self.random_split(stratify=stratify)
         print(f"Train data rows: {len(train_df)}")
         print(f"Test data rows: {len(test_df)}")
         return train_df, test_df
@@ -493,9 +490,9 @@ class MetricsComputer:
         return metrics_df
 
 # Example usage
-splitter = TestTrainSplitter(tabular_data_df, features, target='converted', timestamp_col='timestamp', test_size=0.2)
-train_df, test_df = splitter.split()
-maximizer = AUCMaximizer(train_df, test_df, features, target='converted')
+splitter = TestTrainSplitter(tabular_data_df, features, 'converted', timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
+train_df, test_df = splitter.time_split()
+maximizer = AUCMaximizer(train_df, test_df, features, 'converted')
 results = maximizer.optimize()
 
 # Demonstrate making a prediction

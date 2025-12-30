@@ -1,3 +1,4 @@
+# ~/Apps/rtutor/tests/xgb_lin_regression.py
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -37,24 +38,52 @@ true_coeffs[3] = 0.15   # Smaller positive
 
 noise = np.random.normal(0, 0.2, n_samples)
 linear = true_intercept + X @ true_coeffs + noise
-y = np.exp(linear)
-y.name = "target"
+y = pd.Series(np.exp(linear), name="target")
 
 # Combine into one DataFrame
 tabular_data_df = X.copy()
 tabular_data_df["target"] = y
+tabular_data_df['timestamp'] = pd.date_range(start='2023-01-01', periods=n_samples, freq='min')
 
 print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
+class TestTrainSplitter:
+    def __init__(self, df, features, target):
+        self.df = df
+        self.features = features
+        self.target = target
+
+    def random_split(self, test_size=0.2, random_state=42, stratify=False):
+        strat = self.df[self.target] if stratify else None
+        df_train, df_test = train_test_split(
+            self.df,
+            test_size=test_size,
+            random_state=random_state,
+            stratify=strat
+        )
+        print(f"Train data rows: {len(df_train)}")
+        print(f"Test data rows: {len(df_test)}")
+        return df_train, df_test
+
+    def time_split(self, timestamp_col, split_timestamp):
+        split_timestamp = pd.to_datetime(split_timestamp)
+        train_df = self.df[self.df[timestamp_col] < split_timestamp]
+        test_df = self.df[self.df[timestamp_col] >= split_timestamp]
+        if len(test_df) < 0.1 * len(train_df):
+            raise ValueError("Test data is less than 10% of train data.")
+        print(f"Train data rows: {len(train_df)}")
+        print(f"Test data rows: {len(test_df)}")
+        return train_df, test_df
+
 class R2Maximizer:
-    def __init__(self, tabular_data_df, features, target):
-        self.tabular_data_df = tabular_data_df
+    def __init__(self, train_df, test_df, features, target):
+        self.train_df = train_df.copy()
+        self.test_df = test_df.copy()
         self.features = features
         self.target = target
         self.n_features_to_select = 10
         self.n_trials = 30
-        self.test_size = 0.2
         self.val_size = 0.2
         self.random_state = 42
         self.default_params = {
@@ -96,24 +125,21 @@ class R2Maximizer:
         self.best_features_df = None
 
         # Skewness Check and log transformation of target
-        skew_value = skew(self.tabular_data_df[self.target])
-        print(f"\nSkewness of original target: {skew_value:.4f}")
+        skew_value = skew(self.train_df[self.target])
+        print(f"\nSkewness of original target (train): {skew_value:.4f}")
         if abs(skew_value) > 0.5:
             print("Target is skewed. Applying log transformation.")
-            self.tabular_data_df[self.target] = np.log(self.tabular_data_df[self.target])
-            skew_transformed = skew(self.tabular_data_df[self.target])
-            print(f"Skewness after log transformation: {skew_transformed:.4f}")
+            self.train_df[self.target] = np.log(self.train_df[self.target])
+            self.test_df[self.target] = np.log(self.test_df[self.target])
+            skew_transformed = skew(self.train_df[self.target])
+            print(f"Skewness after log transformation (train): {skew_transformed:.4f}")
             self.log_transformation_needed = True
         else:
             print("Target is approximately normal. No transformation applied.")
 
     def compute_baseline(self):
-        X_train, _, y_train, y_test = train_test_split(
-            self.tabular_data_df[self.features],
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-        )
+        y_train = self.train_df[self.target]
+        y_test = self.test_df[self.target]
         y_train_orig = np.exp(y_train) if self.log_transformation_needed else y_train
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         mean_target = y_train_orig.mean()
@@ -124,12 +150,10 @@ class R2Maximizer:
         return r2, mae, rmse, mean_target, y_test_orig, baseline_pred
 
     def manual_without_rfe(self):
-        X_train, X_test, y_train, y_test = train_test_split(
-            self.tabular_data_df[self.features],
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-        )
+        X_train = self.train_df[self.features]
+        y_train = self.train_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
         
         selected_features = self.features  # No RFE, use all features
         
@@ -148,12 +172,10 @@ class R2Maximizer:
         return model, X_test, y_test, selected_features
 
     def manual_with_rfe(self):
-        X_train, X_test, y_train, y_test = train_test_split(
-            self.tabular_data_df[self.features],
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-        )
+        X_train = self.train_df[self.features]
+        y_train = self.train_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
         
         # RFE for feature selection
         base_model = xgb.XGBRegressor(
@@ -186,18 +208,22 @@ class R2Maximizer:
         return model, X_test_selected, y_test, selected_features
 
     def automated_without_rfe(self):
-        X_train_full, X_test, y_train_full, y_test = train_test_split(
-            self.tabular_data_df.drop(self.target, axis=1),
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-        )
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_train_full,
-            y_train_full,
+        train_full_df = self.train_df
+        X_train_full = train_full_df[self.features]
+        y_train_full = train_full_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
+
+        sub_train_df, val_df = train_test_split(
+            train_full_df,
             test_size=self.val_size,
             random_state=self.random_state,
         )
+
+        X_train = sub_train_df[self.features]
+        y_train = sub_train_df[self.target]
+        X_val = val_df[self.features]
+        y_val = val_df[self.target]
         
         selected_features = X_train.columns.tolist()  # No RFE, use all features
         
@@ -261,18 +287,22 @@ class R2Maximizer:
         return model, X_test, y_test, selected_features
 
     def automated_with_rfe(self):
-        X_train_full, X_test, y_train_full, y_test = train_test_split(
-            self.tabular_data_df.drop(self.target, axis=1),
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-        )
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_train_full,
-            y_train_full,
+        train_full_df = self.train_df
+        X_train_full = train_full_df[self.features]
+        y_train_full = train_full_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
+
+        sub_train_df, val_df = train_test_split(
+            train_full_df,
             test_size=self.val_size,
             random_state=self.random_state,
         )
+
+        X_train = sub_train_df[self.features]
+        y_train = sub_train_df[self.target]
+        X_val = val_df[self.features]
+        y_val = val_df[self.target]
         
         # RFE for feature selection
         base_model = xgb.XGBRegressor(
@@ -433,6 +463,37 @@ class R2Maximizer:
             self.best_features_df = self.best_features_df.set_index("importance_rank")
         else:
             self.best_features_df = pd.DataFrame()
+
+        print("\n=== Comparative Model Results ===")
+        print(self.comparative_df.to_string(index=False))
+
+        print("\nBaseline (mean prediction):")
+        print(f"R2: {self.baseline_r2:.4f}, MAE: {self.baseline_mae:.4f}, RMSE: {self.baseline_rmse:.4f}")
+
+        print("\n" + "="*50)
+        print(f"BEST MODEL: {self.best_name}")
+        print(f"Best Test R2: {self.best_r2:.4f}")
+        print("="*50)
+
+        print("\nSelected Features:")
+        print(self.selected_features)
+
+        print(f"\nBase mean on train set: {self.base_mean:.4f}")
+
+        print(f'R2 on test set (best model): {self.best_r2:.4f}\n')
+
+        print("\n=== best_features_df (Top Features by Gain) ===")
+        print(self.best_features_df.to_string(float_format="{:.4f}".format))
+
+        metrics_comp = MetricsComputer(self.y_test_orig, self.y_pred_orig, self.base_mean)
+        metrics_df = metrics_comp.compute_metrics()
+        print("\n=== Performance by Percentile Threshold (Best Model) ===")
+        print(metrics_df.to_string())
+
+        print("\nNOTE:")
+        print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
+        print("- Higher percentile = stricter threshold = higher lift, lower count")
+        print("- Lift = avg_actual / base_mean")
         
         return {
             'comparative_df': self.comparative_df,
@@ -453,25 +514,6 @@ class R2Maximizer:
             'baseline_rmse': self.baseline_rmse,
             'best_features_df': self.best_features_df
         }
-
-    def print_results(self):
-        print("\n=== Comparative Model Results ===")
-        print(self.comparative_df.to_string(index=False))
-
-        print("\nBaseline (mean prediction):")
-        print(f"R2: {self.baseline_r2:.4f}, MAE: {self.baseline_mae:.4f}, RMSE: {self.baseline_rmse:.4f}")
-
-        print("\n" + "="*50)
-        print(f"BEST MODEL: {self.best_name}")
-        print(f"Best Test R2: {self.best_r2:.4f}")
-        print("="*50)
-
-        print("\nSelected Features:")
-        print(self.selected_features)
-
-        print(f"\nBase mean on train set: {self.base_mean:.4f}")
-
-        print(f'R2 on test set (best model): {self.best_r2:.4f}\n')
 
 class MetricsComputer:
     def __init__(self, y_test_orig, y_pred_orig, base_mean):
@@ -507,25 +549,14 @@ class MetricsComputer:
         return metrics_df.round(4)
 
 # Example usage
-maximizer = R2Maximizer(tabular_data_df, features, 'target')
+splitter = TestTrainSplitter(tabular_data_df, features, 'target')
+# train_df, test_df = splitter.time_split(timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
+train_df, test_df = splitter.random_split()
+maximizer = R2Maximizer(train_df, test_df, features, 'target')
 results = maximizer.optimize()
-maximizer.print_results()
-
-print("\n=== best_features_df (Top Features by Gain) ===")
-print(results['best_features_df'].to_string(float_format="{:.4f}".format))
-
-metrics_comp = MetricsComputer(results['y_test_orig'], results['y_pred_orig'], results['base_mean'])
-metrics_df = metrics_comp.compute_metrics()
-print("\n=== Performance by Percentile Threshold (Best Model) ===")
-print(metrics_df.to_string())
-
-print("\nNOTE:")
-print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
-print("- Higher percentile = stricter threshold = higher lift, lower count")
-print("- Lift = avg_actual / base_mean")
 
 # Demonstrate making a prediction
-example_row = maximizer.tabular_data_df.iloc[0][results['selected_features']]
+example_row = train_df.iloc[0][results['selected_features']]
 dexample = xgb.DMatrix(pd.DataFrame([example_row]))
 example_pred = results['model'].predict(dexample)[0]
 example_pred = np.exp(example_pred) if maximizer.log_transformation_needed else example_pred

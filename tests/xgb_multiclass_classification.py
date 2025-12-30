@@ -38,19 +38,55 @@ y = pd.Series([np.random.choice(n_classes, p=probs[i]) for i in range(n_users)],
 # Combine features and target into one DataFrame before modeling
 tabular_data_df = X.copy()
 tabular_data_df["class"] = y
+tabular_data_df['timestamp'] = pd.date_range(start='2023-01-01', periods=n_users, freq='min')
 
 print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
-class AUCMaximizer:
-    def __init__(self, tabular_data_df, features, target):
-        self.tabular_data_df = tabular_data_df
+class TestTrainSplitter:
+    def __init__(self, df, features, target, test_size=0.2, random_state=42, timestamp_col=None, split_timestamp=None):
+        self.df = df
         self.features = features
         self.target = target
-        self.n_classes = self.tabular_data_df[self.target].nunique()
+        self.test_size = test_size
+        self.random_state = random_state
+        self.timestamp_col = timestamp_col
+        self.split_timestamp = pd.to_datetime(split_timestamp) if split_timestamp else None
+
+    def random_split(self, stratify=True):
+        strat = self.df[self.target] if stratify else None
+        df_train, df_test = train_test_split(
+            self.df,
+            test_size=self.test_size,
+            random_state=self.random_state,
+            stratify=strat
+        )
+        print(f"Train data rows: {len(df_train)}")
+        print(f"Test data rows: {len(df_test)}")
+        return df_train, df_test
+
+    def time_split(self):
+        if self.split_timestamp is None:
+            raise ValueError("split_timestamp must be provided for time_split")
+        if self.timestamp_col is None:
+            raise ValueError("timestamp_col must be provided for time_split")
+        train_df = self.df[self.df[self.timestamp_col] < self.split_timestamp]
+        test_df = self.df[self.df[self.timestamp_col] >= self.split_timestamp]
+        if len(test_df) < 0.1 * len(train_df):
+            raise ValueError("Test data is less than 10% of train data.")
+        print(f"Train data rows: {len(train_df)}")
+        print(f"Test data rows: {len(test_df)}")
+        return train_df, test_df
+
+class AUCMaximizer:
+    def __init__(self, train_df, test_df, features, target):
+        self.train_df = train_df
+        self.test_df = test_df
+        self.features = features
+        self.target = target
+        self.n_classes = self.train_df[self.target].nunique()
         self.n_features_to_select = 10
         self.n_trials = 30
-        self.test_size = 0.2
         self.val_size = 0.2
         self.random_state = 42
         self.default_params = {
@@ -85,13 +121,10 @@ class AUCMaximizer:
         self.best_features_df = None
 
     def manual_without_rfe(self):
-        X_train, X_test, y_train, y_test = train_test_split(
-            self.tabular_data_df[self.features],
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify=self.tabular_data_df[self.target]
-        )
+        X_train = self.train_df[self.features]
+        y_train = self.train_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
         
         selected_features = self.features  # No RFE, use all features
         
@@ -110,13 +143,10 @@ class AUCMaximizer:
         return model, X_test, y_test, selected_features
 
     def manual_with_rfe(self):
-        X_train, X_test, y_train, y_test = train_test_split(
-            self.tabular_data_df[self.features],
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify=self.tabular_data_df[self.target]
-        )
+        X_train = self.train_df[self.features]
+        y_train = self.train_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
         
         # RFE for feature selection
         base_model = xgb.XGBClassifier(
@@ -149,20 +179,23 @@ class AUCMaximizer:
         return model, X_test_selected, y_test, selected_features
 
     def automated_without_rfe(self):
-        X_train_full, X_test, y_train_full, y_test = train_test_split(
-            self.tabular_data_df.drop(self.target, axis=1),
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify=self.tabular_data_df[self.target]
-        )
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_train_full,
-            y_train_full,
+        train_full_df = self.train_df
+        X_train_full = train_full_df[self.features]
+        y_train_full = train_full_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
+
+        sub_train_df, val_df = train_test_split(
+            train_full_df,
             test_size=self.val_size,
             random_state=self.random_state,
-            stratify=y_train_full
+            stratify=train_full_df[self.target]
         )
+
+        X_train = sub_train_df[self.features]
+        y_train = sub_train_df[self.target]
+        X_val = val_df[self.features]
+        y_val = val_df[self.target]
         
         selected_features = X_train.columns.tolist()  # No RFE, use all features
         
@@ -226,20 +259,23 @@ class AUCMaximizer:
         return model, X_test, y_test, selected_features
 
     def automated_with_rfe(self):
-        X_train_full, X_test, y_train_full, y_test = train_test_split(
-            self.tabular_data_df.drop(self.target, axis=1),
-            self.tabular_data_df[self.target],
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify=self.tabular_data_df[self.target]
-        )
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_train_full,
-            y_train_full,
+        train_full_df = self.train_df
+        X_train_full = train_full_df[self.features]
+        y_train_full = train_full_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
+
+        sub_train_df, val_df = train_test_split(
+            train_full_df,
             test_size=self.val_size,
             random_state=self.random_state,
-            stratify=y_train_full
+            stratify=train_full_df[self.target]
         )
+
+        X_train = sub_train_df[self.features]
+        y_train = sub_train_df[self.target]
+        X_val = val_df[self.features]
+        y_val = val_df[self.target]
         
         # RFE for feature selection
         base_model = xgb.XGBClassifier(
@@ -379,21 +415,7 @@ class AUCMaximizer:
             self.best_features_df = self.best_features_df.set_index("importance_rank")
         else:
             self.best_features_df = pd.DataFrame()
-        
-        return {
-            'comparative_df': self.comparative_df,
-            'best_name': self.best_name,
-            'best_auc': self.best_auc,
-            'model': self.model,
-            'X_test_selected': self.X_test_selected,
-            'y_test': self.y_test,
-            'selected_features': self.selected_features,
-            'y_pred_test': self.y_pred_test,
-            'base_rates': self.base_rates,
-            'best_features_df': self.best_features_df
-        }
 
-    def print_results(self):
         print("\n=== Comparative Model Results ===")
         print(self.comparative_df.to_string(index=False))
 
@@ -410,6 +432,37 @@ class AUCMaximizer:
             print(f"Class {cls}: {rate:.4f}")
 
         print(f'\nAUC (ovr) on test set (best model): {self.best_auc:.4f}\n')
+
+        print("\n=== best_features_df (Top Features by Gain) ===")
+        print(self.best_features_df.to_string(float_format="{:.4f}".format))
+
+        metrics_comp = MetricsComputer(self.y_test, self.y_pred_test, self.base_rates)
+        overall_metrics_df, cm_df, metrics_df = metrics_comp.compute_metrics()
+        print("\n=== Overall Performance Metrics (Best Model) ===")
+        print(overall_metrics_df.to_string())
+        print("\n=== Confusion Matrix (Best Model) ===")
+        print(cm_df.to_string())
+        print("\n=== Performance by Percentile Threshold (Best Model) ===")
+        print(metrics_df.to_string())
+
+        print("\nNOTE:")
+        print("- Metrics include macro averages and per-class precision, recall, f1, lift")
+        print("- Lift = precision / base_rate for each class")
+        print("- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile")
+        print("- Higher percentile = stricter threshold = higher precision_macro, lower coverage")
+        
+        return {
+            'comparative_df': self.comparative_df,
+            'best_name': self.best_name,
+            'best_auc': self.best_auc,
+            'model': self.model,
+            'X_test_selected': self.X_test_selected,
+            'y_test': self.y_test,
+            'selected_features': self.selected_features,
+            'y_pred_test': self.y_pred_test,
+            'base_rates': self.base_rates,
+            'best_features_df': self.best_features_df
+        }
 
 class MetricsComputer:
     def __init__(self, y_test, y_pred_test, base_rates=None):
@@ -531,27 +584,10 @@ class MetricsComputer:
         return overall_metrics_df, cm_df, confidence_metrics_df
 
 # Example usage
-maximizer = AUCMaximizer(tabular_data_df, features, 'class')
+splitter = TestTrainSplitter(tabular_data_df, features, 'class', timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
+train_df, test_df = splitter.time_split()
+maximizer = AUCMaximizer(train_df, test_df, features, 'class')
 results = maximizer.optimize()
-maximizer.print_results()
-
-print("\n=== best_features_df (Top Features by Gain) ===")
-print(results['best_features_df'].to_string(float_format="{:.4f}".format))
-
-metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['base_rates'])
-overall_metrics_df, cm_df, metrics_df = metrics_comp.compute_metrics()
-print("\n=== Overall Performance Metrics (Best Model) ===")
-print(overall_metrics_df.to_string())
-print("\n=== Confusion Matrix (Best Model) ===")
-print(cm_df.to_string())
-print("\n=== Performance by Percentile Threshold (Best Model) ===")
-print(metrics_df.to_string())
-
-print("\nNOTE:")
-print("- Metrics include macro averages and per-class precision, recall, f1, lift")
-print("- Lift = precision / base_rate for each class")
-print("- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile")
-print("- Higher percentile = stricter threshold = higher precision_macro, lower coverage")
 
 # Demonstrate making a prediction
 example_row = tabular_data_df.iloc[0][results['selected_features']]
