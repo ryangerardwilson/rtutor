@@ -1886,7 +1886,7 @@
     #!        goal | metric_focus | does_it_address_business_problem_threshold |
     #!--------------------------------------------------------------------------
     #!  efficiency | above P95    |      precision ≥50%, lift >4x, recall ≥30% |
-    #!  coverage   | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
+    #!    coverage | above P90    |      recall ≥50%, precision ≥40%, lift >3x |
     #!--------------------------------------------------------------------------
 
 #### Lesson 6: Binary Classification Implementation 
