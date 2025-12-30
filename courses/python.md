@@ -1889,8 +1889,9 @@
     #! efficiency |         True |    above P95 |   precision ≥50%, lift >4x, recall ≥30% |
     #! efficiency |        False |    above P95 | precision ≥40%, lift >2.5x, recall ≥15% |
     #!   coverage |         True |    above P90 |   recall ≥50%, precision ≥40%, lift >3x |
-    #!   coverage |        False |    above P90 |   recall ≥40%, precision ≥30%, lift >2x |
+    #!   coverage |        False |   above Pxx* |   recall ≥40%, precision ≥30%, lift >2x |
     #!-------------------------------------------------------------------------------------
+    #! *Pxx denotes any P95,P80... etc., as long as the treshold is met
 
 #### Lesson 6: Binary Classification Implementation 
 
