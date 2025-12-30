@@ -1849,8 +1849,8 @@
 
     # 1. Do we have a 'valid' model?
     # - if AUC >= 0.8: yes 
-    # - else if AUC >= 0.7: yes (implies features set is noisy/imbalanced)
-    # - else AUC < 0.7: hard no. Too weak—back to the drawing board.
+    # - else if AUC >= 0.6: yes (implies features set is noisy/imbalanced)
+    # - else AUC < 0.6: hard no. Too weak—back to the drawing board.
 
     # 2. Does the model address the business problem?
     # In the vast majority of real-world binary classification applications—such as 
@@ -1881,13 +1881,16 @@
     # versa (acting down to P70-P80 increases coverage at the cost of efficiency). The 
     # F1 score can help when you truly need balance, but most production scenarios lean 
     # toward one side based on constraints.The actionables here, can be sumamrized as 
-    # follows:
-    #!--------------------------------------------------------------------------
-    #!        goal | metric_focus | does_it_address_business_problem_threshold |
-    #!--------------------------------------------------------------------------
-    #!  efficiency |    above P95 |      precision ≥50%, lift >4x, recall ≥30% |
-    #!    coverage |    above P90 |      recall ≥50%, precision ≥40%, lift >3x |
-    #!--------------------------------------------------------------------------
+    # follows (and depends on whether or not False positives would cost the
+    # business - for example an expensive discount voucher):
+    #!-------------------------------------------------------------------------------------
+    #!       goal | fp_expensive | metric_focus |                               threshold |
+    #!-------------------------------------------------------------------------------------
+    #! efficiency |         True |    above P95 |   precision ≥50%, lift >4x, recall ≥30% |
+    #! efficiency |        False |    above P95 | precision ≥40%, lift >2.5x, recall ≥15% |
+    #!   coverage |         True |    above P90 |   recall ≥50%, precision ≥40%, lift >3x |
+    #!   coverage |        False |    above P90 |   recall ≥40%, precision ≥30%, lift >2x |
+    #!-------------------------------------------------------------------------------------
 
 #### Lesson 6: Binary Classification Implementation 
 
@@ -3080,8 +3083,8 @@
 
     # 1. Do we have a 'valid' model?
     # - if AUC >= 0.8: yes 
-    # - else if AUC >= 0.7: yes (implies features set is noisy/imbalanced)
-    # - else AUC < 0.7: hard no. Too weak—back to the drawing board.
+    # - else if AUC >= 0.6: yes (implies features set is noisy/imbalanced)
+    # - else AUC < 0.6: hard no. Too weak—back to the drawing board.
 
     # 2. Does the model address the business problem?
     # In most real-world multi-class classification applications—like customer segmentation, 
