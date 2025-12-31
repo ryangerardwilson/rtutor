@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import optuna
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import (
     confusion_matrix,
     roc_auc_score,
@@ -55,10 +55,10 @@ class AUCMaximizer:
         self.target = target
         self.n_features_to_select = 10
         self.n_trials = 30
-        self.val_size = 0.2
         self.random_state = 42
         self.delta_threshold = 0.05
         self.underfit_threshold = 0.6
+        self.n_folds = 3
         self.default_params = {
             'objective': 'binary:logistic',
             'eval_metric': 'auc',
@@ -94,98 +94,31 @@ class AUCMaximizer:
         self.test_base_rate = None
         self.best_features_df = None
 
-    def _split_train_val(self, train_full_df):
-        sub_train_df, val_df = train_test_split(
-            train_full_df,
-            test_size=self.val_size,
-            random_state=self.random_state,
-            stratify=train_full_df[self.target]
-        )
-        return sub_train_df, val_df
-
     def manual_without_rfe(self):
-        train_full_df = self.train_df
-        X_train_full = train_full_df[self.features]
-        y_train_full = train_full_df[self.target]
+        X_train_full = self.train_df[self.features]
+        y_train_full = self.train_df[self.target]
         X_test = self.test_df[self.features]
         y_test = self.test_df[self.target]
-        
-        sub_train_df, val_df = self._split_train_val(train_full_df)
-        X_train = sub_train_df[self.features]
-        y_train = sub_train_df[self.target]
-        X_val = val_df[self.features]
-        y_val = val_df[self.target]
         
         selected_features = self.features
         
-        dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-        dval = xgb.DMatrix(X_val, label=y_val, enable_categorical=True)
+        dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
         
         params = self.default_params.copy()
-        model_temp = xgb.train(
-            params,
-            dtrain,
-            num_boost_round=self.num_boost_round,
-            evals=[(dval, 'eval')],
-            early_stopping_rounds=self.early_stopping_rounds,
-            verbose_eval=False,
-        )
-        best_iter = model_temp.best_iteration
-        
-        dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
-        model = xgb.train(
+        cv_results = xgb.cv(
             params,
             dtrain_full,
-            num_boost_round=best_iter + 1,  # +1 because indexing starts at 0
-            verbose_eval=False,
-        )
-        y_pred_train = model.predict(dtrain_full)
-        train_auc = roc_auc_score(y_train_full, y_pred_train)
-        return model, X_test, y_test, selected_features, train_auc
-
-    def manual_with_rfe(self):
-        train_full_df = self.train_df
-        X_train_full = train_full_df[self.features]
-        y_train_full = train_full_df[self.target]
-        X_test = self.test_df[self.features]
-        y_test = self.test_df[self.target]
-        
-        sub_train_df, val_df = self._split_train_val(train_full_df)
-        X_train = sub_train_df[self.features]
-        y_train = sub_train_df[self.target]
-        X_val = val_df[self.features]
-        y_val = val_df[self.target]
-        
-        base_model = xgb.XGBClassifier(
-            **self.default_params,
-            random_state=self.random_state,
-            enable_categorical=True,
-        )
-        rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
-        rfe.fit(X_train, y_train)
-        
-        selected_features = X_train.columns[rfe.support_].tolist()
-        
-        X_train_selected = X_train[selected_features]
-        X_val_selected = X_val[selected_features]
-        X_train_full_selected = X_train_full[selected_features]
-        X_test_selected = X_test[selected_features]
-        
-        dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-        dval = xgb.DMatrix(X_val_selected, label=y_val, enable_categorical=True)
-        
-        params = self.default_params.copy()
-        model_temp = xgb.train(
-            params,
-            dtrain,
             num_boost_round=self.num_boost_round,
-            evals=[(dval, 'eval')],
+            nfold=self.n_folds,
+            stratified=True,
             early_stopping_rounds=self.early_stopping_rounds,
+            metrics='auc',
+            seed=self.random_state,
             verbose_eval=False,
         )
-        best_iter = model_temp.best_iteration
+        best_iter = cv_results['test-auc-mean'].argmax()
+        cv_val_auc = cv_results['test-auc-mean'].max()
         
-        dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
         model = xgb.train(
             params,
             dtrain_full,
@@ -194,21 +127,61 @@ class AUCMaximizer:
         )
         y_pred_train = model.predict(dtrain_full)
         train_auc = roc_auc_score(y_train_full, y_pred_train)
-        return model, X_test_selected, y_test, selected_features, train_auc
+        return model, X_test, y_test, selected_features, train_auc, cv_val_auc
+
+    def manual_with_rfe(self):
+        X_train_full = self.train_df[self.features]
+        y_train_full = self.train_df[self.target]
+        X_test = self.test_df[self.features]
+        y_test = self.test_df[self.target]
+        
+        base_model = xgb.XGBClassifier(
+            **self.default_params,
+            random_state=self.random_state,
+            enable_categorical=True,
+        )
+        rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
+        rfe.fit(X_train_full, y_train_full)
+        
+        selected_features = X_train_full.columns[rfe.support_].tolist()
+        
+        X_train_full_selected = X_train_full[selected_features]
+        X_test_selected = X_test[selected_features]
+        
+        dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
+        
+        params = self.default_params.copy()
+        cv_results = xgb.cv(
+            params,
+            dtrain_full,
+            num_boost_round=self.num_boost_round,
+            nfold=self.n_folds,
+            stratified=True,
+            early_stopping_rounds=self.early_stopping_rounds,
+            metrics='auc',
+            seed=self.random_state,
+            verbose_eval=False,
+        )
+        best_iter = cv_results['test-auc-mean'].argmax()
+        cv_val_auc = cv_results['test-auc-mean'].max()
+        
+        model = xgb.train(
+            params,
+            dtrain_full,
+            num_boost_round=best_iter + 1,
+            verbose_eval=False,
+        )
+        y_pred_train = model.predict(dtrain_full)
+        train_auc = roc_auc_score(y_train_full, y_pred_train)
+        return model, X_test_selected, y_test, selected_features, train_auc, cv_val_auc
 
     def automated_without_rfe(self):
-        train_full_df = self.train_df
-        X_train_full = train_full_df[self.features]
-        y_train_full = train_full_df[self.target]
+        X_train_full = self.train_df[self.features]
+        y_train_full = self.train_df[self.target]
         X_test = self.test_df[self.features]
         y_test = self.test_df[self.target]
 
-        sub_train_df, val_df = self._split_train_val(train_full_df)
-
-        X_train = sub_train_df[self.features]
-        y_train = sub_train_df[self.target]
-        X_val = val_df[self.features]
-        y_val = val_df[self.target]
+        dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
         
         selected_features = self.features
         
@@ -238,19 +211,19 @@ class AUCMaximizer:
                 'reg_alpha': reg_alpha,
                 'reg_lambda': reg_lambda,
             }
-            dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-            dval = xgb.DMatrix(X_val, label=y_val, enable_categorical=True)
-            model = xgb.train(
+            cv_results = xgb.cv(
                 params,
-                dtrain,
+                dtrain_full,
                 num_boost_round=self.optuna_boost_round,
-                evals=[(dval, 'eval')],
+                nfold=self.n_folds,
+                stratified=True,
                 early_stopping_rounds=self.optuna_early_stopping,
+                metrics='auc',
+                seed=self.random_state,
                 verbose_eval=False,
             )
-            y_pred_val = model.predict(dval)
-            auc = roc_auc_score(y_val, y_pred_val)
-            return auc
+            best_score = cv_results['test-auc-mean'].max()
+            return best_score
         
         study = optuna.create_study(direction='maximize')
         study.optimize(objective, n_trials=self.n_trials)
@@ -259,20 +232,20 @@ class AUCMaximizer:
         best_params['objective'] = 'binary:logistic'
         best_params['eval_metric'] = 'auc'
         
-        # Get best_iter by training on sub_train with val
-        dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-        dval = xgb.DMatrix(X_val, label=y_val, enable_categorical=True)
-        model_temp = xgb.train(
+        cv_results = xgb.cv(
             best_params,
-            dtrain,
+            dtrain_full,
             num_boost_round=self.optuna_boost_round,
-            evals=[(dval, 'eval')],
+            nfold=self.n_folds,
+            stratified=True,
             early_stopping_rounds=self.optuna_early_stopping,
+            metrics='auc',
+            seed=self.random_state,
             verbose_eval=False,
         )
-        best_iter = model_temp.best_iteration
+        best_iter = cv_results['test-auc-mean'].argmax()
+        cv_val_auc = cv_results['test-auc-mean'].max()
         
-        dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
         model = xgb.train(
             best_params,
             dtrain_full,
@@ -281,21 +254,13 @@ class AUCMaximizer:
         )
         y_pred_train = model.predict(dtrain_full)
         train_auc = roc_auc_score(y_train_full, y_pred_train)
-        return model, X_test, y_test, selected_features, train_auc
+        return model, X_test, y_test, selected_features, train_auc, cv_val_auc
 
     def automated_with_rfe(self):
-        train_full_df = self.train_df
-        X_train_full = train_full_df[self.features]
-        y_train_full = train_full_df[self.target]
+        X_train_full = self.train_df[self.features]
+        y_train_full = self.train_df[self.target]
         X_test = self.test_df[self.features]
         y_test = self.test_df[self.target]
-
-        sub_train_df, val_df = self._split_train_val(train_full_df)
-
-        X_train = sub_train_df[self.features]
-        y_train = sub_train_df[self.target]
-        X_val = val_df[self.features]
-        y_val = val_df[self.target]
         
         def objective(trial):
             n_features_to_select = trial.suggest_categorical('n_features_to_select', self.optuna_rfe_spaces['n_features_to_select'])
@@ -321,12 +286,13 @@ class AUCMaximizer:
                 enable_categorical=True,
             )
             rfe = RFE(estimator=base_model, n_features_to_select=n_features_to_select)
-            rfe.fit(X_train, y_train)
+            rfe.fit(X_train_full, y_train_full)
             
-            selected_features_trial = X_train.columns[rfe.support_].tolist()
+            selected_features_trial = X_train_full.columns[rfe.support_].tolist()
             
-            X_train_selected = X_train[selected_features_trial]
-            X_val_selected = X_val[selected_features_trial]
+            X_train_selected = X_train_full[selected_features_trial]
+            
+            dtrain = xgb.DMatrix(X_train_selected, label=y_train_full, enable_categorical=True)
             
             params = {
                 'objective': 'binary:logistic',
@@ -338,19 +304,19 @@ class AUCMaximizer:
                 'reg_alpha': reg_alpha,
                 'reg_lambda': reg_lambda,
             }
-            dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-            dval = xgb.DMatrix(X_val_selected, label=y_val, enable_categorical=True)
-            model = xgb.train(
+            cv_results = xgb.cv(
                 params,
                 dtrain,
                 num_boost_round=self.optuna_boost_round,
-                evals=[(dval, 'eval')],
+                nfold=self.n_folds,
+                stratified=True,
                 early_stopping_rounds=self.optuna_early_stopping,
+                metrics='auc',
+                seed=self.random_state,
                 verbose_eval=False,
             )
-            y_pred_val = model.predict(dval)
-            auc = roc_auc_score(y_val, y_pred_val)
-            return auc
+            best_score = cv_results['test-auc-mean'].max()
+            return best_score
         
         study = optuna.create_study(direction='maximize')
         study.optimize(objective, n_trials=self.n_trials)
@@ -360,36 +326,36 @@ class AUCMaximizer:
         best_params['objective'] = 'binary:logistic'
         best_params['eval_metric'] = 'auc'
         
-        # Re-do RFE with best_n on sub_train
+        # Re-do RFE with best_n on full train
         base_model = xgb.XGBClassifier(
             **self.default_params,
             random_state=self.random_state,
             enable_categorical=True,
         )
         rfe = RFE(estimator=base_model, n_features_to_select=best_n)
-        rfe.fit(X_train, y_train)
+        rfe.fit(X_train_full, y_train_full)
         
-        selected_features = X_train.columns[rfe.support_].tolist()
+        selected_features = X_train_full.columns[rfe.support_].tolist()
         
-        X_train_selected = X_train[selected_features]
-        X_val_selected = X_val[selected_features]
         X_train_full_selected = X_train_full[selected_features]
         X_test_selected = X_test[selected_features]
         
-        # Get best_iter
-        dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-        dval = xgb.DMatrix(X_val_selected, label=y_val, enable_categorical=True)
-        model_temp = xgb.train(
+        dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
+        
+        cv_results = xgb.cv(
             best_params,
-            dtrain,
+            dtrain_full,
             num_boost_round=self.optuna_boost_round,
-            evals=[(dval, 'eval')],
+            nfold=self.n_folds,
+            stratified=True,
             early_stopping_rounds=self.optuna_early_stopping,
+            metrics='auc',
+            seed=self.random_state,
             verbose_eval=False,
         )
-        best_iter = model_temp.best_iteration
+        best_iter = cv_results['test-auc-mean'].argmax()
+        cv_val_auc = cv_results['test-auc-mean'].max()
         
-        dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
         model = xgb.train(
             best_params,
             dtrain_full,
@@ -398,52 +364,60 @@ class AUCMaximizer:
         )
         y_pred_train = model.predict(dtrain_full)
         train_auc = roc_auc_score(y_train_full, y_pred_train)
-        return model, X_test_selected, y_test, selected_features, train_auc
+        return model, X_test_selected, y_test, selected_features, train_auc, cv_val_auc
 
     def run_all(self):
-        model1, X_test1, y_test, sel1, train_auc1 = self.manual_without_rfe()
+        model1, X_test1, y_test, sel1, train_auc1, cv_val_auc1 = self.manual_without_rfe()
         dtest1 = xgb.DMatrix(X_test1)
         y_pred1 = model1.predict(dtest1)
         test_auc1 = roc_auc_score(y_test, y_pred1)
-        self.results["Manual without RFE"] = (test_auc1, train_auc1, model1, X_test1, y_test, sel1, y_pred1)
+        self.results["Manual without RFE"] = (test_auc1, train_auc1, model1, X_test1, y_test, sel1, y_pred1, cv_val_auc1)
 
-        model2, X_test2, y_test, sel2, train_auc2 = self.manual_with_rfe()
+        model2, X_test2, y_test, sel2, train_auc2, cv_val_auc2 = self.manual_with_rfe()
         dtest2 = xgb.DMatrix(X_test2)
         y_pred2 = model2.predict(dtest2)
         test_auc2 = roc_auc_score(y_test, y_pred2)
-        self.results["Manual with RFE"] = (test_auc2, train_auc2, model2, X_test2, y_test, sel2, y_pred2)
+        self.results["Manual with RFE"] = (test_auc2, train_auc2, model2, X_test2, y_test, sel2, y_pred2, cv_val_auc2)
 
-        model3, X_test3, y_test, sel3, train_auc3 = self.automated_without_rfe()
+        model3, X_test3, y_test, sel3, train_auc3, cv_val_auc3 = self.automated_without_rfe()
         dtest3 = xgb.DMatrix(X_test3)
         y_pred3 = model3.predict(dtest3)
         test_auc3 = roc_auc_score(y_test, y_pred3)
-        self.results["Automated without RFE"] = (test_auc3, train_auc3, model3, X_test3, y_test, sel3, y_pred3)
+        self.results["Automated without RFE"] = (test_auc3, train_auc3, model3, X_test3, y_test, sel3, y_pred3, cv_val_auc3)
 
-        model4, X_test4, y_test, sel4, train_auc4 = self.automated_with_rfe()
+        model4, X_test4, y_test, sel4, train_auc4, cv_val_auc4 = self.automated_with_rfe()
         dtest4 = xgb.DMatrix(X_test4)
         y_pred4 = model4.predict(dtest4)
         test_auc4 = roc_auc_score(y_test, y_pred4)
-        self.results["Automated with RFE"] = (test_auc4, train_auc4, model4, X_test4, y_test, sel4, y_pred4)
+        self.results["Automated with RFE"] = (test_auc4, train_auc4, model4, X_test4, y_test, sel4, y_pred4, cv_val_auc4)
 
     def build_comparative(self):
         comparative_data = {
             'method': list(self.results.keys()),
             'train_auc': [self.results[k][1] for k in self.results],
+            'train_cv_val_auc': [self.results[k][7] for k in self.results],
             'test_auc': [self.results[k][0] for k in self.results],
         }
         self.comparative_df = pd.DataFrame(comparative_data)
-        abs_delta = np.abs(self.comparative_df['train_auc'] - self.comparative_df['test_auc'])
-        self.comparative_df['brownie_points'] = self.comparative_df['test_auc'] - abs_delta
+        abs_delta = np.abs(self.comparative_df['train_auc'] - self.comparative_df['train_cv_val_auc'])
+        self.comparative_df['brownie_points'] = self.comparative_df['train_cv_val_auc'] - abs_delta
         self.comparative_df = self.comparative_df.sort_values(by='brownie_points', ascending=False).reset_index(drop=True)
 
     def select_best(self):
-        self.best_name = self.comparative_df.iloc[0]['method']
-        self.best_auc, train_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
+        abs_delta = np.abs(self.comparative_df['train_auc'] - self.comparative_df['train_cv_val_auc'])
+        candidates = self.comparative_df[abs_delta < self.delta_threshold]
+        if not candidates.empty:
+            best_idx = candidates['train_cv_val_auc'].idxmax()
+            self.best_name = candidates.loc[best_idx, 'method']
+        else:
+            self.best_name = self.comparative_df.iloc[0]['method']
+        
+        self.best_auc, train_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _ = self.results[self.best_name]
         
         if train_auc < self.underfit_threshold:
-            best_idx = self.comparative_df['test_auc'].idxmax()
+            best_idx = self.comparative_df['train_cv_val_auc'].idxmax()
             self.best_name = self.comparative_df.loc[best_idx, 'method']
-            self.best_auc, train_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
+            self.best_auc, train_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _ = self.results[self.best_name]
         
         self.test_base_rate = self.y_test.mean()
 
