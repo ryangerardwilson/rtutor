@@ -9,7 +9,6 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import KFold
 from xgb_train_test_splitter import TrainTestSplitter
-import os
 
 # Set seed for reproducibility
 np.random.seed(42)
@@ -159,7 +158,6 @@ params = {
     'eta': 0.1,
     'subsample': 0.8,
     'colsample_bytree': 0.8,
-    'nthread': os.cpu_count(),
     # Add/update other params as needed, e.g., 'reg_alpha': 0.001, etc.
 }
 
