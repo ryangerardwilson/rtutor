@@ -363,20 +363,10 @@ class AUCMaximizer:
         self.comparative_df = self.comparative_df.sort_values(by='brownie_points', ascending=False).reset_index(drop=True)
 
     def select_best(self):
-        abs_delta = np.abs(self.comparative_df['train_auc'] - self.comparative_df['train_cv_val_auc'])
-        candidates = self.comparative_df[abs_delta < self.delta_threshold]
-        if not candidates.empty:
-            best_idx = candidates['train_cv_val_auc'].idxmax()
-            self.best_name = candidates.loc[best_idx, 'method']
-        else:
-            self.best_name = self.comparative_df.iloc[0]['method']
+        # Updated to directly select the model with the highest brownie points
+        self.best_name = self.comparative_df.iloc[0]['method']
         
         self.best_auc, train_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _ = self.results[self.best_name]
-        
-        if train_auc < self.underfit_threshold:
-            best_idx = self.comparative_df['train_cv_val_auc'].idxmax()
-            self.best_name = self.comparative_df.loc[best_idx, 'method']
-            self.best_auc, train_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _ = self.results[self.best_name]
         
         self.test_base_rate = self.y_test.value_counts(normalize=True).sort_index().to_dict()
 

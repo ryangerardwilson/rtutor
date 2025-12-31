@@ -414,26 +414,12 @@ class R2Maximizer:
         self.comparative_df = self.comparative_df.sort_values(by='brownie_points', ascending=False).reset_index(drop=True)
 
     def select_best(self):
-        abs_delta = np.abs(self.comparative_df['train_r2'] - self.comparative_df['train_cv_val_r2'])
-        candidates = self.comparative_df[abs_delta < self.delta_threshold]
-        if not candidates.empty:
-            best_idx = candidates['train_cv_val_r2'].idxmax()
-            self.best_name = candidates.loc[best_idx, 'method']
-        else:
-            self.best_name = self.comparative_df.iloc[0]['method']
+        self.best_name = self.comparative_df.iloc[0]['method']
         
         self.best_r2, train_r2, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _ = self.results[self.best_name]
         self.y_test_orig = np.exp(self.y_test) if self.log_transformation_needed else self.y_test
         self.y_pred_orig = np.exp(self.y_pred_test) if self.log_transformation_needed else self.y_pred_test
         self.test_base_mean = self.y_test_orig.mean()
-
-        if train_r2 < self.underfit_threshold:
-            best_idx = self.comparative_df['train_cv_val_r2'].idxmax()
-            self.best_name = self.comparative_df.loc[best_idx, 'method']
-            self.best_r2, train_r2, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _ = self.results[self.best_name]
-            self.y_test_orig = np.exp(self.y_test) if self.log_transformation_needed else self.y_test
-            self.y_pred_orig = np.exp(self.y_pred_test) if self.log_transformation_needed else self.y_pred_test
-            self.test_base_mean = self.y_test_orig.mean()
 
     def create_metrics_df(self, y_test_orig, y_pred_orig, test_base_mean):
         percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
