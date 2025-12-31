@@ -554,6 +554,7 @@ splitter = TrainTestSplitter(
     target='class',
     xgb_objective='multi:softprob'
 )
+# DO NOT REMOVE THE BELOW COMMENTS
 # train_df, test_df = splitter.time_percentile_split(timestamp_col='timestamp', percentile=0.8)
 # train_df, test_df = splitter.time_split(timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
