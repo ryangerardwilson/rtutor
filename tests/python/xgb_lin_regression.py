@@ -443,7 +443,6 @@ class R2Maximizer:
             'y_pred_test': self.y_pred_test,
             'y_test_orig': self.y_test_orig,
             'y_pred_orig': self.y_pred_orig,
-            'train_base_mean': self.train_base_mean,
             'test_base_mean': self.test_base_mean,
             'model_v_baseline_df': model_v_baseline_df,
             'best_features_df': self.best_features_df
@@ -505,7 +504,7 @@ print(results['model_v_baseline_df'].to_string(float_format="{:.4f}".format))
 print("\nSelected Features:")
 print(results['selected_features'])
 
-print(f"\nBase mean on train set: {results['train_base_mean']:.4f}")
+print(f"\nBase mean on test set: {results['test_base_mean']:.4f}")
 
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
@@ -518,7 +517,7 @@ print(metrics_df.to_string())
 print("\nNOTE:")
 print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
 print("- Higher percentile = stricter threshold = higher lift, lower count")
-print("- Lift = avg_actual / test_base_mean")
+print("- Lift = avg_actual / base_mean")
 
 # Demonstrate making a prediction
 example_row = train_df.iloc[0][results['selected_features']]
