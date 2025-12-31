@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 @dataclass
-class MaximizerConfig:
+class Config:
     n_features_to_select: int = 10
     n_trials: int = 30
     random_state: int = 42
@@ -83,7 +83,7 @@ print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
 class AUCMaximizer:
-    def __init__(self, train_df, test_df, features, target, config: MaximizerConfig = MaximizerConfig()):
+    def __init__(self, train_df, test_df, features, target, config: Config):
         self.train_df = train_df
         self.test_df = test_df
         self.features = features
@@ -501,7 +501,7 @@ splitter = TrainTestSplitter(
 # train_df, test_df = splitter.time_split(timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
 
-maximizer = AUCMaximizer(train_df, test_df, features, 'class', MaximizerConfig())
+maximizer = AUCMaximizer(train_df, test_df, features, 'class', Config())
 results = maximizer.optimize()
 
 print("\n=== Comparative Model Results ===")

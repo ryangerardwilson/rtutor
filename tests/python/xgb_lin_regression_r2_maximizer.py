@@ -16,7 +16,7 @@ from xgb_train_test_splitter import TrainTestSplitter
 from dataclasses import dataclass, field
 
 @dataclass
-class MaximizerConfig:
+class Config:
     n_features_to_select: int = 10
     n_trials: int = 30
     random_state: int = 42
@@ -83,7 +83,7 @@ print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
 class R2Maximizer:
-    def __init__(self, train_df, test_df, features, target, config: MaximizerConfig = MaximizerConfig()):
+    def __init__(self, train_df, test_df, features, target, config: Config):
         self.train_df = train_df.copy()
         self.test_df = test_df.copy()
         self.features = features
@@ -498,7 +498,7 @@ splitter = TrainTestSplitter(
 # train_df, test_df = splitter.time_split(timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
 
-maximizer = R2Maximizer(train_df, test_df, features, 'target', MaximizerConfig())
+maximizer = R2Maximizer(train_df, test_df, features, 'target', Config())
 results = maximizer.optimize()
 
 print("\n=== Comparative Model Results ===")
