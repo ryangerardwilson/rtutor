@@ -40,11 +40,11 @@ sudo pacman -S python
 git clone <this-repo> ~/Apps/rtutor
 ```
 
-3. Make a proper launcher. Symlink `init.sh` into your PATH as `rtutor`:
+3. Make a proper launcher. Symlink the executable main.py into your PATH as `rtutor`:
 ```
-chmod +x ~/Apps/rtutor/init.sh
+chmod +x ~/Apps/rtutor/main.py
 mkdir -p ~/.local/bin
-ln -sf ~/Apps/rtutor/init.sh ~/.local/bin/rtutor
+ln -sf ~/Apps/rtutor/main.py ~/.local/bin/rtutor
 ```
 
 4. Ensure `~/.local/bin` is on PATH (fix your shell if it isn’t):
@@ -54,17 +54,11 @@ source ~/.bashrc
 command -v rtutor || echo "PATH not set right"
 ```
 
-Use `/usr/local/bin` with `sudo` if you want it system-wide. Own the consequences.
-
-Why the symlink? Because `init.sh` sets `TERM` correctly (tmux/odd terminals) so curses doesn’t puke colors. Use it.
-
-If you’re on some other distro, figure it out. This ain’t Windows.
-
 ## Usage
 
 You made the symlink — use it.
 
-Start interactive tutor:
+Start the app (doc mode is the default):
 ```
 rtutor
 ```
@@ -79,12 +73,11 @@ Menus:
 
 If no courses are found, it tells you and exits. Put `.md` files in `courses/`.
 
-If you insist on bypassing the init script (don’t):
+You can run directly (not recommended for daily use):
 ```
-./init.sh
-./main.py
+~/Apps/rtutor/main.py
 ```
-But the supported, recommended way is: `rtutor`.
+But symlink to `~/.local/bin/rtutor` like above. 
 
 Markdown format for courses:
 ```
@@ -98,89 +91,66 @@ Markdown format for courses:
 
 ## Doc Mode Features
 
-Launch doc mode with:
-```
-rtutor -d
-rtutor --doc
-```
+Doc mode is the default now. Just run rtutor — you'll be in the read-only doc viewer with full navigation and editing tools. The old -d flag still works but is redundant unless you're using it with search tokens (see DOC and CAT modes).
 
-Doc mode provides a read-only viewer with powerful navigation and editing tools.
+Quick keys while viewing:
+- b — bookmark current lesson
+- i — edit the lesson in your $EDITOR (vim by default); rtutor will reload the course and try to keep your place
+- h / l — previous / next lesson
+- r — rote mode (10 reps)
+- j — jump mode (type through entire sequence)
+- / — search within the lesson (vim-style)
+- v — visual select; y to copy selection (uses wl-copy if available)
+- esc — back to menu
 
-### Bookmarks
-- While viewing any lesson in doc mode: press `b` to bookmark the current lesson.
-- Bookmarks are persisted in `~/.config/rtutor/bookmarks.conf` in a clean, human-readable hierarchical format. Example:
-```
-Course: Python
-Part: Part III: Data Science (ditch Excel)
-Section: Section 1: Vanilla Numpy & Pandas
-Lesson: Lesson 4: Modifications / Cleaning Based on Initial Inspection
+Bookmarks:
+- Persisted to `~/.config/rtutor/bookmarks.conf` in a plain hierarchical format.
+- From the main menu in doc mode press `b` to open and jump.
+- In the bookmark list: j/k navigate, Enter or l to jump, dd (double-press d) to delete.
 
-Course: Unix
-Part: Part I: Typing in the Terminal
-Section:
-Lesson: Lesson 1: Multiline Strings
-```
-- From the main menu in doc mode, press `b` to open the bookmark list.
-- Navigate with `j`/`k`, press `Enter` or `l` to jump directly to the bookmarked lesson.
-- Press `dd` (quick succession) on a selected bookmark to delete it. Slow separate `d` presses do nothing.
-
-### In-place Editing
-- While viewing a lesson in doc mode: press `i` to edit the lesson in your `$EDITOR` (defaults to `vim`).
-- The source Markdown file opens at the exact lesson heading.
-- Save and quit → rtutor automatically reloads the updated course.
-- You stay on the edited lesson (or the closest match if the name changed).
-
-### Other Doc Mode Keys
-- `h` / `l` — previous / next lesson
-- `r` — rote mode (10 reps)
-- `j` — jump mode (type through entire sequence)
-- `esc` — back to menu
+In-place editing:
+- Press `i` on a lesson (if the source .md file is present).
+- rtutor opens your editor at the lesson heading, you edit and save, and rtutor reloads and attempts to keep your location.
 
 ## DOC and CAT modes
 
-Read-only doc viewer, direct fuzzy jump that skips menus, and a non-interactive "cat" that spits content to stdout. Invoke with `rtutor`.
+Short and brutal: doc-mode is default. -d/--doc still accepted for compatibility; use them with tokens to do direct fuzzy searches.
 
 Doc mode:
 ```
-rtutor -d
-rtutor --doc
+rtutor                 # launches doc-mode menus (default)
+rtutor -d "token ..."  # runs a direct search and opens the matches in doc-mode viewer
 ```
-- `-d` with no args drops you into doc-mode menus.
-- Pass quoted args after `-d` to filter by titles. Tokens map to:
-  - `[L]` -> lesson
-  - `[C, L]` -> course, lesson
-  - `[C, P, L]` -> course, part, lesson
-  - `[C, P, S, L]` -> course, part, section, lesson
-
-Fuzzy matching is case-insensitive and punctuation-insensitive. Threshold: 70%.
-
-Fuzzy rules:
-- Single-word token matches individual words in the target title with >= 70% similarity.
-- Multi-word token uses a sliding window of the same word count over the target title; any consecutive n-word window scoring >= 70% is a match.
-
-Examples (from `courses/python.md`):
-```
-rtutor -d "repl"
-# Matches lessons with a word fuzzy-matching "repl", e.g., "Lesson 1: Running the REPL"
-
-rtutor -d "python" "repl"
-# Only matches lessons titled "repl" inside course "python"
-
-rtutor -d "python" "dipping toes" "repl"
-```
-
-What you get with `-d`:
-- Matches open in the doc viewer as a linear list with context like "Course > Part > Section > Lesson".
-- No matches? It says so and exits with code 1.
+- `rtutor` alone → menu-driven doc-mode.
+- `rtutor -d` with no tokens is redundant (same as running rtutor).
+- `rtutor -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
+- Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
 
 Cat mode: print the single best match to stdout (non-interactive):
 ```
 rtutor -c <tokens...>
 rtutor --cat <tokens...>
 ```
-- Same token mapping and fuzzy rules as `-d`.
-- Picks one best lesson match and prints it with ANSI colors.
-- Exits 0 on success, 1 on no match.
+- Same token mapping and fuzzy rules as -d.
+- Prints ANSI-colored lesson text to stdout. Exits 0 on success, 1 on no match.
+
+Token mapping (fuzzy, case-insensitive):
+- [L] -> search all courses for lesson fuzzy-matching L
+- [C, L] -> course C, lesson L
+- [C, P, L] -> course, part, lesson
+- [C, P, S, L] -> course, part, section, lesson
+
+Fuzzy rules:
+- Single-word token matches individual words in the target with >= 70% similarity.
+- Multi-word token uses a sliding window of that many words in the target; any window scoring >= 70% matches.
+- Matching is punctuation-insensitive and case-insensitive.
+
+Examples:
+```
+rtutor -d "repl"
+rtutor -d "python" "repl"
+rtutor -c "python" "dipping toes" "repl"
+```
 
 ## Adding Courses
 
