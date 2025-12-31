@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import optuna
-from scipy.stats import skew
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import (
     mean_squared_error,
@@ -115,19 +114,6 @@ class R2Maximizer:
         self.baseline_rmse = None
         self.best_features_df = None
         self.best_params = None
-
-        # Skewness Check and log transformation of target
-        skew_value = skew(self.train_df[self.target])
-        print(f"\nSkewness of original target (train): {skew_value:.4f}")
-        if abs(skew_value) > 0.5:
-            print("Target is skewed. Applying log transformation.")
-            self.train_df[self.target] = np.log(self.train_df[self.target])
-            self.test_df[self.target] = np.log(self.test_df[self.target])
-            skew_transformed = skew(self.train_df[self.target])
-            print(f"Skewness after log transformation (train): {skew_transformed:.4f}")
-            self.log_transformation_needed = True
-        else:
-            print("Target is approximately normal. No transformation applied.")
 
     def compute_baseline(self):
         y_train = self.train_df[self.target]
