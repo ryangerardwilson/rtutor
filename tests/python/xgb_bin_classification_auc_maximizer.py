@@ -15,6 +15,39 @@ from sklearn.metrics import (
 )
 from sklearn.feature_selection import RFE
 from xgb_train_test_splitter import TrainTestSplitter
+from dataclasses import dataclass, field
+
+@dataclass
+class MaximizerConfig:
+    n_features_to_select: int = 10
+    n_trials: int = 30
+    random_state: int = 42
+    delta_threshold: float = 0.05
+    underfit_threshold: float = 0.6
+    n_folds: int = 3
+    default_params: dict = field(default_factory=lambda: {
+        'objective': 'binary:logistic',
+        'eval_metric': 'auc',
+        'max_depth': 6,
+        'eta': 0.1,
+        'subsample': 0.8,
+        'colsample_bytree': 0.8,
+    })
+    num_boost_round: int = 200
+    early_stopping_rounds: int = 20
+    optuna_boost_round: int = 1000
+    optuna_early_stopping: int = 20
+    optuna_search_spaces: dict = field(default_factory=lambda: {
+        'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
+        'eta': {'low': 0.01, 'high': 0.3, 'log': True},
+        'subsample': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        'reg_alpha': {'low': 1e-5, 'high': 10.0, 'log': True},
+        'reg_lambda': {'low': 1e-5, 'high': 10.0, 'log': True},
+    })
+    optuna_rfe_spaces: dict = field(default_factory=lambda: {
+        'n_features_to_select': [5, 7, 10, 12, 15]
+    })
 
 # Set seed for reproducibility
 np.random.seed(42)
@@ -49,40 +82,26 @@ print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
 class AUCMaximizer:
-    def __init__(self, train_df, test_df, features, target):
+    def __init__(self, train_df, test_df, features, target, config: MaximizerConfig):
         self.train_df = train_df
         self.test_df = test_df
         self.features = features
         self.target = target
-        self.n_features_to_select = 10
-        self.n_trials = 30
-        self.random_state = 42
-        self.delta_threshold = 0.05
-        self.underfit_threshold = 0.6
-        self.n_folds = 3
-        self.default_params = {
-            'objective': 'binary:logistic',
-            'eval_metric': 'auc',
-            'max_depth': 6,
-            'eta': 0.1,
-            'subsample': 0.8,
-            'colsample_bytree': 0.8,
-        }
-        self.num_boost_round = 200
-        self.early_stopping_rounds = 20
-        self.optuna_boost_round = 1000
-        self.optuna_early_stopping = 20
-        self.optuna_search_spaces = {
-            'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
-            'eta': {'low': 0.01, 'high': 0.3, 'log': True},
-            'subsample': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            'reg_alpha': {'low': 1e-5, 'high': 10.0, 'log': True},
-            'reg_lambda': {'low': 1e-5, 'high': 10.0, 'log': True},
-        }
-        self.optuna_rfe_spaces = {
-            'n_features_to_select': [5, 7, 10, 12, 15]
-        }
+        
+        # Assign config values to instance vars
+        self.n_features_to_select = config.n_features_to_select
+        self.n_trials = config.n_trials
+        self.random_state = config.random_state
+        self.delta_threshold = config.delta_threshold
+        self.underfit_threshold = config.underfit_threshold
+        self.n_folds = config.n_folds
+        self.default_params = config.default_params
+        self.num_boost_round = config.num_boost_round
+        self.early_stopping_rounds = config.early_stopping_rounds
+        self.optuna_boost_round = config.optuna_boost_round
+        self.optuna_early_stopping = config.optuna_early_stopping
+        self.optuna_search_spaces = config.optuna_search_spaces
+        self.optuna_rfe_spaces = config.optuna_rfe_spaces
         self.results = {}
         self.comparative_df = None
         self.best_name = None
@@ -488,7 +507,7 @@ splitter = TrainTestSplitter(
 # train_df, test_df = splitter.time_percentile_split(timestamp_col='timestamp', percentile=0.8)
 # train_df, test_df = splitter.time_split(timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
-maximizer = AUCMaximizer(train_df, test_df, features, 'converted')
+maximizer = AUCMaximizer(train_df, test_df, features, 'converted', MaximizerConfig())
 results = maximizer.optimize()
 
 print("\n=== Comparative Model Results ===")
