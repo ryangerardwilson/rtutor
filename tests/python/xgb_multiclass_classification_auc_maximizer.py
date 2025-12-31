@@ -474,8 +474,6 @@ class AUCMaximizer:
             'comparative_df': self.comparative_df,
             'model': self.model,
             'selected_features': self.selected_features,
-            'y_test': self.y_test,
-            'y_pred_test': self.y_pred_test,
             'test_base_rate': self.test_base_rate,
             'best_features_df': self.best_features_df,
             'model_v_baseline_df': model_v_baseline_df,
