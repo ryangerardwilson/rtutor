@@ -14,7 +14,7 @@ from sklearn.metrics import (
     accuracy_score,
 )
 from sklearn.feature_selection import RFE
-from xgb_test_train_splitter import TestTrainSplitter
+from xgb_train_test_splitter import TrainTestSplitter
 
 # Set seed for reproducibility
 np.random.seed(42)
@@ -455,7 +455,7 @@ class MetricsComputer:
         metrics_df = pd.DataFrame(table_rows).set_index('percentile')
         return metrics_df
 
-splitter = TestTrainSplitter(
+splitter = TrainTestSplitter(
     tabular_data_df, 
     features, 
     target='converted',

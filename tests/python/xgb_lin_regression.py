@@ -12,7 +12,7 @@ from sklearn.metrics import (
     root_mean_squared_error,
 )
 from sklearn.feature_selection import RFE
-from xgb_test_train_splitter import TestTrainSplitter
+from xgb_train_test_splitter import TrainTestSplitter
 
 # Set seed for reproducibility
 np.random.seed(42)
@@ -522,7 +522,7 @@ class MetricsComputer:
         return metrics_df.round(4)
 
 # Example usage
-splitter = TestTrainSplitter(
+splitter = TrainTestSplitter(
     tabular_data_df, 
     features, target='target', 
     xgb_objective='reg:squarederror'

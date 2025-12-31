@@ -3,7 +3,7 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-class TestTrainSplitter:
+class TrainTestSplitter:
     def __init__(self, df, features, target, xgb_objective):
         self.df = df
         self.features = features
