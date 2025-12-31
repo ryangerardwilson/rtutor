@@ -371,6 +371,12 @@ class AUCMaximizer:
             self.best_features_df = self.best_features_df.set_index("importance_rank")
         else:
             self.best_features_df = pd.DataFrame()
+
+        model_v_baseline_data = {
+            'approach': ['Model', 'Baseline'],
+            'auc': [self.best_auc, 0.5]
+        }
+        model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index('approach')
         
         return {
             'comparative_df': self.comparative_df,
@@ -380,7 +386,8 @@ class AUCMaximizer:
             'y_test': self.y_test,
             'y_pred_test': self.y_pred_test,
             'base_rate': self.base_rate,
-            'best_features_df': self.best_features_df
+            'best_features_df': self.best_features_df,
+            'model_v_baseline_df': model_v_baseline_df
         }
 
 class MetricsComputer:
@@ -432,6 +439,9 @@ results = maximizer.optimize()
 
 print("\n=== Comparative Model Results ===")
 print(results['comparative_df'].to_string(index=False))
+
+print("\n=== Model vs Baseline ===")
+print(results['model_v_baseline_df'].to_string(float_format="{:.4f}".format))
 
 print("\nSelected Features:")
 print(results['selected_features'])
