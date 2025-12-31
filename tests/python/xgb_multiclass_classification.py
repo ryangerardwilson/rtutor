@@ -1,5 +1,6 @@
 # ~/Apps/rtutor/tests/python/xgb_multiclass_classification.py
 # ~/Apps/rtutor/tests/xgb_multiclass_classification.py
+# ~/Apps/rtutor/tests/xgb_multiclass_classification.py
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -345,10 +346,10 @@ class AUCMaximizer:
             'method': list(self.results.keys()),
             'train_auc': [self.results[k][1] for k in self.results],
             'test_auc': [self.results[k][0] for k in self.results],
-            'num_features': [len(self.results[k][5]) for k in self.results]
         }
         self.comparative_df = pd.DataFrame(comparative_data)
-        self.comparative_df = self.comparative_df.sort_values(by='test_auc', ascending=False).reset_index(drop=True)
+        self.comparative_df['abs_delta'] = np.abs(self.comparative_df['train_auc'] - self.comparative_df['test_auc'])
+        self.comparative_df = self.comparative_df.sort_values(by='abs_delta', ascending=True).reset_index(drop=True)
 
     def select_best(self):
         self.best_name = self.comparative_df.iloc[0]['method']
