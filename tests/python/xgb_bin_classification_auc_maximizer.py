@@ -1,3 +1,4 @@
+# ~/Apps/rtutor/tests/python/xgb_bin_classification_auc_maximizer.py
 # ~/Apps/rtutor/tests/python/xgb_bin_classification.py
 import pandas as pd
 import numpy as np
@@ -95,6 +96,7 @@ class AUCMaximizer:
         self.y_pred_test = None
         self.test_base_rate = None
         self.best_features_df = None
+        self.best_params = None
 
     def manual_without_rfe(self):
         X_train_full = self.train_df[self.features]
@@ -129,7 +131,7 @@ class AUCMaximizer:
         )
         y_pred_train = model.predict(dtrain_full)
         train_auc = roc_auc_score(y_train_full, y_pred_train)
-        return model, X_test, y_test, selected_features, train_auc, cv_val_auc
+        return model, X_test, y_test, selected_features, train_auc, cv_val_auc, params
 
     def manual_with_rfe(self):
         X_train_full = self.train_df[self.features]
@@ -175,7 +177,7 @@ class AUCMaximizer:
         )
         y_pred_train = model.predict(dtrain_full)
         train_auc = roc_auc_score(y_train_full, y_pred_train)
-        return model, X_test_selected, y_test, selected_features, train_auc, cv_val_auc
+        return model, X_test_selected, y_test, selected_features, train_auc, cv_val_auc, params
 
     def automated_without_rfe(self):
         X_train_full = self.train_df[self.features]
@@ -258,7 +260,7 @@ class AUCMaximizer:
         )
         y_pred_train = model.predict(dtrain_full)
         train_auc = roc_auc_score(y_train_full, y_pred_train)
-        return model, X_test, y_test, selected_features, train_auc, cv_val_auc
+        return model, X_test, y_test, selected_features, train_auc, cv_val_auc, best_params
 
     def automated_with_rfe(self):
         X_train_full = self.train_df[self.features]
@@ -370,32 +372,32 @@ class AUCMaximizer:
         )
         y_pred_train = model.predict(dtrain_full)
         train_auc = roc_auc_score(y_train_full, y_pred_train)
-        return model, X_test_selected, y_test, selected_features, train_auc, cv_val_auc
+        return model, X_test_selected, y_test, selected_features, train_auc, cv_val_auc, best_params
 
     def run_all(self):
-        model1, X_test1, y_test, sel1, train_auc1, cv_val_auc1 = self.manual_without_rfe()
+        model1, X_test1, y_test, sel1, train_auc1, cv_val_auc1, params1 = self.manual_without_rfe()
         dtest1 = xgb.DMatrix(X_test1)
         y_pred1 = model1.predict(dtest1)
         test_auc1 = roc_auc_score(y_test, y_pred1)
-        self.results["Manual without RFE"] = (test_auc1, train_auc1, model1, X_test1, y_test, sel1, y_pred1, cv_val_auc1)
+        self.results["Manual without RFE"] = (test_auc1, train_auc1, model1, X_test1, y_test, sel1, y_pred1, cv_val_auc1, params1)
 
-        model2, X_test2, y_test, sel2, train_auc2, cv_val_auc2 = self.manual_with_rfe()
+        model2, X_test2, y_test, sel2, train_auc2, cv_val_auc2, params2 = self.manual_with_rfe()
         dtest2 = xgb.DMatrix(X_test2)
         y_pred2 = model2.predict(dtest2)
         test_auc2 = roc_auc_score(y_test, y_pred2)
-        self.results["Manual with RFE"] = (test_auc2, train_auc2, model2, X_test2, y_test, sel2, y_pred2, cv_val_auc2)
+        self.results["Manual with RFE"] = (test_auc2, train_auc2, model2, X_test2, y_test, sel2, y_pred2, cv_val_auc2, params2)
 
-        model3, X_test3, y_test, sel3, train_auc3, cv_val_auc3 = self.automated_without_rfe()
+        model3, X_test3, y_test, sel3, train_auc3, cv_val_auc3, params3 = self.automated_without_rfe()
         dtest3 = xgb.DMatrix(X_test3)
         y_pred3 = model3.predict(dtest3)
         test_auc3 = roc_auc_score(y_test, y_pred3)
-        self.results["Automated without RFE"] = (test_auc3, train_auc3, model3, X_test3, y_test, sel3, y_pred3, cv_val_auc3)
+        self.results["Automated without RFE"] = (test_auc3, train_auc3, model3, X_test3, y_test, sel3, y_pred3, cv_val_auc3, params3)
 
-        model4, X_test4, y_test, sel4, train_auc4, cv_val_auc4 = self.automated_with_rfe()
+        model4, X_test4, y_test, sel4, train_auc4, cv_val_auc4, params4 = self.automated_with_rfe()
         dtest4 = xgb.DMatrix(X_test4)
         y_pred4 = model4.predict(dtest4)
         test_auc4 = roc_auc_score(y_test, y_pred4)
-        self.results["Automated with RFE"] = (test_auc4, train_auc4, model4, X_test4, y_test, sel4, y_pred4, cv_val_auc4)
+        self.results["Automated with RFE"] = (test_auc4, train_auc4, model4, X_test4, y_test, sel4, y_pred4, cv_val_auc4, params4)
 
     def build_comparative(self):
         comparative_data = {
@@ -413,7 +415,7 @@ class AUCMaximizer:
         # Updated to directly select the model with the highest brownie points
         self.best_name = self.comparative_df.iloc[0]['method']
         
-        self.best_auc, train_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _ = self.results[self.best_name]
+        self.best_auc, train_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _, self.best_params = self.results[self.best_name]
         
         self.test_base_rate = self.y_test.mean()
 
@@ -475,13 +477,11 @@ class AUCMaximizer:
             'comparative_df': self.comparative_df,
             'model': self.model,
             'selected_features': self.selected_features,
-            'X_test_selected': self.X_test_selected,
-            'y_test': self.y_test,
-            'y_pred_test': self.y_pred_test,
             'test_base_rate': self.test_base_rate,
             'best_features_df': self.best_features_df,
             'model_v_baseline_df': model_v_baseline_df,
-            'metrics_df': metrics_df
+            'metrics_df': metrics_df,
+            'best_params': self.best_params
         }
 
 splitter = TrainTestSplitter(
@@ -513,6 +513,9 @@ print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
 print(results['metrics_df'].to_string())
+
+print("\n=== Best Model Parameters ===")
+print(results['best_params'])
 
 print("\nNOTE:")
 print("- 'Pxx' means selecting users with predicted probability >= xx-th percentile")

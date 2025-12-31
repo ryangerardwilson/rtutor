@@ -1,3 +1,4 @@
+# ~/Apps/rtutor/tests/python/xgb_lin_regression_r2_maximizer.py
 # ~/Apps/rtutor/tests/python/xgb_lin_regression.py
 import pandas as pd
 import numpy as np
@@ -113,6 +114,7 @@ class R2Maximizer:
         self.baseline_mae = None
         self.baseline_rmse = None
         self.best_features_df = None
+        self.best_params = None
 
         # Skewness Check and log transformation of target
         skew_value = skew(self.train_df[self.target])
@@ -188,7 +190,7 @@ class R2Maximizer:
         y_train_orig = np.exp(y_train_full) if self.log_transformation_needed else y_train_full
         y_pred_train_orig = np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
         train_r2 = r2_score(y_train_orig, y_pred_train_orig)
-        return model, X_test, y_test, selected_features, train_r2, cv_val_r2
+        return model, X_test, y_test, selected_features, train_r2, cv_val_r2, params
 
     def manual_with_rfe(self):
         X_train_full = self.train_df[self.features]
@@ -224,7 +226,7 @@ class R2Maximizer:
         y_train_orig = np.exp(y_train_full) if self.log_transformation_needed else y_train_full
         y_pred_train_orig = np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
         train_r2 = r2_score(y_train_orig, y_pred_train_orig)
-        return model, X_test_selected, y_test, selected_features, train_r2, cv_val_r2
+        return model, X_test_selected, y_test, selected_features, train_r2, cv_val_r2, params
 
     def automated_without_rfe(self):
         X_train_full = self.train_df[self.features]
@@ -285,7 +287,7 @@ class R2Maximizer:
         y_train_orig = np.exp(y_train_full) if self.log_transformation_needed else y_train_full
         y_pred_train_orig = np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
         train_r2 = r2_score(y_train_orig, y_pred_train_orig)
-        return model, X_test, y_test, selected_features, train_r2, cv_val_r2
+        return model, X_test, y_test, selected_features, train_r2, cv_val_r2, best_params
 
     def automated_with_rfe(self):
         X_train_full = self.train_df[self.features]
@@ -373,42 +375,42 @@ class R2Maximizer:
         y_train_orig = np.exp(y_train_full) if self.log_transformation_needed else y_train_full
         y_pred_train_orig = np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
         train_r2 = r2_score(y_train_orig, y_pred_train_orig)
-        return model, X_test_selected, y_test, selected_features, train_r2, cv_val_r2
+        return model, X_test_selected, y_test, selected_features, train_r2, cv_val_r2, best_params
 
     def run_all(self):
         self.baseline_r2, self.baseline_mae, self.baseline_rmse, self.train_base_mean, _, _ = self.compute_baseline()
 
-        model1, X_test1, y_test, sel1, train_r21, cv_val_r21 = self.manual_without_rfe()
+        model1, X_test1, y_test, sel1, train_r21, cv_val_r21, params1 = self.manual_without_rfe()
         dtest1 = xgb.DMatrix(X_test1)
         y_pred1 = model1.predict(dtest1)
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         y_pred_orig1 = np.exp(y_pred1) if self.log_transformation_needed else y_pred1
         test_r21 = r2_score(y_test_orig, y_pred_orig1)
-        self.results["Manual without RFE"] = (test_r21, train_r21, model1, X_test1, y_test, sel1, y_pred1, cv_val_r21)
+        self.results["Manual without RFE"] = (test_r21, train_r21, model1, X_test1, y_test, sel1, y_pred1, cv_val_r21, params1)
 
-        model2, X_test2, y_test, sel2, train_r22, cv_val_r22 = self.manual_with_rfe()
+        model2, X_test2, y_test, sel2, train_r22, cv_val_r22, params2 = self.manual_with_rfe()
         dtest2 = xgb.DMatrix(X_test2)
         y_pred2 = model2.predict(dtest2)
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         y_pred_orig2 = np.exp(y_pred2) if self.log_transformation_needed else y_pred2
         test_r22 = r2_score(y_test_orig, y_pred_orig2)
-        self.results["Manual with RFE"] = (test_r22, train_r22, model2, X_test2, y_test, sel2, y_pred2, cv_val_r22)
+        self.results["Manual with RFE"] = (test_r22, train_r22, model2, X_test2, y_test, sel2, y_pred2, cv_val_r22, params2)
 
-        model3, X_test3, y_test, sel3, train_r23, cv_val_r23 = self.automated_without_rfe()
+        model3, X_test3, y_test, sel3, train_r23, cv_val_r23, params3 = self.automated_without_rfe()
         dtest3 = xgb.DMatrix(X_test3)
         y_pred3 = model3.predict(dtest3)
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         y_pred_orig3 = np.exp(y_pred3) if self.log_transformation_needed else y_pred3
         test_r23 = r2_score(y_test_orig, y_pred_orig3)
-        self.results["Automated without RFE"] = (test_r23, train_r23, model3, X_test3, y_test, sel3, y_pred3, cv_val_r23)
+        self.results["Automated without RFE"] = (test_r23, train_r23, model3, X_test3, y_test, sel3, y_pred3, cv_val_r23, params3)
 
-        model4, X_test4, y_test, sel4, train_r24, cv_val_r24 = self.automated_with_rfe()
+        model4, X_test4, y_test, sel4, train_r24, cv_val_r24, params4 = self.automated_with_rfe()
         dtest4 = xgb.DMatrix(X_test4)
         y_pred4 = model4.predict(dtest4)
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         y_pred_orig4 = np.exp(y_pred4) if self.log_transformation_needed else y_pred4
         test_r24 = r2_score(y_test_orig, y_pred_orig4)
-        self.results["Automated with RFE"] = (test_r24, train_r24, model4, X_test4, y_test, sel4, y_pred4, cv_val_r24)
+        self.results["Automated with RFE"] = (test_r24, train_r24, model4, X_test4, y_test, sel4, y_pred4, cv_val_r24, params4)
 
     def build_comparative(self):
         comparative_data = {
@@ -425,7 +427,7 @@ class R2Maximizer:
     def select_best(self):
         self.best_name = self.comparative_df.iloc[0]['method']
         
-        self.best_r2, train_r2, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _ = self.results[self.best_name]
+        self.best_r2, train_r2, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test, _, self.best_params = self.results[self.best_name]
         self.y_test_orig = np.exp(self.y_test) if self.log_transformation_needed else self.y_test
         self.y_pred_orig = np.exp(self.y_pred_test) if self.log_transformation_needed else self.y_pred_test
         self.test_base_mean = self.y_test_orig.mean()
@@ -498,7 +500,8 @@ class R2Maximizer:
             'test_base_mean': self.test_base_mean,
             'model_v_baseline_df': model_v_baseline_df,
             'best_features_df': self.best_features_df,
-            'metrics_df': metrics_df
+            'metrics_df': metrics_df,
+            'best_params': self.best_params
         }
 
 # Example usage
@@ -531,6 +534,9 @@ print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
 print(results['metrics_df'].to_string())
+
+print("\n=== Best Model Parameters ===")
+print(results['best_params'])
 
 print("\nNOTE:")
 print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
