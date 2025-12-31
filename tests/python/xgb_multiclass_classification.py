@@ -1,3 +1,4 @@
+# ~/Apps/rtutor/tests/python/xgb_multiclass_classification.py
 # ~/Apps/rtutor/tests/xgb_multiclass_classification.py
 import pandas as pd
 import numpy as np
@@ -106,7 +107,9 @@ class AUCMaximizer:
             early_stopping_rounds=self.early_stopping_rounds,
             verbose_eval=False,
         )
-        return model, X_test, y_test, selected_features
+        y_pred_train = model.predict(dtrain)
+        train_auc = roc_auc_score(y_train, y_pred_train, multi_class='ovr')
+        return model, X_test, y_test, selected_features, train_auc
 
     def manual_with_rfe(self):
         X_train = self.train_df[self.features]
@@ -124,8 +127,6 @@ class AUCMaximizer:
         rfe.fit(X_train, y_train)
         
         selected_features = X_train.columns[rfe.support_].tolist()
-        print("\n=== Selected Features from RFE (Manual) ===")
-        print(selected_features)
         
         X_train_selected = X_train[selected_features]
         X_test_selected = X_test[selected_features]
@@ -142,7 +143,9 @@ class AUCMaximizer:
             early_stopping_rounds=self.early_stopping_rounds,
             verbose_eval=False,
         )
-        return model, X_test_selected, y_test, selected_features
+        y_pred_train = model.predict(dtrain)
+        train_auc = roc_auc_score(y_train, y_pred_train, multi_class='ovr')
+        return model, X_test_selected, y_test, selected_features, train_auc
 
     def automated_without_rfe(self):
         train_full_df = self.train_df
@@ -207,9 +210,6 @@ class AUCMaximizer:
         best_params['num_class'] = self.n_classes
         best_params['eval_metric'] = 'mlogloss'
         
-        print('Best hyperparameters found by Optuna (without RFE):')
-        print(best_params)
-        
         # Train the final model with best params on full train set
         dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
         dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
@@ -222,7 +222,9 @@ class AUCMaximizer:
             early_stopping_rounds=self.optuna_early_stopping,
             verbose_eval=False,
         )
-        return model, X_test, y_test, selected_features
+        y_pred_train = model.predict(dtrain_full)
+        train_auc = roc_auc_score(y_train_full, y_pred_train, multi_class='ovr')
+        return model, X_test, y_test, selected_features, train_auc
 
     def automated_with_rfe(self):
         train_full_df = self.train_df
@@ -253,8 +255,6 @@ class AUCMaximizer:
         rfe.fit(X_train, y_train)
         
         selected_features = X_train.columns[rfe.support_].tolist()
-        print("\n=== Selected Features from RFE (Automated) ===")
-        print(selected_features)
         
         X_train_selected = X_train[selected_features]
         X_val_selected = X_val[selected_features]
@@ -303,9 +303,6 @@ class AUCMaximizer:
         best_params['num_class'] = self.n_classes
         best_params['eval_metric'] = 'mlogloss'
         
-        print('Best hyperparameters found by Optuna (with RFE):')
-        print(best_params)
-        
         # Train the final model with best params on full train set with selected features
         dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
         dtest = xgb.DMatrix(X_test_selected, label=y_test, enable_categorical=True)
@@ -318,49 +315,44 @@ class AUCMaximizer:
             early_stopping_rounds=self.optuna_early_stopping,
             verbose_eval=False,
         )
-        return model, X_test_selected, y_test, selected_features
+        y_pred_train = model.predict(dtrain_full)
+        train_auc = roc_auc_score(y_train_full, y_pred_train, multi_class='ovr')
+        return model, X_test_selected, y_test, selected_features, train_auc
 
     def run_all(self):
-        print("\n=== 1. Manual without RFE ===")
-        model1, X_test1, y_test, sel1 = self.manual_without_rfe()
+        model1, X_test1, y_test, sel1, train_auc1 = self.manual_without_rfe()
         y_pred1 = model1.predict(xgb.DMatrix(X_test1))
-        auc1 = roc_auc_score(y_test, y_pred1, multi_class='ovr')
-        print(f"AUC (ovr): {auc1:.4f}")
-        self.results["Manual without RFE"] = (auc1, model1, X_test1, y_test, sel1, y_pred1)
+        test_auc1 = roc_auc_score(y_test, y_pred1, multi_class='ovr')
+        self.results["Manual without RFE"] = (test_auc1, train_auc1, model1, X_test1, y_test, sel1, y_pred1)
 
-        print("\n=== 2. Manual with RFE ===")
-        model2, X_test2, y_test, sel2 = self.manual_with_rfe()
+        model2, X_test2, y_test, sel2, train_auc2 = self.manual_with_rfe()
         y_pred2 = model2.predict(xgb.DMatrix(X_test2))
-        auc2 = roc_auc_score(y_test, y_pred2, multi_class='ovr')
-        print(f"AUC (ovr): {auc2:.4f}")
-        self.results["Manual with RFE"] = (auc2, model2, X_test2, y_test, sel2, y_pred2)
+        test_auc2 = roc_auc_score(y_test, y_pred2, multi_class='ovr')
+        self.results["Manual with RFE"] = (test_auc2, train_auc2, model2, X_test2, y_test, sel2, y_pred2)
 
-        print("\n=== 3. Automated (Optuna) without RFE ===")
-        model3, X_test3, y_test, sel3 = self.automated_without_rfe()
+        model3, X_test3, y_test, sel3, train_auc3 = self.automated_without_rfe()
         y_pred3 = model3.predict(xgb.DMatrix(X_test3))
-        auc3 = roc_auc_score(y_test, y_pred3, multi_class='ovr')
-        print(f"AUC (ovr): {auc3:.4f}")
-        self.results["Automated without RFE"] = (auc3, model3, X_test3, y_test, sel3, y_pred3)
+        test_auc3 = roc_auc_score(y_test, y_pred3, multi_class='ovr')
+        self.results["Automated without RFE"] = (test_auc3, train_auc3, model3, X_test3, y_test, sel3, y_pred3)
 
-        print("\n=== 4. Automated (Optuna) with RFE ===")
-        model4, X_test4, y_test, sel4 = self.automated_with_rfe()
+        model4, X_test4, y_test, sel4, train_auc4 = self.automated_with_rfe()
         y_pred4 = model4.predict(xgb.DMatrix(X_test4))
-        auc4 = roc_auc_score(y_test, y_pred4, multi_class='ovr')
-        print(f"AUC (ovr): {auc4:.4f}")
-        self.results["Automated with RFE"] = (auc4, model4, X_test4, y_test, sel4, y_pred4)
+        test_auc4 = roc_auc_score(y_test, y_pred4, multi_class='ovr')
+        self.results["Automated with RFE"] = (test_auc4, train_auc4, model4, X_test4, y_test, sel4, y_pred4)
 
     def build_comparative(self):
         comparative_data = {
-            'model': list(self.results.keys()),
-            'auc': [self.results[k][0] for k in self.results],
-            'num_features': [len(self.results[k][4]) for k in self.results]
+            'method': list(self.results.keys()),
+            'train_auc': [self.results[k][1] for k in self.results],
+            'test_auc': [self.results[k][0] for k in self.results],
+            'num_features': [len(self.results[k][5]) for k in self.results]
         }
         self.comparative_df = pd.DataFrame(comparative_data)
-        self.comparative_df = self.comparative_df.sort_values(by='auc', ascending=False).reset_index(drop=True)
+        self.comparative_df = self.comparative_df.sort_values(by='test_auc', ascending=False).reset_index(drop=True)
 
     def select_best(self):
-        self.best_name = self.comparative_df.iloc[0]['model']
-        self.best_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
+        self.best_name = self.comparative_df.iloc[0]['method']
+        self.best_auc, _, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
         self.base_rates = self.y_test.value_counts(normalize=True).sort_index()
 
     def optimize(self):
@@ -381,41 +373,6 @@ class AUCMaximizer:
             self.best_features_df = self.best_features_df.set_index("importance_rank")
         else:
             self.best_features_df = pd.DataFrame()
-
-        print("\n=== Comparative Model Results ===")
-        print(self.comparative_df.to_string(index=False))
-
-        print("\n" + "="*50)
-        print(f"BEST MODEL: {self.best_name}")
-        print(f"Best Test AUC (ovr): {self.best_auc:.4f}")
-        print("="*50)
-
-        print("\nSelected Features:")
-        print(self.selected_features)
-
-        print("\nClass base rates on test set:")
-        for cls, rate in self.base_rates.items():
-            print(f"Class {cls}: {rate:.4f}")
-
-        print(f'\nAUC (ovr) on test set (best model): {self.best_auc:.4f}\n')
-
-        print("\n=== best_features_df (Top Features by Gain) ===")
-        print(self.best_features_df.to_string(float_format="{:.4f}".format))
-
-        metrics_comp = MetricsComputer(self.y_test, self.y_pred_test, self.base_rates)
-        overall_metrics_df, cm_df, metrics_df = metrics_comp.compute_metrics()
-        print("\n=== Overall Performance Metrics (Best Model) ===")
-        print(overall_metrics_df.to_string())
-        print("\n=== Confusion Matrix (Best Model) ===")
-        print(cm_df.to_string())
-        print("\n=== Performance by Percentile Threshold (Best Model) ===")
-        print(metrics_df.to_string())
-
-        print("\nNOTE:")
-        print("- Metrics include macro averages and per-class precision, recall, f1, lift")
-        print("- Lift = precision / base_rate for each class")
-        print("- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile")
-        print("- Higher percentile = stricter threshold = higher precision_macro, lower coverage")
         
         return {
             'comparative_df': self.comparative_df,
@@ -561,6 +518,41 @@ train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
 
 maximizer = AUCMaximizer(train_df, test_df, features, 'class')
 results = maximizer.optimize()
+
+print("\n=== Comparative Model Results ===")
+print(results['comparative_df'].to_string(index=False))
+
+print("\n" + "="*50)
+print(f"BEST MODEL: {results['best_name']}")
+print(f"Best Test AUC (ovr): {results['best_auc']:.4f}")
+print("="*50)
+
+print("\nSelected Features:")
+print(results['selected_features'])
+
+print("\nClass base rates on test set:")
+for cls, rate in results['base_rates'].items():
+    print(f"Class {cls}: {rate:.4f}")
+
+print(f'\nAUC (ovr) on test set (best model): {results['best_auc']:.4f}\n')
+
+print("\n=== best_features_df (Top Features by Gain) ===")
+print(results['best_features_df'].to_string(float_format="{:.4f}".format))
+
+metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['base_rates'])
+overall_metrics_df, cm_df, metrics_df = metrics_comp.compute_metrics()
+print("\n=== Overall Performance Metrics (Best Model) ===")
+print(overall_metrics_df.to_string())
+print("\n=== Confusion Matrix (Best Model) ===")
+print(cm_df.to_string())
+print("\n=== Performance by Percentile Threshold (Best Model) ===")
+print(metrics_df.to_string())
+
+print("\nNOTE:")
+print("- Metrics include macro averages and per-class precision, recall, f1, lift")
+print("- Lift = precision / base_rate for each class")
+print("- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile")
+print("- Higher percentile = stricter threshold = higher precision_macro, lower coverage")
 
 # Demonstrate making a prediction
 example_row = tabular_data_df.iloc[0][results['selected_features']]

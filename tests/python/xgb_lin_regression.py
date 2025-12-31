@@ -1,3 +1,4 @@
+# ~/Apps/rtutor/tests/python/xgb_lin_regression.py
 # ~/Apps/rtutor/tests/xgb_lin_regression.py
 import pandas as pd
 import numpy as np
@@ -82,8 +83,6 @@ class R2Maximizer:
         self.comparative_df = None
         self.best_name = None
         self.best_r2 = None
-        self.best_mae = None
-        self.best_rmse = None
         self.model = None
         self.X_test_selected = None
         self.y_test = None
@@ -142,7 +141,11 @@ class R2Maximizer:
             early_stopping_rounds=self.early_stopping_rounds,
             verbose_eval=False,
         )
-        return model, X_test, y_test, selected_features
+        y_pred_train = model.predict(dtrain)
+        y_train_orig = np.exp(y_train) if self.log_transformation_needed else y_train
+        y_pred_train_orig = np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
+        train_r2 = r2_score(y_train_orig, y_pred_train_orig)
+        return model, X_test, y_test, selected_features, train_r2
 
     def manual_with_rfe(self):
         X_train = self.train_df[self.features]
@@ -160,8 +163,6 @@ class R2Maximizer:
         rfe.fit(X_train, y_train)
         
         selected_features = X_train.columns[rfe.support_].tolist()
-        print("\n=== Selected Features from RFE (Manual) ===")
-        print(selected_features)
         
         X_train_selected = X_train[selected_features]
         X_test_selected = X_test[selected_features]
@@ -178,7 +179,11 @@ class R2Maximizer:
             early_stopping_rounds=self.early_stopping_rounds,
             verbose_eval=False,
         )
-        return model, X_test_selected, y_test, selected_features
+        y_pred_train = model.predict(dtrain)
+        y_train_orig = np.exp(y_train) if self.log_transformation_needed else y_train
+        y_pred_train_orig = np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
+        train_r2 = r2_score(y_train_orig, y_pred_train_orig)
+        return model, X_test_selected, y_test, selected_features, train_r2
 
     def automated_without_rfe(self):
         train_full_df = self.train_df
@@ -242,9 +247,6 @@ class R2Maximizer:
         best_params['objective'] = 'reg:squarederror'
         best_params['eval_metric'] = 'rmse'
         
-        print('Best hyperparameters found by Optuna (without RFE):')
-        print(best_params)
-        
         # Train the final model with best params on full train set
         dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
         dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
@@ -257,7 +259,11 @@ class R2Maximizer:
             early_stopping_rounds=self.optuna_early_stopping,
             verbose_eval=False,
         )
-        return model, X_test, y_test, selected_features
+        y_pred_train = model.predict(dtrain_full)
+        y_train_orig = np.exp(y_train_full) if self.log_transformation_needed else y_train_full
+        y_pred_train_orig = np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
+        train_r2 = r2_score(y_train_orig, y_pred_train_orig)
+        return model, X_test, y_test, selected_features, train_r2
 
     def automated_with_rfe(self):
         train_full_df = self.train_df
@@ -287,8 +293,6 @@ class R2Maximizer:
         rfe.fit(X_train, y_train)
         
         selected_features = X_train.columns[rfe.support_].tolist()
-        print("\n=== Selected Features from RFE (Automated) ===")
-        print(selected_features)
         
         X_train_selected = X_train[selected_features]
         X_val_selected = X_val[selected_features]
@@ -337,9 +341,6 @@ class R2Maximizer:
         best_params['objective'] = 'reg:squarederror'
         best_params['eval_metric'] = 'rmse'
         
-        print('Best hyperparameters found by Optuna (with RFE):')
-        print(best_params)
-        
         # Train the final model with best params on full train set with selected features
         dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
         dtest = xgb.DMatrix(X_test_selected, label=y_test, enable_categorical=True)
@@ -352,69 +353,56 @@ class R2Maximizer:
             early_stopping_rounds=self.optuna_early_stopping,
             verbose_eval=False,
         )
-        return model, X_test_selected, y_test, selected_features
+        y_pred_train = model.predict(dtrain_full)
+        y_train_orig = np.exp(y_train_full) if self.log_transformation_needed else y_train_full
+        y_pred_train_orig = np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
+        train_r2 = r2_score(y_train_orig, y_pred_train_orig)
+        return model, X_test_selected, y_test, selected_features, train_r2
 
     def run_all(self):
         self.baseline_r2, self.baseline_mae, self.baseline_rmse, self.base_mean, _, _ = self.compute_baseline()
 
-        print("\n=== 1. Manual without RFE ===")
-        model1, X_test1, y_test, sel1 = self.manual_without_rfe()
+        model1, X_test1, y_test, sel1, train_r21 = self.manual_without_rfe()
         y_pred1 = model1.predict(xgb.DMatrix(X_test1))
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         y_pred_orig1 = np.exp(y_pred1) if self.log_transformation_needed else y_pred1
-        r21 = r2_score(y_test_orig, y_pred_orig1)
-        mae1 = mean_absolute_error(y_test_orig, y_pred_orig1)
-        rmse1 = root_mean_squared_error(y_test_orig, y_pred_orig1)
-        print(f"R2: {r21:.4f}")
-        self.results["Manual without RFE"] = (r21, mae1, rmse1, model1, X_test1, y_test, sel1, y_pred1)
+        test_r21 = r2_score(y_test_orig, y_pred_orig1)
+        self.results["Manual without RFE"] = (test_r21, train_r21, model1, X_test1, y_test, sel1, y_pred1)
 
-        print("\n=== 2. Manual with RFE ===")
-        model2, X_test2, y_test, sel2 = self.manual_with_rfe()
+        model2, X_test2, y_test, sel2, train_r22 = self.manual_with_rfe()
         y_pred2 = model2.predict(xgb.DMatrix(X_test2))
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         y_pred_orig2 = np.exp(y_pred2) if self.log_transformation_needed else y_pred2
-        r22 = r2_score(y_test_orig, y_pred_orig2)
-        mae2 = mean_absolute_error(y_test_orig, y_pred_orig2)
-        rmse2 = root_mean_squared_error(y_test_orig, y_pred_orig2)
-        print(f"R2: {r22:.4f}")
-        self.results["Manual with RFE"] = (r22, mae2, rmse2, model2, X_test2, y_test, sel2, y_pred2)
+        test_r22 = r2_score(y_test_orig, y_pred_orig2)
+        self.results["Manual with RFE"] = (test_r22, train_r22, model2, X_test2, y_test, sel2, y_pred2)
 
-        print("\n=== 3. Automated (Optuna) without RFE ===")
-        model3, X_test3, y_test, sel3 = self.automated_without_rfe()
+        model3, X_test3, y_test, sel3, train_r23 = self.automated_without_rfe()
         y_pred3 = model3.predict(xgb.DMatrix(X_test3))
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         y_pred_orig3 = np.exp(y_pred3) if self.log_transformation_needed else y_pred3
-        r23 = r2_score(y_test_orig, y_pred_orig3)
-        mae3 = mean_absolute_error(y_test_orig, y_pred_orig3)
-        rmse3 = root_mean_squared_error(y_test_orig, y_pred_orig3)
-        print(f"R2: {r23:.4f}")
-        self.results["Automated without RFE"] = (r23, mae3, rmse3, model3, X_test3, y_test, sel3, y_pred3)
+        test_r23 = r2_score(y_test_orig, y_pred_orig3)
+        self.results["Automated without RFE"] = (test_r23, train_r23, model3, X_test3, y_test, sel3, y_pred3)
 
-        print("\n=== 4. Automated (Optuna) with RFE ===")
-        model4, X_test4, y_test, sel4 = self.automated_with_rfe()
+        model4, X_test4, y_test, sel4, train_r24 = self.automated_with_rfe()
         y_pred4 = model4.predict(xgb.DMatrix(X_test4))
         y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
         y_pred_orig4 = np.exp(y_pred4) if self.log_transformation_needed else y_pred4
-        r24 = r2_score(y_test_orig, y_pred_orig4)
-        mae4 = mean_absolute_error(y_test_orig, y_pred_orig4)
-        rmse4 = root_mean_squared_error(y_test_orig, y_pred_orig4)
-        print(f"R2: {r24:.4f}")
-        self.results["Automated with RFE"] = (r24, mae4, rmse4, model4, X_test4, y_test, sel4, y_pred4)
+        test_r24 = r2_score(y_test_orig, y_pred_orig4)
+        self.results["Automated with RFE"] = (test_r24, train_r24, model4, X_test4, y_test, sel4, y_pred4)
 
     def build_comparative(self):
         comparative_data = {
-            'model': list(self.results.keys()),
-            'r2': [self.results[k][0] for k in self.results],
-            'mae': [self.results[k][1] for k in self.results],
-            'rmse': [self.results[k][2] for k in self.results],
-            'num_features': [len(self.results[k][6]) for k in self.results]
+            'method': list(self.results.keys()),
+            'train_r2': [self.results[k][1] for k in self.results],
+            'test_r2': [self.results[k][0] for k in self.results],
         }
         self.comparative_df = pd.DataFrame(comparative_data)
-        self.comparative_df = self.comparative_df.sort_values(by='r2', ascending=False).reset_index(drop=True)
+        self.comparative_df['abs_delta'] = np.abs(self.comparative_df['train_r2'] - self.comparative_df['test_r2'])
+        self.comparative_df = self.comparative_df.sort_values(by='abs_delta', ascending=True).reset_index(drop=True)
 
     def select_best(self):
-        self.best_name = self.comparative_df.iloc[0]['model']
-        self.best_r2, self.best_mae, self.best_rmse, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
+        self.best_name = self.comparative_df.iloc[0]['method']
+        self.best_r2, _ , self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
         self.y_test_orig = np.exp(self.y_test) if self.log_transformation_needed else self.y_test
         self.y_pred_orig = np.exp(self.y_pred_test) if self.log_transformation_needed else self.y_pred_test
 
@@ -437,43 +425,10 @@ class R2Maximizer:
         else:
             self.best_features_df = pd.DataFrame()
 
-        print("\n=== Comparative Model Results ===")
-        print(self.comparative_df.to_string(index=False))
-
-        print("\nBaseline (mean prediction):")
-        print(f"R2: {self.baseline_r2:.4f}, MAE: {self.baseline_mae:.4f}, RMSE: {self.baseline_rmse:.4f}")
-
-        print("\n" + "="*50)
-        print(f"BEST MODEL: {self.best_name}")
-        print(f"Best Test R2: {self.best_r2:.4f}")
-        print("="*50)
-
-        print("\nSelected Features:")
-        print(self.selected_features)
-
-        print(f"\nBase mean on train set: {self.base_mean:.4f}")
-
-        print(f'R2 on test set (best model): {self.best_r2:.4f}\n')
-
-        print("\n=== best_features_df (Top Features by Gain) ===")
-        print(self.best_features_df.to_string(float_format="{:.4f}".format))
-
-        metrics_comp = MetricsComputer(self.y_test_orig, self.y_pred_orig, self.base_mean)
-        metrics_df = metrics_comp.compute_metrics()
-        print("\n=== Performance by Percentile Threshold (Best Model) ===")
-        print(metrics_df.to_string())
-
-        print("\nNOTE:")
-        print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
-        print("- Higher percentile = stricter threshold = higher lift, lower count")
-        print("- Lift = avg_actual / base_mean")
-        
         return {
             'comparative_df': self.comparative_df,
             'best_name': self.best_name,
             'best_r2': self.best_r2,
-            'best_mae': self.best_mae,
-            'best_rmse': self.best_rmse,
             'model': self.model,
             'X_test_selected': self.X_test_selected,
             'y_test': self.y_test,
@@ -534,6 +489,37 @@ train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
 
 maximizer = R2Maximizer(train_df, test_df, features, 'target')
 results = maximizer.optimize()
+
+print("\n=== Comparative Model Results ===")
+print(results['comparative_df'].to_string(index=False))
+
+print("\nBaseline (mean prediction):")
+print(f"R2: {results['baseline_r2']:.4f}, MAE: {results['baseline_mae']:.4f}, RMSE: {results['baseline_rmse']:.4f}")
+
+print("\n" + "="*50)
+print(f"BEST MODEL: {results['best_name']}")
+print(f"Best Test R2: {results['best_r2']:.4f}")
+print("="*50)
+
+print("\nSelected Features:")
+print(results['selected_features'])
+
+print(f"\nBase mean on train set: {results['base_mean']:.4f}")
+
+print(f'R2 on test set (best model): {results['best_r2']:.4f}\n')
+
+print("\n=== best_features_df (Top Features by Gain) ===")
+print(results['best_features_df'].to_string(float_format="{:.4f}".format))
+
+metrics_comp = MetricsComputer(results['y_test_orig'], results['y_pred_orig'], results['base_mean'])
+metrics_df = metrics_comp.compute_metrics()
+print("\n=== Performance by Percentile Threshold (Best Model) ===")
+print(metrics_df.to_string())
+
+print("\nNOTE:")
+print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
+print("- Higher percentile = stricter threshold = higher lift, lower count")
+print("- Lift = avg_actual / base_mean")
 
 # Demonstrate making a prediction
 example_row = train_df.iloc[0][results['selected_features']]
