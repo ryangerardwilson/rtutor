@@ -374,18 +374,22 @@ class AUCMaximizer:
             self.best_features_df = self.best_features_df.set_index("importance_rank")
         else:
             self.best_features_df = pd.DataFrame()
+
+        model_v_baseline_data = {
+            'approach': ['Model', 'Baseline'],
+            'auc': [self.best_auc, 0.5]
+        }
+        model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index('approach')
         
         return {
             'comparative_df': self.comparative_df,
-            'best_name': self.best_name,
-            'best_auc': self.best_auc,
             'model': self.model,
-            'X_test_selected': self.X_test_selected,
-            'y_test': self.y_test,
             'selected_features': self.selected_features,
+            'y_test': self.y_test,
             'y_pred_test': self.y_pred_test,
             'base_rates': self.base_rates,
-            'best_features_df': self.best_features_df
+            'best_features_df': self.best_features_df,
+            'model_v_baseline_df': model_v_baseline_df
         }
 
 class MetricsComputer:
@@ -523,10 +527,8 @@ results = maximizer.optimize()
 print("\n=== Comparative Model Results ===")
 print(results['comparative_df'].to_string(index=False))
 
-print("\n" + "="*50)
-print(f"BEST MODEL: {results['best_name']}")
-print(f"Best Test AUC (ovr): {results['best_auc']:.4f}")
-print("="*50)
+print("\n=== Model vs Baseline ===")
+print(results['model_v_baseline_df'].to_string(float_format="{:.4f}".format))
 
 print("\nSelected Features:")
 print(results['selected_features'])
@@ -534,8 +536,6 @@ print(results['selected_features'])
 print("\nClass base rates on test set:")
 for cls, rate in results['base_rates'].items():
     print(f"Class {cls}: {rate:.4f}")
-
-print(f'\nAUC (ovr) on test set (best model): {results['best_auc']:.4f}\n')
 
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
