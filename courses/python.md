@@ -1584,7 +1584,34 @@
     #   do as below.
     df[target] = df[target].astype(int)
 
-    # 5. All numeric features must have pandas numeric dtype, and all categorical
+    # 5. If the objective is a linear regression, and the target is heavily
+    # skewed, you need to improve the data selection pipeline. Else, if it is
+    # moderately skewed, you may take its log as the target. While xgboost does
+    # handle skewed data, reducing the skewness reduces the likelihood of
+    # garbage-in-garbage-out problems
+    import numpy as np
+    from scipy.stats import skew
+    s = abs(skew(df[target]))
+    if s > 2:
+        print('Heavily skewed. Improve data selection.')
+    elif s > 1:
+        df[target] = np.log1p(df[target])
+
+    # NOTE: if you take the log of the target, you would need to unlog the
+    # xgboost prediction result
+    y_pred_logged = model.predict(X_test)
+    y_pred_original = np.expm1(y_pred_logged)
+
+    # 6. If the objective is a Binary/ Multi-Class Classification, and the
+    # target is heavily imbalanced, you would need to improve the data
+    # selection pipeline, else you will face a garbage-in-garbage-out problem
+    import pandas as pd
+    class_counts = df[target].value_counts()
+    imbalance_ratio = class_counts.max() / class_counts.min()
+    if imbalance_ratio > 20:
+        print('Heavily imbalanced. Improve data selection.')
+
+    # 7. All numeric features must have pandas numeric dtype, and all categorical
     # features must have category dtype. 
     for col in df.columns.to_list():
         try:
@@ -1598,14 +1625,14 @@
             print(f'Needs more work: {col}')
             print(e)
 
-    # 6. The 'no-category' value in categorical features should be consistently be 
+    # 8. The 'no-category' value in categorical features should be consistently be 
     # 'unknown'
     df['credit_mix'] = df['credit_mix'].cat.add_categories('unknown')   
     df['credit_mix'] = df['credit_mix'].fillna('unknown')         
     df.loc[df['credit_mix'] == '_', 'credit_mix'] = 'unknown'  
     df['credit_mix'] = df['credit_mix'].cat.remove_unused_categories()  
 
-    # 7. All categorical feautures should have >2 categories, else they should
+    # 9. All categorical feautures should have >2 categories, else they should
     # transformed as 0/1 numeric feautres
     for col in cat_features:
         n_unique = df[col].nunique()
@@ -1613,11 +1640,11 @@
         if n_unique <= 2:
             print(f'Action required for column: {col}')
     
-    # 8. An id column should never be a feature, unless it is more or less a
+    # 10. An id column should never be a feature, unless it is more or less a
     # categorical feature 
     num_features.remove('id')
 
-    # 9. Do NOT eliminate features at this stage, becuase the simplest
+    # 11. Do NOT eliminate features at this stage, becuase the simplest
     # test of target leakage/ weak features is the best_features_df which we
     # will create after training the model. Once, we have that, we can apply
     # the following principles: 
@@ -1629,7 +1656,7 @@
     #   little and can often be dropped without harming performance. You can do
     #   this manually, or by using recursive feature elimination.
 
-    # 10. Transfer the data from the Feature Engineering API to the Model API
+    # 12. Transfer the data from the Feature Engineering API to the Model API
     df.to_parquet('step1.parquet')
     with open('step1_lists.pkl', 'wb') as f:
         pickle.dump({
