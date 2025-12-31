@@ -1,4 +1,5 @@
 # ~/Apps/rtutor/tests/python/xgb_lin_regression.py
+# ~/Apps/rtutor/tests/python/xgb_lin_regression.py
 # ~/Apps/rtutor/tests/xgb_lin_regression.py
 import pandas as pd
 import numpy as np
@@ -402,7 +403,7 @@ class R2Maximizer:
 
     def select_best(self):
         self.best_name = self.comparative_df.iloc[0]['method']
-        self.best_r2, _ , self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
+        self.best_r2, _, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
         self.y_test_orig = np.exp(self.y_test) if self.log_transformation_needed else self.y_test
         self.y_pred_orig = np.exp(self.y_pred_test) if self.log_transformation_needed else self.y_pred_test
 
@@ -425,21 +426,25 @@ class R2Maximizer:
         else:
             self.best_features_df = pd.DataFrame()
 
+        model_v_baseline_data = {
+            'approach': ['Model', 'Baseline'],
+            'r2': [self.best_r2, self.baseline_r2],
+            'mae': [mean_absolute_error(self.y_test_orig, self.y_pred_orig), self.baseline_mae],
+            'rmse': [root_mean_squared_error(self.y_test_orig, self.y_pred_orig), self.baseline_rmse]
+        }
+        model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index('approach')
+        
         return {
             'comparative_df': self.comparative_df,
-            'best_name': self.best_name,
-            'best_r2': self.best_r2,
             'model': self.model,
+            'selected_features': self.selected_features,
             'X_test_selected': self.X_test_selected,
             'y_test': self.y_test,
-            'selected_features': self.selected_features,
             'y_pred_test': self.y_pred_test,
             'y_test_orig': self.y_test_orig,
             'y_pred_orig': self.y_pred_orig,
             'base_mean': self.base_mean,
-            'baseline_r2': self.baseline_r2,
-            'baseline_mae': self.baseline_mae,
-            'baseline_rmse': self.baseline_rmse,
+            'model_v_baseline_df': model_v_baseline_df,
             'best_features_df': self.best_features_df
         }
 
@@ -493,20 +498,13 @@ results = maximizer.optimize()
 print("\n=== Comparative Model Results ===")
 print(results['comparative_df'].to_string(index=False))
 
-print("\nBaseline (mean prediction):")
-print(f"R2: {results['baseline_r2']:.4f}, MAE: {results['baseline_mae']:.4f}, RMSE: {results['baseline_rmse']:.4f}")
-
-print("\n" + "="*50)
-print(f"BEST MODEL: {results['best_name']}")
-print(f"Best Test R2: {results['best_r2']:.4f}")
-print("="*50)
+print("\n=== Model vs Baseline ===")
+print(results['model_v_baseline_df'].to_string(float_format="{:.4f}".format))
 
 print("\nSelected Features:")
 print(results['selected_features'])
 
 print(f"\nBase mean on train set: {results['base_mean']:.4f}")
-
-print(f'R2 on test set (best model): {results['best_r2']:.4f}\n')
 
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))

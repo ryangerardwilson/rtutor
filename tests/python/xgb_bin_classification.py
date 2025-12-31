@@ -374,12 +374,10 @@ class AUCMaximizer:
         
         return {
             'comparative_df': self.comparative_df,
-            'best_name': self.best_name,
-            'best_auc': self.best_auc,
             'model': self.model,
+            'selected_features': self.selected_features,
             'X_test_selected': self.X_test_selected,
             'y_test': self.y_test,
-            'selected_features': self.selected_features,
             'y_pred_test': self.y_pred_test,
             'base_rate': self.base_rate,
             'best_features_df': self.best_features_df
@@ -435,17 +433,10 @@ results = maximizer.optimize()
 print("\n=== Comparative Model Results ===")
 print(results['comparative_df'].to_string(index=False))
 
-print("\n" + "="*50)
-print(f"BEST MODEL: {results['best_name']}")
-print(f"Best Test AUC: {results['best_auc']:.4f}")
-print("="*50)
-
 print("\nSelected Features:")
 print(results['selected_features'])
 
 print(f"\nBase conversion rate on test set: {results['base_rate']:.4f}")
-
-print(f'AUC on test set (best model): {results['best_auc']:.4f}\n')
 
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
