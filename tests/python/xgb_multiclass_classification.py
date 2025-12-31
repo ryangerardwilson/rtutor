@@ -1,4 +1,5 @@
 # ~/Apps/rtutor/tests/python/xgb_multiclass_classification.py
+# ~/Apps/rtutor/tests/python/xgb_multiclass_classification.py
 # ~/Apps/rtutor/tests/xgb_multiclass_classification.py
 # ~/Apps/rtutor/tests/xgb_multiclass_classification.py
 import pandas as pd
@@ -404,63 +405,6 @@ class MetricsComputer:
         # Confusion matrix for full set
         cm = confusion_matrix(self.y_test, self.preds_argmax, labels=range(self.n_classes))
         
-        # Custom metrics for full set
-        precisions = []
-        recalls = []
-        f1s = []
-        for i in range(self.n_classes):
-            tp = cm[i, i]
-            fp = np.sum(cm[:, i]) - tp
-            fn = np.sum(cm[i, :]) - tp
-            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
-            precisions.append(precision)
-            recalls.append(recall)
-            f1s.append(f1)
-        
-        precision_macro = np.mean(precisions)
-        recall_macro = np.mean(recalls)
-        f1_macro = np.mean(f1s)
-        accuracy = accuracy_score(self.y_test, self.preds_argmax)
-        
-        lifts = [precisions[i] / self.base_rates[i] if self.base_rates[i] > 0 and precisions[i] > 0 else 0 for i in range(self.n_classes)]
-        
-        # Build overall table
-        table_rows = [{
-            "metric": "macro_precision",
-            "value": round(precision_macro, 4),
-        }, {
-            "metric": "macro_recall",
-            "value": round(recall_macro, 4),
-        }, {
-            "metric": "macro_f1",
-            "value": round(f1_macro, 4),
-        }, {
-            "metric": "accuracy",
-            "value": round(accuracy, 4),
-        }]
-        
-        for i in range(self.n_classes):
-            table_rows.append({
-                "metric": f"class_{i}_precision",
-                "value": round(precisions[i], 4),
-            })
-            table_rows.append({
-                "metric": f"class_{i}_recall",
-                "value": round(recalls[i], 4),
-            })
-            table_rows.append({
-                "metric": f"class_{i}_f1",
-                "value": round(f1s[i], 4),
-            })
-            table_rows.append({
-                "metric": f"class_{i}_lift",
-                "value": round(lifts[i], 2),
-            })
-        
-        overall_metrics_df = pd.DataFrame(table_rows).set_index('metric')
-        
         # Confusion matrix DF
         cm_df = pd.DataFrame(cm, index=[f"actual_{i}" for i in range(self.n_classes)], columns=[f"pred_{i}" for i in range(self.n_classes)])
         
@@ -490,24 +434,36 @@ class MetricsComputer:
                     recalls_conf.append(recall)
                     f1s_conf.append(f1)
                 precision_macro = np.mean(precisions_conf)
+                recall_macro = np.mean(recalls_conf)
                 f1_macro = np.mean(f1s_conf)
                 accuracy = accuracy_score(y_test_conf, preds_conf)
             else:
+                precisions_conf = [0.0] * self.n_classes
+                recalls_conf = [0.0] * self.n_classes
+                f1s_conf = [0.0] * self.n_classes
                 precision_macro = 0.0
                 recall_macro = 0.0
                 f1_macro = 0.0
                 accuracy = 0.0
-            results.append({
+            lifts_conf = [precisions_conf[i] / self.base_rates[i] if self.base_rates[i] > 0 and precisions_conf[i] > 0 else 0 for i in range(self.n_classes)]
+            percentile_dict = {
                 'percentile': f'P{p}',
                 'cutoff_prob': round(cutoff, 4),
-                'precision_macro': round(precision_macro, 4),
-                'f1_macro': round(f1_macro, 4),
+                'macro_precision': round(precision_macro, 4),
+                'macro_recall': round(recall_macro, 4),
+                'macro_f1': round(f1_macro, 4),
                 'accuracy': round(accuracy, 4),
-            })
+            }
+            for i in range(self.n_classes):
+                percentile_dict[f'c{i}_precision'] = round(precisions_conf[i], 4)
+                percentile_dict[f'c{i}_recall'] = round(recalls_conf[i], 4)
+                percentile_dict[f'c{i}_f1'] = round(f1s_conf[i], 4)
+                percentile_dict[f'c{i}_lift'] = round(lifts_conf[i], 2)
+            results.append(percentile_dict)
 
         confidence_metrics_df = pd.DataFrame(results).set_index('percentile')
         
-        return overall_metrics_df, cm_df, confidence_metrics_df
+        return cm_df, confidence_metrics_df
 
 # Example usage
 splitter = TrainTestSplitter(
@@ -541,9 +497,7 @@ print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
 metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['base_rates'])
-overall_metrics_df, cm_df, metrics_df = metrics_comp.compute_metrics()
-print("\n=== Overall Performance Metrics (Best Model) ===")
-print(overall_metrics_df.to_string())
+cm_df, metrics_df = metrics_comp.compute_metrics()
 print("\n=== Confusion Matrix (Best Model) ===")
 print(cm_df.to_string())
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
