@@ -1,4 +1,3 @@
-# ~/Apps/rtutor/main.py
 #!/usr/bin/env python3
 import curses
 import sys
@@ -7,6 +6,8 @@ from modules.menu import Menu
 from modules.course_parser import CourseParser
 from modules.doc_searcher import DocSearcher
 
+# Set TERM explicitly for consistent color support
+os.environ['TERM'] = 'xterm-256color'
 
 def main():
     # Set ESCDELAY early, before any curses initialization
@@ -36,7 +37,6 @@ def main():
         curses.wrapper(menu.run)
     except KeyboardInterrupt:
         sys.exit(0)
-
 
 if __name__ == "__main__":
     main()
