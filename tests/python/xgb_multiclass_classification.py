@@ -1,7 +1,3 @@
-# ~/Apps/rtutor/tests/python/xgb_multiclass_classification.py
-# ~/Apps/rtutor/tests/python/xgb_multiclass_classification.py
-# ~/Apps/rtutor/tests/xgb_multiclass_classification.py
-# ~/Apps/rtutor/tests/xgb_multiclass_classification.py
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -402,24 +398,29 @@ class MetricsComputer:
         self.preds_argmax = np.argmax(self.y_pred_test, axis=1)
 
     def compute_metrics(self):
-        # Confusion matrix for full set
+        # Confusion matrix for full set (optional, not used in print)
         cm = confusion_matrix(self.y_test, self.preds_argmax, labels=range(self.n_classes))
         
         # Confusion matrix DF
         cm_df = pd.DataFrame(cm, index=[f"actual_{i}" for i in range(self.n_classes)], columns=[f"pred_{i}" for i in range(self.n_classes)])
         
         # Percentile-based metrics
-        percentiles = [99] + list(range(95, 0, -5)) + [1]
+        percentiles = [99] + list(range(95, 0, -5)) + [1, 0]
         results = []
         max_probs = np.max(self.y_pred_test, axis=1)
         for p in percentiles:
             cutoff = np.percentile(max_probs, p)
             confident_mask = max_probs >= cutoff
             num_classified = np.sum(confident_mask)
+            percentile_dict = {}
+            percentile_dict['cutoff_prob'] = round(cutoff, 4)
             if num_classified > 0:
                 y_test_conf = self.y_test[confident_mask]
                 preds_conf = self.preds_argmax[confident_mask]
                 cm_conf = confusion_matrix(y_test_conf, preds_conf, labels=range(self.n_classes))
+                for i in range(self.n_classes):
+                    for j in range(self.n_classes):
+                        percentile_dict[f'a{i}p{j}'] = cm_conf[i, j]
                 precisions_conf = []
                 recalls_conf = []
                 f1s_conf = []
@@ -438,6 +439,9 @@ class MetricsComputer:
                 f1_macro = np.mean(f1s_conf)
                 accuracy = accuracy_score(y_test_conf, preds_conf)
             else:
+                for i in range(self.n_classes):
+                    for j in range(self.n_classes):
+                        percentile_dict[f'a{i}p{j}'] = 0
                 precisions_conf = [0.0] * self.n_classes
                 recalls_conf = [0.0] * self.n_classes
                 f1s_conf = [0.0] * self.n_classes
@@ -445,15 +449,11 @@ class MetricsComputer:
                 recall_macro = 0.0
                 f1_macro = 0.0
                 accuracy = 0.0
+            percentile_dict['macro_precision'] = round(precision_macro, 4)
+            percentile_dict['macro_recall'] = round(recall_macro, 4)
+            percentile_dict['macro_f1'] = round(f1_macro, 4)
+            percentile_dict['accuracy'] = round(accuracy, 4)
             lifts_conf = [precisions_conf[i] / self.base_rates[i] if self.base_rates[i] > 0 and precisions_conf[i] > 0 else 0 for i in range(self.n_classes)]
-            percentile_dict = {
-                'percentile': f'P{p}',
-                'cutoff_prob': round(cutoff, 4),
-                'macro_precision': round(precision_macro, 4),
-                'macro_recall': round(recall_macro, 4),
-                'macro_f1': round(f1_macro, 4),
-                'accuracy': round(accuracy, 4),
-            }
             for i in range(self.n_classes):
                 percentile_dict[f'c{i}_precision'] = round(precisions_conf[i], 4)
                 percentile_dict[f'c{i}_recall'] = round(recalls_conf[i], 4)
@@ -461,7 +461,7 @@ class MetricsComputer:
                 percentile_dict[f'c{i}_lift'] = round(lifts_conf[i], 2)
             results.append(percentile_dict)
 
-        confidence_metrics_df = pd.DataFrame(results).set_index('percentile')
+        confidence_metrics_df = pd.DataFrame(results).set_index(pd.Index([f'P{p}' for p in percentiles]))
         
         return cm_df, confidence_metrics_df
 
@@ -498,8 +498,6 @@ print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
 metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['base_rates'])
 cm_df, metrics_df = metrics_comp.compute_metrics()
-print("\n=== Confusion Matrix (Best Model) ===")
-print(cm_df.to_string())
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
 print(metrics_df.to_string())
 
