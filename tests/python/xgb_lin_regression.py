@@ -435,6 +435,33 @@ class R2Maximizer:
             self.y_pred_orig = np.exp(self.y_pred_test) if self.log_transformation_needed else self.y_pred_test
             self.test_base_mean = self.y_test_orig.mean()
 
+    def create_metrics_df(self, y_test_orig, y_pred_orig, test_base_mean):
+        percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
+        table_rows = []
+        for p in percentiles:
+            cutoff = np.percentile(y_pred_orig, p)
+            mask = y_pred_orig >= cutoff
+            if not np.any(mask):
+                continue
+            sub_pred = y_pred_orig[mask]
+            sub_actual = y_test_orig[mask]
+            avg_pred = np.mean(sub_pred)
+            avg_actual = np.mean(sub_actual)
+            mae_val = mean_absolute_error(sub_actual, sub_pred)
+            rmse_val = root_mean_squared_error(sub_actual, sub_pred)
+            lift = avg_actual / test_base_mean if test_base_mean > 0 else 0
+            table_rows.append({
+                'percentile': f'P{p}',
+                'cutoff': cutoff,
+                'avg_pred': avg_pred,
+                'avg_actual': avg_actual,
+                'mae': mae_val,
+                'rmse': rmse_val,
+                'lift': lift,
+            })
+        metrics_df = pd.DataFrame(table_rows).set_index('percentile')
+        return metrics_df.round(4)
+
     def optimize(self):
         self.run_all()
         self.build_comparative()
@@ -462,6 +489,8 @@ class R2Maximizer:
         }
         model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index('approach')
         
+        metrics_df = self.create_metrics_df(self.y_test_orig, self.y_pred_orig, self.test_base_mean)
+
         return {
             'comparative_df': self.comparative_df,
             'model': self.model,
@@ -473,41 +502,9 @@ class R2Maximizer:
             'y_pred_orig': self.y_pred_orig,
             'test_base_mean': self.test_base_mean,
             'model_v_baseline_df': model_v_baseline_df,
-            'best_features_df': self.best_features_df
+            'best_features_df': self.best_features_df,
+            'metrics_df': metrics_df
         }
-
-class MetricsComputer:
-    def __init__(self, y_test_orig, y_pred_orig, test_base_mean):
-        self.y_test_orig = y_test_orig
-        self.y_pred_orig = y_pred_orig
-        self.test_base_mean = test_base_mean
-
-    def compute_metrics(self):
-        percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
-        table_rows = []
-        for p in percentiles:
-            cutoff = np.percentile(self.y_pred_orig, p)
-            mask = self.y_pred_orig >= cutoff
-            if not np.any(mask):
-                continue
-            sub_pred = self.y_pred_orig[mask]
-            sub_actual = self.y_test_orig[mask]
-            avg_pred = np.mean(sub_pred)
-            avg_actual = np.mean(sub_actual)
-            mae_val = mean_absolute_error(sub_actual, sub_pred)
-            rmse_val = root_mean_squared_error(sub_actual, sub_pred)
-            lift = avg_actual / self.test_base_mean if self.test_base_mean > 0 else 0
-            table_rows.append({
-                'percentile': f'P{p}',
-                'cutoff': cutoff,
-                'avg_pred': avg_pred,
-                'avg_actual': avg_actual,
-                'mae': mae_val,
-                'rmse': rmse_val,
-                'lift': lift,
-            })
-        metrics_df = pd.DataFrame(table_rows).set_index('percentile')
-        return metrics_df.round(4)
 
 # Example usage
 splitter = TrainTestSplitter(
@@ -537,10 +534,8 @@ print(f"\nBase mean on test set: {results['test_base_mean']:.4f}")
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
-metrics_comp = MetricsComputer(results['y_test_orig'], results['y_pred_orig'], results['test_base_mean'])
-metrics_df = metrics_comp.compute_metrics()
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
-print(metrics_df.to_string())
+print(results['metrics_df'].to_string())
 
 print("\nNOTE:")
 print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
@@ -548,7 +543,7 @@ print("- Higher percentile = stricter threshold = higher lift, lower count")
 print("- Lift = avg_actual / base_mean")
 
 # Demonstrate making a prediction
-example_row = train_df.iloc[0][results['selected_features']]
+example_row = tabular_data_df.iloc[0][results['selected_features']]
 dexample = xgb.DMatrix(pd.DataFrame([example_row]))
 example_pred = results['model'].predict(dexample)[0]
 example_pred = np.exp(example_pred) if maximizer.log_transformation_needed else example_pred
