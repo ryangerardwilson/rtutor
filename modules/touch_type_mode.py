@@ -1,3 +1,4 @@
+# ~/Apps/worship/modules/touch_type_mode.py
 # ~/Apps/rtutor/modules/jump_mode.py
 import curses
 import sys
@@ -36,8 +37,10 @@ class TouchTypeMode:
 
             while not completed:
                 max_y, max_x = stdscr.getmaxyx()
-                available_height = max(0, max_y - 4)
-                content_start_y = 2
+                header_rows = 3
+                footer_rows = 2
+                available_height = max(0, max_y - header_rows - footer_rows)
+                content_start_y = header_rows
 
                 # === Smooth, early scrolling + extra lookahead near end ===
                 if total_lines > available_height:
@@ -65,16 +68,19 @@ class TouchTypeMode:
                 visible_range = range(start_idx, end_idx)
 
                 if need_redraw:
-                    # Title
-                    title = f"Touch Type Mode: {self.sequencer_name} | {lesson.name}"
+                    # Title on two lines
+                    line1 = self.sequencer_name
+                    line2 = f"TOUCH_TYPE_MODE: {lesson.name}"
                     try:
-                        stdscr.addstr(0, 0, title[:max_x], curses.color_pair(1))
+                        stdscr.addstr(0, 0, line1[:max_x], curses.color_pair(1) | curses.A_BOLD)
+                        stdscr.addstr(1, 0, line2[:max_x], curses.color_pair(1) | curses.A_BOLD)
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
 
+                    # Empty line
                     try:
-                        stdscr.move(1, 0)
+                        stdscr.move(2, 0)
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
@@ -128,8 +134,12 @@ class TouchTypeMode:
 
                     # Preserve blank lines at end
                     content_end_row = content_start_y + (end_idx - start_idx)
-                    clear_start = content_end_row if total_lines - end_idx <= 7 else content_end_row
-                    clear_end = max_y - 2
+                    if total_lines - end_idx <= 7:
+                        clear_start = content_end_row
+                        clear_end = content_end_row
+                    else:
+                        clear_start = content_end_row
+                        clear_end = max_y - footer_rows
 
                     for r in range(clear_start, clear_end):
                         try:
