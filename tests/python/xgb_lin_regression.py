@@ -12,6 +12,7 @@ from sklearn.metrics import (
     root_mean_squared_error,
 )
 from sklearn.feature_selection import RFE
+import os  # Added for multi-threading
 
 class TrainTestSplitter:
     def __init__(self, df, features, target, xgb_objective):
@@ -77,6 +78,7 @@ class R2Maximizer:
             'eta': 0.1,
             'subsample': 0.8,
             'colsample_bytree': 0.8,
+            'nthread': os.cpu_count(),  # Added for multi-threading
         }
         self.num_boost_round = 200
         self.early_stopping_rounds = 20
@@ -198,6 +200,7 @@ class R2Maximizer:
             **self.default_params,
             random_state=self.random_state,
             enable_categorical=True,
+            n_jobs=os.cpu_count(),  # Added for multi-threading
         )
         rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
         rfe.fit(X_train_full, y_train_full)
@@ -256,6 +259,7 @@ class R2Maximizer:
                 'colsample_bytree': colsample_bytree,
                 'reg_alpha': reg_alpha,
                 'reg_lambda': reg_lambda,
+                'nthread': os.cpu_count(),  # Added for multi-threading
             }
             r2, _ = self._compute_cv_r2(params, X_train_full, y_train_full)
             return r2
@@ -266,6 +270,7 @@ class R2Maximizer:
         best_params = study.best_params
         best_params['objective'] = 'reg:squarederror'
         best_params['eval_metric'] = 'rmse'
+        best_params['nthread'] = os.cpu_count()  # Added for multi-threading
         
         cv_val_r2, best_iter = self._compute_cv_r2(best_params, X_train_full, y_train_full)
         
@@ -310,6 +315,7 @@ class R2Maximizer:
                 **self.default_params,
                 random_state=self.random_state,
                 enable_categorical=True,
+                n_jobs=os.cpu_count(),  # Added for multi-threading
             )
             rfe = RFE(estimator=base_model, n_features_to_select=n_features_to_select)
             rfe.fit(X_train_full, y_train_full)
@@ -325,6 +331,7 @@ class R2Maximizer:
                 'colsample_bytree': colsample_bytree,
                 'reg_alpha': reg_alpha,
                 'reg_lambda': reg_lambda,
+                'nthread': os.cpu_count(),  # Added for multi-threading
             }
             r2, _ = self._compute_cv_r2(params, X_train_full, y_train_full, selected_features_trial)
             return r2
@@ -336,12 +343,14 @@ class R2Maximizer:
         best_n = best_params.pop('n_features_to_select')
         best_params['objective'] = 'reg:squarederror'
         best_params['eval_metric'] = 'rmse'
+        best_params['nthread'] = os.cpu_count()  # Added for multi-threading
         
         # Re-do RFE with best_n on full train
         base_model = xgb.XGBRegressor(
             **self.default_params,
             random_state=self.random_state,
             enable_categorical=True,
+            n_jobs=os.cpu_count(),  # Added for multi-threading
         )
         rfe = RFE(estimator=base_model, n_features_to_select=best_n)
         rfe.fit(X_train_full, y_train_full)
