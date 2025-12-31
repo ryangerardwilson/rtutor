@@ -5,7 +5,7 @@ from .structs import Lesson
 from .boom import Boom
 
 
-class JumpMode:
+class TouchTypeMode:
     def __init__(self, sequencer_name, lessons, start_idx):
         self.sequencer_name = sequencer_name
         self.lessons = lessons
@@ -66,7 +66,7 @@ class JumpMode:
 
                 if need_redraw:
                     # Title
-                    title = f"Jump Mode: {self.sequencer_name} | {lesson.name}"
+                    title = f"Touch Type Mode: {self.sequencer_name} | {lesson.name}"
                     try:
                         stdscr.addstr(0, 0, title[:max_x], curses.color_pair(1))
                         stdscr.clrtoeol()
@@ -256,7 +256,7 @@ class JumpMode:
             # Advance to next lesson after completing this one with 'n'
             self.current_idx += 1
 
-        # All lessons completed in jump mode
+        # All lessons completed in touch type mode
         boom = Boom("Press any key to return to doc mode.")
         boom.display(stdscr)
         stdscr.getch()
