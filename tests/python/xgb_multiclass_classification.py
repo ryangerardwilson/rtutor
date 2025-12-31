@@ -380,61 +380,11 @@ class AUCMaximizer:
         
         self.test_base_rate = self.y_test.value_counts(normalize=True).sort_index().to_dict()
 
-    def optimize(self):
-        self.run_all()
-        self.build_comparative()
-        self.select_best()
-        
-        # Compute feature importance for the best model
-        importance_gain = self.model.get_score(importance_type="gain")
-        if importance_gain:
-            total_gain = sum(importance_gain.values())
-            normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
-            self.best_features_df = pd.DataFrame({
-                "feature": list(normalized_gain.keys()),
-                "importance_gain_normalized": list(normalized_gain.values()),
-            }).sort_values(by="importance_gain_normalized", ascending=False)
-            self.best_features_df["importance_rank"] = range(1, len(self.best_features_df) + 1)
-            self.best_features_df = self.best_features_df.set_index("importance_rank")
-        else:
-            self.best_features_df = pd.DataFrame()
-
-        model_v_baseline_data = {
-            'approach': ['Model', 'Baseline'],
-            'auc': [self.best_auc, 0.5]
-        }
-        model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index('approach')
-        
-        return {
-            'comparative_df': self.comparative_df,
-            'model': self.model,
-            'selected_features': self.selected_features,
-            'y_test': self.y_test,
-            'y_pred_test': self.y_pred_test,
-            'test_base_rate': self.test_base_rate,
-            'best_features_df': self.best_features_df,
-            'model_v_baseline_df': model_v_baseline_df
-        }
-
-class MetricsComputer:
-    def __init__(self, y_test, y_pred_test, base_rates=None):
-        self.y_test = y_test
-        self.y_pred_test = y_pred_test
-        self.test_base_rate = base_rates if base_rates is not None else y_test.value_counts(normalize=True).sort_index()
-        self.n_classes = len(self.test_base_rate)
-        self.preds_argmax = np.argmax(self.y_pred_test, axis=1)
-
-    def compute_metrics(self):
-        # Confusion matrix for full set (optional, not used in print)
-        cm = confusion_matrix(self.y_test, self.preds_argmax, labels=range(self.n_classes))
-        
-        # Confusion matrix DF
-        cm_df = pd.DataFrame(cm, index=[f"actual_{i}" for i in range(self.n_classes)], columns=[f"pred_{i}" for i in range(self.n_classes)])
-        
-        # Percentile-based metrics
+    def create_metrics_df(self, y_test, y_pred_test, test_base_rate):
         percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
         results = []
-        max_probs = np.max(self.y_pred_test, axis=1)
+        max_probs = np.max(y_pred_test, axis=1)
+        preds_argmax = np.argmax(y_pred_test, axis=1)
         for p in percentiles:
             cutoff = np.percentile(max_probs, p)
             confident_mask = max_probs >= cutoff
@@ -442,8 +392,8 @@ class MetricsComputer:
             percentile_dict = {}
             percentile_dict['cutoff_prob'] = round(cutoff, 4)
             if num_classified > 0:
-                y_test_conf = self.y_test[confident_mask]
-                preds_conf = self.preds_argmax[confident_mask]
+                y_test_conf = y_test[confident_mask]
+                preds_conf = preds_argmax[confident_mask]
                 cm_conf = confusion_matrix(y_test_conf, preds_conf, labels=range(self.n_classes))
                 for i in range(self.n_classes):
                     for j in range(self.n_classes):
@@ -480,7 +430,7 @@ class MetricsComputer:
             percentile_dict['macro_recall'] = round(recall_macro, 4)
             percentile_dict['macro_f1'] = round(f1_macro, 4)
             percentile_dict['accuracy'] = round(accuracy, 4)
-            lifts_conf = [precisions_conf[i] / self.test_base_rate[i] if self.test_base_rate[i] > 0 and precisions_conf[i] > 0 else 0 for i in range(self.n_classes)]
+            lifts_conf = [precisions_conf[i] / test_base_rate[i] if test_base_rate[i] > 0 and precisions_conf[i] > 0 else 0 for i in range(self.n_classes)]
             for i in range(self.n_classes):
                 percentile_dict[f'c{i}_precision'] = round(precisions_conf[i], 4)
                 percentile_dict[f'c{i}_recall'] = round(recalls_conf[i], 4)
@@ -488,9 +438,48 @@ class MetricsComputer:
                 percentile_dict[f'c{i}_lift'] = round(lifts_conf[i], 2)
             results.append(percentile_dict)
 
-        confidence_metrics_df = pd.DataFrame(results).set_index(pd.Index([f'P{p}' for p in percentiles]))
+        metrics_df = pd.DataFrame(results).set_index(pd.Index([f'P{p}' for p in percentiles]))
         
-        return cm_df, confidence_metrics_df
+        return metrics_df
+
+    def optimize(self):
+        self.run_all()
+        self.build_comparative()
+        self.select_best()
+        
+        # Compute feature importance for the best model
+        importance_gain = self.model.get_score(importance_type="gain")
+        if importance_gain:
+            total_gain = sum(importance_gain.values())
+            normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
+            self.best_features_df = pd.DataFrame({
+                "feature": list(normalized_gain.keys()),
+                "importance_gain_normalized": list(normalized_gain.values()),
+            }).sort_values(by="importance_gain_normalized", ascending=False)
+            self.best_features_df["importance_rank"] = range(1, len(self.best_features_df) + 1)
+            self.best_features_df = self.best_features_df.set_index("importance_rank")
+        else:
+            self.best_features_df = pd.DataFrame()
+
+        model_v_baseline_data = {
+            'approach': ['Model', 'Baseline'],
+            'auc': [self.best_auc, 0.5]
+        }
+        model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index('approach')
+        
+        metrics_df = self.create_metrics_df(self.y_test, self.y_pred_test, self.test_base_rate)
+
+        return {
+            'comparative_df': self.comparative_df,
+            'model': self.model,
+            'selected_features': self.selected_features,
+            'y_test': self.y_test,
+            'y_pred_test': self.y_pred_test,
+            'test_base_rate': self.test_base_rate,
+            'best_features_df': self.best_features_df,
+            'model_v_baseline_df': model_v_baseline_df,
+            'metrics_df': metrics_df
+        }
 
 # Example usage
 splitter = TrainTestSplitter(
@@ -522,10 +511,8 @@ print(results['test_base_rate'])
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
-metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['test_base_rate'])
-cm_df, metrics_df = metrics_comp.compute_metrics()
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
-print(metrics_df.to_string())
+print(results['metrics_df'].to_string())
 
 print("\nNOTE:")
 print("- Metrics include macro averages and per-class precision, recall, f1, lift")

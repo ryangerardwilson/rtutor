@@ -421,6 +421,34 @@ class AUCMaximizer:
         
         self.test_base_rate = self.y_test.mean()
 
+    def create_metrics_df(self, y_test, y_pred_test, test_base_rate):
+        percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
+        table_rows = []
+        for p in percentiles:
+            cutoff = np.percentile(y_pred_test, p)
+            y_pred_binary = (y_pred_test >= cutoff).astype(int)
+            tn, fp, fn, tp = confusion_matrix(y_test, y_pred_binary).ravel()
+            precision = precision_score(y_test, y_pred_binary, zero_division=0)
+            recall = recall_score(y_test, y_pred_binary, zero_division=0)
+            f1 = f1_score(y_test, y_pred_binary, zero_division=0)
+            accuracy = accuracy_score(y_test, y_pred_binary)
+            lift = precision / test_base_rate if test_base_rate > 0 and precision > 0 else 0
+            table_rows.append({
+                'percentile': f'P{p}',
+                'cutoff_prob': round(cutoff, 4),
+                'tp': int(tp),
+                'fp': int(fp),
+                'fn': int(fn),
+                'tn': int(tn),
+                'precision': round(precision, 4),
+                'recall': round(recall, 4),
+                'f1': round(f1, 4),
+                'accuracy': round(accuracy, 4),
+                'lift': round(lift, 2),
+            })
+        metrics_df = pd.DataFrame(table_rows).set_index('percentile')
+        return metrics_df
+
     def optimize(self):
         self.run_all()
         self.build_comparative()
@@ -445,6 +473,8 @@ class AUCMaximizer:
         }
         model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index('approach')
         
+        metrics_df = self.create_metrics_df(self.y_test, self.y_pred_test, self.test_base_rate)
+
         return {
             'comparative_df': self.comparative_df,
             'model': self.model,
@@ -454,42 +484,9 @@ class AUCMaximizer:
             'y_pred_test': self.y_pred_test,
             'test_base_rate': self.test_base_rate,
             'best_features_df': self.best_features_df,
-            'model_v_baseline_df': model_v_baseline_df
+            'model_v_baseline_df': model_v_baseline_df,
+            'metrics_df': metrics_df
         }
-
-class MetricsComputer:
-    def __init__(self, y_test, y_pred_test, test_base_rate=None):
-        self.y_test = y_test
-        self.y_pred_test = y_pred_test
-        self.test_base_rate = test_base_rate if test_base_rate is not None else y_test.mean()
-
-    def compute_metrics(self):
-        percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
-        table_rows = []
-        for p in percentiles:
-            cutoff = np.percentile(self.y_pred_test, p)
-            y_pred_binary = (self.y_pred_test >= cutoff).astype(int)
-            tn, fp, fn, tp = confusion_matrix(self.y_test, y_pred_binary).ravel()
-            precision = precision_score(self.y_test, y_pred_binary, zero_division=0)
-            recall = recall_score(self.y_test, y_pred_binary, zero_division=0)
-            f1 = f1_score(self.y_test, y_pred_binary, zero_division=0)
-            accuracy = accuracy_score(self.y_test, y_pred_binary)
-            lift = precision / self.test_base_rate if self.test_base_rate > 0 and precision > 0 else 0
-            table_rows.append({
-                'percentile': f'P{p}',
-                'cutoff_prob': round(cutoff, 4),
-                'tp': int(tp),
-                'fp': int(fp),
-                'fn': int(fn),
-                'tn': int(tn),
-                'precision': round(precision, 4),
-                'recall': round(recall, 4),
-                'f1': round(f1, 4),
-                'accuracy': round(accuracy, 4),
-                'lift': round(lift, 2),
-            })
-        metrics_df = pd.DataFrame(table_rows).set_index('percentile')
-        return metrics_df
 
 splitter = TrainTestSplitter(
     tabular_data_df, 
@@ -518,10 +515,8 @@ print(f"\nBase conversion rate on test set: {results['test_base_rate']:.4f}")
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
-metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['test_base_rate'])
-metrics_df = metrics_comp.compute_metrics()
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
-print(metrics_df.to_string())
+print(results['metrics_df'].to_string())
 
 print("\nNOTE:")
 print("- 'Pxx' means selecting users with predicted probability >= xx-th percentile")
