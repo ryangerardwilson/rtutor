@@ -1,6 +1,4 @@
 # ~/Apps/rtutor/tests/python/xgb_bin_classification.py
-# ~/Apps/rtutor/tests/xgb_bin_classification.py
-# Updated ~/Apps/rtutor/tests/xgb_bin_classification.py
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -86,7 +84,7 @@ class AUCMaximizer:
         self.y_test = None
         self.selected_features = None
         self.y_pred_test = None
-        self.base_rate = None
+        self.test_base_rate = None
         self.best_features_df = None
 
     def manual_without_rfe(self):
@@ -351,7 +349,7 @@ class AUCMaximizer:
     def select_best(self):
         self.best_name = self.comparative_df.iloc[0]['method']
         self.best_auc, _, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
-        self.base_rate = self.y_test.mean()
+        self.test_base_rate = self.y_test.mean()
 
     def optimize(self):
         self.run_all()
@@ -385,19 +383,19 @@ class AUCMaximizer:
             'X_test_selected': self.X_test_selected,
             'y_test': self.y_test,
             'y_pred_test': self.y_pred_test,
-            'base_rate': self.base_rate,
+            'test_base_rate': self.test_base_rate,
             'best_features_df': self.best_features_df,
             'model_v_baseline_df': model_v_baseline_df
         }
 
 class MetricsComputer:
-    def __init__(self, y_test, y_pred_test, base_rate=None):
+    def __init__(self, y_test, y_pred_test, test_base_rate=None):
         self.y_test = y_test
         self.y_pred_test = y_pred_test
-        self.base_rate = base_rate if base_rate is not None else y_test.mean()
+        self.test_base_rate = test_base_rate if test_base_rate is not None else y_test.mean()
 
     def compute_metrics(self):
-        percentiles = [99] + list(range(95, 0, -5)) + [1]
+        percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
         table_rows = []
         for p in percentiles:
             cutoff = np.percentile(self.y_pred_test, p)
@@ -407,7 +405,7 @@ class MetricsComputer:
             recall = recall_score(self.y_test, y_pred_binary, zero_division=0)
             f1 = f1_score(self.y_test, y_pred_binary, zero_division=0)
             accuracy = accuracy_score(self.y_test, y_pred_binary)
-            lift = precision / self.base_rate if self.base_rate > 0 and precision > 0 else 0
+            lift = precision / self.test_base_rate if self.test_base_rate > 0 and precision > 0 else 0
             table_rows.append({
                 'percentile': f'P{p}',
                 'cutoff_prob': round(cutoff, 4),
@@ -446,12 +444,12 @@ print(results['model_v_baseline_df'].to_string(float_format="{:.4f}".format))
 print("\nSelected Features:")
 print(results['selected_features'])
 
-print(f"\nBase conversion rate on test set: {results['base_rate']:.4f}")
+print(f"\nBase conversion rate on test set: {results['test_base_rate']:.4f}")
 
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
-metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['base_rate'])
+metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['test_base_rate'])
 metrics_df = metrics_comp.compute_metrics()
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
 print(metrics_df.to_string())

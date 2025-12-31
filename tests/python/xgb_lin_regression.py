@@ -1,6 +1,4 @@
 # ~/Apps/rtutor/tests/python/xgb_lin_regression.py
-# ~/Apps/rtutor/tests/python/xgb_lin_regression.py
-# ~/Apps/rtutor/tests/xgb_lin_regression.py
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -91,7 +89,8 @@ class R2Maximizer:
         self.y_pred_test = None
         self.y_test_orig = None
         self.y_pred_orig = None
-        self.base_mean = None
+        self.train_base_mean = None
+        self.test_base_mean = None
         self.baseline_r2 = None
         self.baseline_mae = None
         self.baseline_rmse = None
@@ -361,7 +360,7 @@ class R2Maximizer:
         return model, X_test_selected, y_test, selected_features, train_r2
 
     def run_all(self):
-        self.baseline_r2, self.baseline_mae, self.baseline_rmse, self.base_mean, _, _ = self.compute_baseline()
+        self.baseline_r2, self.baseline_mae, self.baseline_rmse, self.train_base_mean, _, _ = self.compute_baseline()
 
         model1, X_test1, y_test, sel1, train_r21 = self.manual_without_rfe()
         y_pred1 = model1.predict(xgb.DMatrix(X_test1))
@@ -406,6 +405,7 @@ class R2Maximizer:
         self.best_r2, _, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
         self.y_test_orig = np.exp(self.y_test) if self.log_transformation_needed else self.y_test
         self.y_pred_orig = np.exp(self.y_pred_test) if self.log_transformation_needed else self.y_pred_test
+        self.test_base_mean = self.y_test_orig.mean()
 
     def optimize(self):
         self.run_all()
@@ -443,19 +443,20 @@ class R2Maximizer:
             'y_pred_test': self.y_pred_test,
             'y_test_orig': self.y_test_orig,
             'y_pred_orig': self.y_pred_orig,
-            'base_mean': self.base_mean,
+            'train_base_mean': self.train_base_mean,
+            'test_base_mean': self.test_base_mean,
             'model_v_baseline_df': model_v_baseline_df,
             'best_features_df': self.best_features_df
         }
 
 class MetricsComputer:
-    def __init__(self, y_test_orig, y_pred_orig, base_mean):
+    def __init__(self, y_test_orig, y_pred_orig, test_base_mean):
         self.y_test_orig = y_test_orig
         self.y_pred_orig = y_pred_orig
-        self.base_mean = base_mean
+        self.test_base_mean = test_base_mean
 
     def compute_metrics(self):
-        percentiles = [99] + list(range(95, 0, -5)) + [1]
+        percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
         table_rows = []
         for p in percentiles:
             cutoff = np.percentile(self.y_pred_orig, p)
@@ -468,7 +469,7 @@ class MetricsComputer:
             avg_actual = np.mean(sub_actual)
             mae_val = mean_absolute_error(sub_actual, sub_pred)
             rmse_val = root_mean_squared_error(sub_actual, sub_pred)
-            lift = avg_actual / self.base_mean if self.base_mean > 0 else 0
+            lift = avg_actual / self.test_base_mean if self.test_base_mean > 0 else 0
             table_rows.append({
                 'percentile': f'P{p}',
                 'cutoff': cutoff,
@@ -504,12 +505,12 @@ print(results['model_v_baseline_df'].to_string(float_format="{:.4f}".format))
 print("\nSelected Features:")
 print(results['selected_features'])
 
-print(f"\nBase mean on train set: {results['base_mean']:.4f}")
+print(f"\nBase mean on train set: {results['train_base_mean']:.4f}")
 
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
-metrics_comp = MetricsComputer(results['y_test_orig'], results['y_pred_orig'], results['base_mean'])
+metrics_comp = MetricsComputer(results['y_test_orig'], results['y_pred_orig'], results['test_base_mean'])
 metrics_df = metrics_comp.compute_metrics()
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
 print(metrics_df.to_string())
@@ -517,7 +518,7 @@ print(metrics_df.to_string())
 print("\nNOTE:")
 print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
 print("- Higher percentile = stricter threshold = higher lift, lower count")
-print("- Lift = avg_actual / base_mean")
+print("- Lift = avg_actual / test_base_mean")
 
 # Demonstrate making a prediction
 example_row = train_df.iloc[0][results['selected_features']]

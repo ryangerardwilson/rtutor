@@ -1,3 +1,4 @@
+# ~/Apps/rtutor/tests/python/xgb_multiclass_classification.py
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -82,7 +83,7 @@ class AUCMaximizer:
         self.y_test = None
         self.selected_features = None
         self.y_pred_test = None
-        self.base_rates = None
+        self.test_base_rate = None
         self.best_features_df = None
 
     def manual_without_rfe(self):
@@ -351,7 +352,7 @@ class AUCMaximizer:
     def select_best(self):
         self.best_name = self.comparative_df.iloc[0]['method']
         self.best_auc, _, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
-        self.base_rates = self.y_test.value_counts(normalize=True).sort_index()
+        self.test_base_rate = self.y_test.value_counts(normalize=True).sort_index().to_dict()
 
     def optimize(self):
         self.run_all()
@@ -384,7 +385,7 @@ class AUCMaximizer:
             'selected_features': self.selected_features,
             'y_test': self.y_test,
             'y_pred_test': self.y_pred_test,
-            'base_rates': self.base_rates,
+            'test_base_rate': self.test_base_rate,
             'best_features_df': self.best_features_df,
             'model_v_baseline_df': model_v_baseline_df
         }
@@ -393,8 +394,8 @@ class MetricsComputer:
     def __init__(self, y_test, y_pred_test, base_rates=None):
         self.y_test = y_test
         self.y_pred_test = y_pred_test
-        self.base_rates = base_rates if base_rates is not None else y_test.value_counts(normalize=True).sort_index()
-        self.n_classes = len(self.base_rates)
+        self.test_base_rate = base_rates if base_rates is not None else y_test.value_counts(normalize=True).sort_index()
+        self.n_classes = len(self.test_base_rate)
         self.preds_argmax = np.argmax(self.y_pred_test, axis=1)
 
     def compute_metrics(self):
@@ -405,7 +406,7 @@ class MetricsComputer:
         cm_df = pd.DataFrame(cm, index=[f"actual_{i}" for i in range(self.n_classes)], columns=[f"pred_{i}" for i in range(self.n_classes)])
         
         # Percentile-based metrics
-        percentiles = [99] + list(range(95, 0, -5)) + [1, 0]
+        percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
         results = []
         max_probs = np.max(self.y_pred_test, axis=1)
         for p in percentiles:
@@ -453,7 +454,7 @@ class MetricsComputer:
             percentile_dict['macro_recall'] = round(recall_macro, 4)
             percentile_dict['macro_f1'] = round(f1_macro, 4)
             percentile_dict['accuracy'] = round(accuracy, 4)
-            lifts_conf = [precisions_conf[i] / self.base_rates[i] if self.base_rates[i] > 0 and precisions_conf[i] > 0 else 0 for i in range(self.n_classes)]
+            lifts_conf = [precisions_conf[i] / self.test_base_rate[i] if self.test_base_rate[i] > 0 and precisions_conf[i] > 0 else 0 for i in range(self.n_classes)]
             for i in range(self.n_classes):
                 percentile_dict[f'c{i}_precision'] = round(precisions_conf[i], 4)
                 percentile_dict[f'c{i}_recall'] = round(recalls_conf[i], 4)
@@ -490,13 +491,12 @@ print("\nSelected Features:")
 print(results['selected_features'])
 
 print("\nClass base rates on test set:")
-for cls, rate in results['base_rates'].items():
-    print(f"Class {cls}: {rate:.4f}")
+print(results['test_base_rate'])
 
 print("\n=== best_features_df (Top Features by Gain) ===")
 print(results['best_features_df'].to_string(float_format="{:.4f}".format))
 
-metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['base_rates'])
+metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['test_base_rate'])
 cm_df, metrics_df = metrics_comp.compute_metrics()
 print("\n=== Performance by Percentile Threshold (Best Model) ===")
 print(metrics_df.to_string())
