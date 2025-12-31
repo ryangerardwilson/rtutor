@@ -14,6 +14,7 @@ from sklearn.metrics import (
 )
 from sklearn.feature_selection import RFE
 from xgb_train_test_splitter import TrainTestSplitter
+import os  # Added for multi-threading
 
 # Set seed for reproducibility
 np.random.seed(42)
@@ -66,6 +67,7 @@ class AUCMaximizer:
             'eta': 0.1,
             'subsample': 0.8,
             'colsample_bytree': 0.8,
+            'nthread': os.cpu_count(),  # Added for multi-threading
         }
         self.num_boost_round = 200
         self.early_stopping_rounds = 20
@@ -210,6 +212,7 @@ class AUCMaximizer:
                 'colsample_bytree': colsample_bytree,
                 'reg_alpha': reg_alpha,
                 'reg_lambda': reg_lambda,
+                'nthread': os.cpu_count(),  # Added for multi-threading
             }
             cv_results = xgb.cv(
                 params,
@@ -231,6 +234,7 @@ class AUCMaximizer:
         best_params = study.best_params
         best_params['objective'] = 'binary:logistic'
         best_params['eval_metric'] = 'auc'
+        best_params['nthread'] = os.cpu_count()  # Added for multi-threading
         
         cv_results = xgb.cv(
             best_params,
@@ -303,6 +307,7 @@ class AUCMaximizer:
                 'colsample_bytree': colsample_bytree,
                 'reg_alpha': reg_alpha,
                 'reg_lambda': reg_lambda,
+                'nthread': os.cpu_count(),  # Added for multi-threading
             }
             cv_results = xgb.cv(
                 params,
@@ -325,6 +330,7 @@ class AUCMaximizer:
         best_n = best_params.pop('n_features_to_select')
         best_params['objective'] = 'binary:logistic'
         best_params['eval_metric'] = 'auc'
+        best_params['nthread'] = os.cpu_count()  # Added for multi-threading
         
         # Re-do RFE with best_n on full train
         base_model = xgb.XGBClassifier(

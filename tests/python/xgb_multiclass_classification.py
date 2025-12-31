@@ -10,6 +10,7 @@ from sklearn.metrics import (
     accuracy_score,
 )
 from sklearn.feature_selection import RFE
+import os  # Added for multi-threading
 
 class TrainTestSplitter:
     def __init__(self, df, features, target, xgb_objective):
@@ -74,6 +75,7 @@ class AUCMaximizer:
             'eta': 0.1,
             'subsample': 0.8,
             'colsample_bytree': 0.8,
+            'nthread': os.cpu_count(),  # Added for multi-threading
         }
         self.num_boost_round = 200
         self.early_stopping_rounds = 20
@@ -159,6 +161,7 @@ class AUCMaximizer:
             **self.default_params,
             random_state=self.random_state,
             enable_categorical=True,
+            n_jobs=os.cpu_count(),  # Added for multi-threading
         )
         rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
         rfe.fit(X_train_full, y_train_full)
@@ -216,6 +219,7 @@ class AUCMaximizer:
                 'colsample_bytree': colsample_bytree,
                 'reg_alpha': reg_alpha,
                 'reg_lambda': reg_lambda,
+                'nthread': os.cpu_count(),  # Added for multi-threading
             }
             auc, _ = self._compute_cv_auc(params, X_train_full, y_train_full)
             return auc
@@ -227,6 +231,7 @@ class AUCMaximizer:
         best_params['objective'] = 'multi:softprob'
         best_params['num_class'] = self.n_classes
         best_params['eval_metric'] = 'mlogloss'
+        best_params['nthread'] = os.cpu_count()  # Added for multi-threading
         
         cv_val_auc, best_iter = self._compute_cv_auc(best_params, X_train_full, y_train_full)
         
@@ -269,6 +274,7 @@ class AUCMaximizer:
                 **self.default_params,
                 random_state=self.random_state,
                 enable_categorical=True,
+                n_jobs=os.cpu_count(),  # Added for multi-threading
             )
             rfe = RFE(estimator=base_model, n_features_to_select=n_features_to_select)
             rfe.fit(X_train_full, y_train_full)
@@ -285,6 +291,7 @@ class AUCMaximizer:
                 'colsample_bytree': colsample_bytree,
                 'reg_alpha': reg_alpha,
                 'reg_lambda': reg_lambda,
+                'nthread': os.cpu_count(),  # Added for multi-threading
             }
             auc, _ = self._compute_cv_auc(params, X_train_full, y_train_full, selected_features_trial)
             return auc
@@ -297,12 +304,14 @@ class AUCMaximizer:
         best_params['objective'] = 'multi:softprob'
         best_params['num_class'] = self.n_classes
         best_params['eval_metric'] = 'mlogloss'
+        best_params['nthread'] = os.cpu_count()  # Added for multi-threading
         
         # Re-do RFE with best_n on full train
         base_model = xgb.XGBClassifier(
             **self.default_params,
             random_state=self.random_state,
             enable_categorical=True,
+            n_jobs=os.cpu_count(),  # Added for multi-threading
         )
         rfe = RFE(estimator=base_model, n_features_to_select=best_n)
         rfe.fit(X_train_full, y_train_full)
