@@ -12,6 +12,7 @@ from sklearn.metrics import (
 )
 from sklearn.feature_selection import RFE
 from xgb_train_test_splitter import TrainTestSplitter
+from xgb_synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 
 
 from dataclasses import dataclass, field
@@ -50,37 +51,6 @@ class Config:
     })
     num_class: Optional[int] = None  # Optional, set dynamically if needed
 
-# Set seed for reproducibility
-np.random.seed(42)
-
-# Create dummy dataset
-n_users = 10000
-n_features = 20
-n_classes = 3
-
-features = [f"feat_{i}" for i in range(n_features)]
-X = pd.DataFrame(
-    np.random.dirichlet(np.ones(n_features), size=n_users),
-    columns=features,
-    index=pd.RangeIndex(n_users, name="user_id"),
-)
-
-# Synthetic multi-class target correlated with a few features
-logits0 = -2 + 5 * X["feat_0"] + 3 * X["feat_1"] + np.random.normal(0, 1, n_users)
-logits1 = -1 + 4 * X["feat_2"] + 2 * X["feat_3"] + np.random.normal(0, 1, n_users)
-logits2 = 0 + 3 * X["feat_4"] + 6 * X["feat_5"] + np.random.normal(0, 1, n_users)
-logits = np.stack([logits0, logits1, logits2], axis=1)
-exp_logits = np.exp(logits)
-probs = exp_logits / exp_logits.sum(axis=1, keepdims=True)
-y = pd.Series([np.random.choice(n_classes, p=probs[i]) for i in range(n_users)], index=X.index, name="class")
-
-# Combine features and target into one DataFrame before modeling
-tabular_data_df = X.copy()
-tabular_data_df["class"] = y
-tabular_data_df['timestamp'] = pd.date_range(start='2023-01-01', periods=n_users, freq='min')
-
-print("=== tabular_data_df (first 10 rows) ===")
-print(tabular_data_df.head(10))
 
 class AUCMaximizer:
     def __init__(self, train_df, test_df, features, target, config: Config):
@@ -489,11 +459,24 @@ class AUCMaximizer:
             'best_params': self.best_params
         }
 
+
+# Create synthetic dataset using generator
+generator = SyntheticTabularDataDfGenerator()
+tabular_data_df = generator.generate('multi:softprob')
+print("=== tabular_data_df (first 10 rows) ===")
+print(tabular_data_df.head(10))
+
+columns = tabular_data_df.columns.to_list()
+columns.remove('target')  
+columns.remove('timestamp')  
+features = columns
+target = 'target'
+
 # Example usage
 splitter = TrainTestSplitter(
     tabular_data_df, 
     features, 
-    target='class',
+    target=target,
     xgb_objective='multi:softprob'
 )
 # DO NOT REMOVE THE BELOW COMMENTS
@@ -501,7 +484,7 @@ splitter = TrainTestSplitter(
 # train_df, test_df = splitter.time_split(timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
 
-maximizer = AUCMaximizer(train_df, test_df, features, 'class', Config())
+maximizer = AUCMaximizer(train_df, test_df, features, target, Config())
 results = maximizer.optimize()
 
 print("\n=== Comparative Model Results ===")
