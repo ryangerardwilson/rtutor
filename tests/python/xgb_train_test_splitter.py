@@ -3,6 +3,7 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+
 class TrainTestSplitter:
     def __init__(self, df, features, target, xgb_objective):
         self.df = df
@@ -13,17 +14,16 @@ class TrainTestSplitter:
     def random_split(self, test_size=0.2, random_state=42, stratify=None):
         if stratify is None:
             # Automatically determine stratify based on xgb_objective
-            if 'reg:' in self.xgb_objective:
+            if "reg:" in self.xgb_objective:
                 stratify = False
             else:
-                stratify = True  # For classification xgb_objectives like 'binary:logistic'
-        
+                stratify = (
+                    True  # For classification xgb_objectives like 'binary:logistic'
+                )
+
         strat = self.df[self.target] if stratify else None
         df_train, df_test = train_test_split(
-            self.df,
-            test_size=test_size,
-            random_state=random_state,
-            stratify=strat
+            self.df, test_size=test_size, random_state=random_state, stratify=strat
         )
         print(f"Train data rows: {len(df_train)}")
         print(f"Test data rows: {len(df_test)}")

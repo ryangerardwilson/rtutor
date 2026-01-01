@@ -1797,7 +1797,86 @@
     # - subsample and colsample inject randomness 
     # Together, they make XGBoost robust without the drama of vanilla boosting.
 
-#### Lesson 5: Binary Classification Intuition
+#### Lesson 5: Train-Test Split
+
+    import pandas as pd
+    from sklearn.model_selection import train_test_split
+
+    class TrainTestSplitter:
+        def __init__(self, df, features, target, xgb_objective):
+            self.df = df
+            self.features = features
+            self.target = target
+            self.xgb_objective = xgb_objective
+
+        def random_split(self, test_size=0.2, random_state=42, stratify=None):
+            if stratify is None:
+                # Automatically determine stratify based on xgb_objective
+                if 'reg:' in self.xgb_objective:
+                    stratify = False
+                else:
+                    stratify = True  # For classification xgb_objectives like 'binary:logistic'
+            
+            strat = self.df[self.target] if stratify else None
+            df_train, df_test = train_test_split(
+                self.df,
+                test_size=test_size,
+                random_state=random_state,
+                stratify=strat
+            )
+            print(f"Train data rows: {len(df_train)}")
+            print(f"Test data rows: {len(df_test)}")
+            return df_train, df_test
+
+        def time_split(self, timestamp_col, split_timestamp):
+            split_timestamp = pd.to_datetime(split_timestamp)
+            train_df = self.df[self.df[timestamp_col] < split_timestamp]
+            test_df = self.df[self.df[timestamp_col] >= split_timestamp]
+            if len(test_df) < 0.1 * len(train_df):
+                raise ValueError("Test data is less than 10% of train data.")
+            print(f"Train data rows: {len(train_df)}")
+            print(f"Test data rows: {len(test_df)}")
+            return train_df, test_df
+
+        def time_percentile_split(self, timestamp_col, percentile=0.8):
+            if not 0.01 <= percentile <= 1.00:
+                raise ValueError("percentile must be between 0.01 and 1.00")
+            df_sorted = self.df.sort_values(by=timestamp_col)
+            split_idx = int(len(df_sorted) * percentile)
+            train_df = df_sorted.iloc[:split_idx]
+            test_df = df_sorted.iloc[split_idx:]
+            if len(test_df) < 0.1 * len(train_df):
+                raise ValueError("Test data is less than 10% of train data.")
+            print(f"Train data rows: {len(train_df)}")
+            print(f"Test data rows: {len(test_df)}")
+            return train_df, test_df
+
+    splitter = TrainTestSplitter(
+        tabular_data_df, 
+        selected_features, 
+        target='target',
+        xgb_objective='binary:logistic'
+    )
+    
+    # Option A
+    train_df, test_df = splitter.time_percentile_split(
+        timestamp_col='timestamp', 
+        percentile=0.8
+    )
+
+    # Option B
+    train_df, test_df = splitter.time_split(
+        timestamp_col='timestamp', 
+        split_timestamp='2023-01-04 11:20:00'
+    )
+
+    # Option C
+    train_df, test_df = splitter.random_split(
+        test_size=0.2, 
+        random_state=42
+    )
+
+#### Lesson 6: Binary Classification Intuition
 
     # 1. Metrics
     #!----------
@@ -1920,13 +1999,207 @@
     #!-------------------------------------------------------------------------------------
     #! *Pxx denotes any P95,P80... etc., as long as the treshold is met
 
-#### Lesson 6: Binary Classification Implementation 
+#### Lesson 7: Binary Classification Implementation 
+
+    import pandas as pd
+    import numpy as np
+    import xgboost as xgb
+    from sklearn.metrics import (
+        confusion_matrix,
+        roc_auc_score,
+        precision_score,
+        recall_score,
+        f1_score,
+        accuracy_score,
+    )
+    from xgb_train_test_splitter import TrainTestSplitter
+
+
+    class ModelBuilder:
+        def __init__(
+            self,
+            train_df,
+            test_df,
+            selected_features,
+            target,
+            params,
+            num_boost_round=200,
+            early_stopping_rounds=20,
+            n_folds=3,
+            random_state=42,
+        ):
+            self.train_df = train_df
+            self.test_df = test_df
+            self.selected_features = selected_features
+            self.target = target
+            self.params = params
+            self.num_boost_round = num_boost_round
+            self.early_stopping_rounds = early_stopping_rounds
+            self.n_folds = n_folds
+            self.random_state = random_state
+            self.model = None
+            self.train_auc = None
+            self.cv_val_auc = None
+            self.test_auc = None
+            self.test_base_rate = None
+            self.y_pred_test = None
+
+        def build(self):
+            X_train = self.train_df[self.selected_features]
+            y_train = self.train_df[self.target]
+            X_test = self.test_df[self.selected_features]
+            y_test = self.test_df[self.target]
+
+            dtrain_full = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
+
+            cv_results = xgb.cv(
+                self.params,
+                dtrain_full,
+                num_boost_round=self.num_boost_round,
+                nfold=self.n_folds,
+                stratified=True,
+                early_stopping_rounds=self.early_stopping_rounds,
+                metrics="auc",
+                seed=self.random_state,
+                verbose_eval=False,
+            )
+            best_iter = cv_results["test-auc-mean"].argmax()
+            self.cv_val_auc = cv_results["test-auc-mean"].max()
+
+            self.model = xgb.train(
+                self.params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+
+            y_pred_train = self.model.predict(dtrain_full)
+            self.train_auc = roc_auc_score(y_train, y_pred_train)
+
+            dtest = xgb.DMatrix(X_test)
+            self.y_pred_test = self.model.predict(dtest)
+            self.test_auc = roc_auc_score(y_test, self.y_pred_test)
+
+            self.test_base_rate = y_test.mean()
+
+            metrics_df = self.create_metrics_df(
+                y_test, self.y_pred_test, self.test_base_rate
+            )
+
+            performance_df = pd.DataFrame(
+                {
+                    "metric": ["Train AUC", "CV Val AUC", "Test AUC"],
+                    "value": [self.train_auc, self.cv_val_auc, self.test_auc],
+                }
+            )
+
+            return {
+                "model": self.model,
+                "metrics_df": metrics_df,
+                "performance_df": performance_df,
+                "test_base_rate": self.test_base_rate,
+            }
+
+        def create_metrics_df(self, y_test, y_pred_test, test_base_rate):
+            percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
+            table_rows = []
+            for p in percentiles:
+                cutoff = np.percentile(y_pred_test, p)
+                y_pred_binary = (y_pred_test >= cutoff).astype(int)
+                tn, fp, fn, tp = confusion_matrix(y_test, y_pred_binary).ravel()
+                precision = precision_score(y_test, y_pred_binary, zero_division=0)
+                recall = recall_score(y_test, y_pred_binary, zero_division=0)
+                f1 = f1_score(y_test, y_pred_binary, zero_division=0)
+                accuracy = accuracy_score(y_test, y_pred_binary)
+                lift = (
+                    precision / test_base_rate
+                    if test_base_rate > 0 and precision > 0
+                    else 0
+                )
+                table_rows.append(
+                    {
+                        "percentile": f"P{p}",
+                        "cutoff_prob": round(cutoff, 4),
+                        "tp": int(tp),
+                        "fp": int(fp),
+                        "fn": int(fn),
+                        "tn": int(tn),
+                        "precision": round(precision, 4),
+                        "recall": round(recall, 4),
+                        "f1": round(f1, 4),
+                        "accuracy": round(accuracy, 4),
+                        "lift": round(lift, 2),
+                    }
+                )
+            metrics_df = pd.DataFrame(table_rows).set_index("percentile")
+            return metrics_df
+
+
+    # Create synthetic dataset using generator
+    print("=== tabular_data_df (first 10 rows) ===")
+    print(tabular_data_df.head(10))
+
+    # Hardcoded configurations (update these based on results from the maximizer script)
+    target = "target"
+    selected_features = ["feat_0", "feat_1", "feat_2", "feat_3", "feat_4"]
+
+    # Hardcoded configurations (update these based on results from the maximizer script)
+    params = {
+        "objective": "binary:logistic",
+        "eval_metric": "auc",
+        "max_depth": 6,
+        "eta": 0.1,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+    }
+
+    splitter = TrainTestSplitter(
+        tabular_data_df, selected_features, target="target", xgb_objective="binary:logistic"
+    )
+    train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
+
+    builder = ModelBuilder(train_df, test_df, selected_features, target, params)
+    results = builder.build()
+    model = results["model"]
+    metrics_df = results["metrics_df"]
+    performance_df = results["performance_df"]
+    test_base_rate = results["test_base_rate"]
+
+    # Modify for printing
+    performance_df["metric"] = performance_df["metric"] + ":"
+
+    # Outputs
+    print("\n=== Model Performance ===")
+    print(performance_df.to_string())
+
+    print(f"\nBase conversion rate on test set: {test_base_rate:.4f}")
+
+    print("\n=== Performance by Percentile Threshold ===")
+    print(metrics_df.to_string())
+
+    print("\n=== Model Parameters ===")
+    print(params)
+
+    # Demonstrate making a prediction
+    example_row = tabular_data_df.iloc[0][selected_features]
+    dexample = xgb.DMatrix(pd.DataFrame([example_row]))
+    example_pred = model.predict(dexample)[0]
+
+    print(f"\n=== Example Prediction ===")
+    print(f"Input features:\n{selected_features}")
+    print(f"Predicted probability: {example_pred:.4f}")
+
+    print("\nNOTE:")
+    print("- 'Pxx' means selecting users with predicted probability >= xx-th percentile")
+    print("- Higher percentile = stricter threshold = higher precision, lower recall")
+    print("- Lift = precision / base_rate")
+
+#### Lesson 8: Binary Classification (Maximizing AUC)
 
     import pandas as pd
     import numpy as np
     import xgboost as xgb
     import optuna
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import (
         confusion_matrix,
         roc_auc_score,
@@ -1936,45 +2209,68 @@
         accuracy_score,
     )
     from sklearn.feature_selection import RFE
+    from xgb_train_test_splitter import TrainTestSplitter
+    from dataclasses import dataclass, field
 
-    #! features = ['feat_0', 'feat_1', ... 'feat_19']
-    #! tabular_data_df.head(5)
-    #!            feat_0    feat_1    feat_2   ...   feat_19     target
-    #! user_id                                 ...
-    #! 0        0.025729  0.165038  0.072194   ...  0.018873          0
-    #! 1        0.054640  0.008674  0.019949   ...  0.033492          0
-    #! 2        0.006200  0.032563  0.001667   ...  0.018747          0
-    #! 3        0.026806  0.017243  0.096114   ...  0.006708          0
-    #! 4        0.120043  0.058937  0.024257   ...  0.006892          0
+
+    @dataclass
+    class Config:
+        n_features_to_select: int = 10
+        n_trials: int = 30
+        random_state: int = 42
+        delta_threshold: float = 0.05
+        underfit_threshold: float = 0.6
+        n_folds: int = 3
+        default_params: dict = field(
+            default_factory=lambda: {
+                "objective": "binary:logistic",
+                "eval_metric": "auc",
+                "max_depth": 6,
+                "eta": 0.1,
+                "subsample": 0.8,
+                "colsample_bytree": 0.8,
+            }
+        )
+        num_boost_round: int = 200
+        early_stopping_rounds: int = 20
+        optuna_boost_round: int = 1000
+        optuna_early_stopping: int = 20
+        optuna_search_spaces: dict = field(
+            default_factory=lambda: {
+                "max_depth": [3, 4, 5, 6, 7, 8, 9, 10],
+                "eta": {"low": 0.01, "high": 0.3, "log": True},
+                "subsample": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+                "colsample_bytree": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+                "reg_alpha": {"low": 1e-5, "high": 10.0, "log": True},
+                "reg_lambda": {"low": 1e-5, "high": 10.0, "log": True},
+            }
+        )
+        optuna_rfe_spaces: dict = field(
+            default_factory=lambda: {"n_features_to_select": [5, 7, 10, 12, 15]}
+        )
+
 
     class AUCMaximizer:
-        def __init__(self, tabular_data_df, features, target):
-            self.tabular_data_df = tabular_data_df
+        def __init__(self, train_df, test_df, features, target, config: Config):
+            self.train_df = train_df
+            self.test_df = test_df
             self.features = features
             self.target = target
-            self.n_features_to_select = 10
-            self.n_trials = 30
-            self.test_size = 0.2
-            self.val_size = 0.2
-            self.random_state = 42
-            self.default_params = {
-                'objective': 'binary:logistic',
-                'eval_metric': 'auc',
-                'max_depth': 6,
-                'eta': 0.1,
-                'subsample': 0.8,
-                'colsample_bytree': 0.8,
-            }
-            self.num_boost_round = 200
-            self.early_stopping_rounds = 20
-            self.optuna_boost_round = 1000
-            self.optuna_early_stopping = 20
-            self.optuna_search_spaces = {
-                'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
-                'eta': {'low': 0.01, 'high': 0.3, 'log': True},
-                'subsample': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-                'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            }
+
+            # Assign config values to instance vars
+            self.n_features_to_select = config.n_features_to_select
+            self.n_trials = config.n_trials
+            self.random_state = config.random_state
+            self.delta_threshold = config.delta_threshold
+            self.underfit_threshold = config.underfit_threshold
+            self.n_folds = config.n_folds
+            self.default_params = config.default_params
+            self.num_boost_round = config.num_boost_round
+            self.early_stopping_rounds = config.early_stopping_rounds
+            self.optuna_boost_round = config.optuna_boost_round
+            self.optuna_early_stopping = config.optuna_early_stopping
+            self.optuna_search_spaces = config.optuna_search_spaces
+            self.optuna_rfe_spaces = config.optuna_rfe_spaces
             self.results = {}
             self.comparative_df = None
             self.best_name = None
@@ -1984,388 +2280,566 @@
             self.y_test = None
             self.selected_features = None
             self.y_pred_test = None
-            self.base_rate = None
+            self.test_base_rate = None
             self.best_features_df = None
+            self.best_params = None
 
         def manual_without_rfe(self):
-            X_train, X_test, y_train, y_test = train_test_split(
-                self.tabular_data_df[self.features],
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=self.tabular_data_df[self.target]
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            selected_features = self.features
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full, label=y_train_full, enable_categorical=True
             )
-            
-            selected_features = self.features  # No RFE, use all features
-            
-            dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
-            
+
             params = self.default_params.copy()
-            model = xgb.train(
+            cv_results = xgb.cv(
                 params,
-                dtrain,
+                dtrain_full,
                 num_boost_round=self.num_boost_round,
-                evals=[(dtest, 'eval')],
+                nfold=self.n_folds,
+                stratified=True,
                 early_stopping_rounds=self.early_stopping_rounds,
+                metrics="auc",
+                seed=self.random_state,
                 verbose_eval=False,
             )
-            return model, X_test, y_test, selected_features
+            best_iter = cv_results["test-auc-mean"].argmax()
+            cv_val_auc = cv_results["test-auc-mean"].max()
+
+            model = xgb.train(
+                params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            train_auc = roc_auc_score(y_train_full, y_pred_train)
+            return model, X_test, y_test, selected_features, train_auc, cv_val_auc, params
 
         def manual_with_rfe(self):
-            X_train, X_test, y_train, y_test = train_test_split(
-                self.tabular_data_df[self.features],
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=self.tabular_data_df[self.target]
-            )
-            
-            # RFE for feature selection
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
             base_model = xgb.XGBClassifier(
                 **self.default_params,
                 random_state=self.random_state,
                 enable_categorical=True,
             )
             rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
-            rfe.fit(X_train, y_train)
-            
-            selected_features = X_train.columns[rfe.support_].tolist()
-            print("\n=== Selected Features from RFE (Manual) ===")
-            print(selected_features)
-            
-            X_train_selected = X_train[selected_features]
-            X_test_selected = X_test[selected_features]
-            
-            dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test_selected, label=y_test, enable_categorical=True)
-            
-            params = self.default_params.copy()
-            model = xgb.train(
-                params,
-                dtrain,
-                num_boost_round=self.num_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.early_stopping_rounds,
-                verbose_eval=False,
-            )
-            return model, X_test_selected, y_test, selected_features
+            rfe.fit(X_train_full, y_train_full)
 
-        def automated_without_rfe(self):
-            X_train_full, X_test, y_train_full, y_test = train_test_split(
-                self.tabular_data_df.drop(self.target, axis=1),
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=self.tabular_data_df[self.target]
-            )
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train_full,
-                y_train_full,
-                test_size=self.val_size,
-                random_state=self.random_state,
-                stratify=y_train_full
-            )
-            
-            selected_features = X_train.columns.tolist()  # No RFE, use all features
-            
-            # Define the objective function for Optuna
-            def objective(trial):
-                max_depth = trial.suggest_categorical('max_depth', self.optuna_search_spaces['max_depth'])
-                eta = trial.suggest_float('eta', 
-                                          self.optuna_search_spaces['eta']['low'], 
-                                          self.optuna_search_spaces['eta']['high'], 
-                                          log=self.optuna_search_spaces['eta']['log'])
-                subsample = trial.suggest_categorical('subsample', self.optuna_search_spaces['subsample'])
-                colsample_bytree = trial.suggest_categorical('colsample_bytree', self.optuna_search_spaces['colsample_bytree'])
-                params = {
-                    'objective': 'binary:logistic',
-                    'eval_metric': 'auc',
-                    'max_depth': max_depth,
-                    'eta': eta,
-                    'subsample': subsample,
-                    'colsample_bytree': colsample_bytree,
-                }
-                dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-                dval = xgb.DMatrix(X_val, label=y_val, enable_categorical=True)
-                model = xgb.train(
-                    params,
-                    dtrain,
-                    num_boost_round=self.optuna_boost_round,
-                    evals=[(dval, 'eval')],
-                    early_stopping_rounds=self.optuna_early_stopping,
-                    verbose_eval=False,
-                )
-                y_pred_val = model.predict(dval)
-                auc = roc_auc_score(y_val, y_pred_val)
-                return auc
-            
-            # Create and optimize the study
-            study = optuna.create_study(direction='maximize')
-            study.optimize(objective, n_trials=self.n_trials)
-            
-            # Get the best parameters
-            best_params = study.best_params
-            best_params['objective'] = 'binary:logistic'
-            best_params['eval_metric'] = 'auc'
-            
-            print('Best hyperparameters found by Optuna (without RFE):')
-            print(best_params)
-            
-            # Train the final model with best params on full train set
-            dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
-            
-            model = xgb.train(
-                best_params,
-                dtrain_full,
-                num_boost_round=self.optuna_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.optuna_early_stopping,
-                verbose_eval=False,
-            )
-            return model, X_test, y_test, selected_features
+            selected_features = X_train_full.columns[rfe.support_].tolist()
 
-        def automated_with_rfe(self):
-            X_train_full, X_test, y_train_full, y_test = train_test_split(
-                self.tabular_data_df.drop(self.target, axis=1),
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=self.tabular_data_df[self.target]
-            )
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train_full,
-                y_train_full,
-                test_size=self.val_size,
-                random_state=self.random_state,
-                stratify=y_train_full
-            )
-            
-            # RFE for feature selection
-            base_model = xgb.XGBClassifier(
-                **self.default_params,
-                random_state=self.random_state,
-                enable_categorical=True,
-            )
-            rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
-            rfe.fit(X_train, y_train)
-            
-            selected_features = X_train.columns[rfe.support_].tolist()
-            print("\n=== Selected Features from RFE (Automated) ===")
-            print(selected_features)
-            
-            X_train_selected = X_train[selected_features]
-            X_val_selected = X_val[selected_features]
             X_train_full_selected = X_train_full[selected_features]
             X_test_selected = X_test[selected_features]
-            
-            # Define the objective function for Optuna on selected features
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full_selected, label=y_train_full, enable_categorical=True
+            )
+
+            params = self.default_params.copy()
+            cv_results = xgb.cv(
+                params,
+                dtrain_full,
+                num_boost_round=self.num_boost_round,
+                nfold=self.n_folds,
+                stratified=True,
+                early_stopping_rounds=self.early_stopping_rounds,
+                metrics="auc",
+                seed=self.random_state,
+                verbose_eval=False,
+            )
+            best_iter = cv_results["test-auc-mean"].argmax()
+            cv_val_auc = cv_results["test-auc-mean"].max()
+
+            model = xgb.train(
+                params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            train_auc = roc_auc_score(y_train_full, y_pred_train)
+            return (
+                model,
+                X_test_selected,
+                y_test,
+                selected_features,
+                train_auc,
+                cv_val_auc,
+                params,
+            )
+
+        def automated_without_rfe(self):
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full, label=y_train_full, enable_categorical=True
+            )
+
+            selected_features = self.features
+
             def objective(trial):
-                max_depth = trial.suggest_categorical('max_depth', self.optuna_search_spaces['max_depth'])
-                eta = trial.suggest_float('eta', 
-                                          self.optuna_search_spaces['eta']['low'], 
-                                          self.optuna_search_spaces['eta']['high'], 
-                                          log=self.optuna_search_spaces['eta']['log'])
-                subsample = trial.suggest_categorical('subsample', self.optuna_search_spaces['subsample'])
-                colsample_bytree = trial.suggest_categorical('colsample_bytree', self.optuna_search_spaces['colsample_bytree'])
+                max_depth = trial.suggest_categorical(
+                    "max_depth", self.optuna_search_spaces["max_depth"]
+                )
+                eta = trial.suggest_float(
+                    "eta",
+                    self.optuna_search_spaces["eta"]["low"],
+                    self.optuna_search_spaces["eta"]["high"],
+                    log=self.optuna_search_spaces["eta"]["log"],
+                )
+                subsample = trial.suggest_categorical(
+                    "subsample", self.optuna_search_spaces["subsample"]
+                )
+                colsample_bytree = trial.suggest_categorical(
+                    "colsample_bytree", self.optuna_search_spaces["colsample_bytree"]
+                )
+                reg_alpha = trial.suggest_float(
+                    "reg_alpha",
+                    self.optuna_search_spaces["reg_alpha"]["low"],
+                    self.optuna_search_spaces["reg_alpha"]["high"],
+                    log=self.optuna_search_spaces["reg_alpha"]["log"],
+                )
+                reg_lambda = trial.suggest_float(
+                    "reg_lambda",
+                    self.optuna_search_spaces["reg_lambda"]["low"],
+                    self.optuna_search_spaces["reg_lambda"]["high"],
+                    log=self.optuna_search_spaces["reg_lambda"]["log"],
+                )
                 params = {
-                    'objective': 'binary:logistic',
-                    'eval_metric': 'auc',
-                    'max_depth': max_depth,
-                    'eta': eta,
-                    'subsample': subsample,
-                    'colsample_bytree': colsample_bytree,
+                    "objective": "binary:logistic",
+                    "eval_metric": "auc",
+                    "max_depth": max_depth,
+                    "eta": eta,
+                    "subsample": subsample,
+                    "colsample_bytree": colsample_bytree,
+                    "reg_alpha": reg_alpha,
+                    "reg_lambda": reg_lambda,
                 }
-                dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-                dval = xgb.DMatrix(X_val_selected, label=y_val, enable_categorical=True)
-                model = xgb.train(
+                cv_results = xgb.cv(
                     params,
-                    dtrain,
+                    dtrain_full,
                     num_boost_round=self.optuna_boost_round,
-                    evals=[(dval, 'eval')],
+                    nfold=self.n_folds,
+                    stratified=True,
                     early_stopping_rounds=self.optuna_early_stopping,
+                    metrics="auc",
+                    seed=self.random_state,
                     verbose_eval=False,
                 )
-                y_pred_val = model.predict(dval)
-                auc = roc_auc_score(y_val, y_pred_val)
-                return auc
-            
-            # Create and optimize the study
-            study = optuna.create_study(direction='maximize')
+                best_score = cv_results["test-auc-mean"].max()
+                return best_score
+
+            study = optuna.create_study(direction="maximize")
             study.optimize(objective, n_trials=self.n_trials)
-            
-            # Get the best parameters
+
             best_params = study.best_params
-            best_params['objective'] = 'binary:logistic'
-            best_params['eval_metric'] = 'auc'
-            
-            print('Best hyperparameters found by Optuna (with RFE):')
-            print(best_params)
-            
-            # Train the final model with best params on full train set with selected features
-            dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test_selected, label=y_test, enable_categorical=True)
-            
-            model = xgb.train(
+            best_params["objective"] = "binary:logistic"
+            best_params["eval_metric"] = "auc"
+
+            cv_results = xgb.cv(
                 best_params,
                 dtrain_full,
                 num_boost_round=self.optuna_boost_round,
-                evals=[(dtest, 'eval')],
+                nfold=self.n_folds,
+                stratified=True,
                 early_stopping_rounds=self.optuna_early_stopping,
+                metrics="auc",
+                seed=self.random_state,
                 verbose_eval=False,
             )
-            return model, X_test_selected, y_test, selected_features
+            best_iter = cv_results["test-auc-mean"].argmax()
+            cv_val_auc = cv_results["test-auc-mean"].max()
+
+            model = xgb.train(
+                best_params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            train_auc = roc_auc_score(y_train_full, y_pred_train)
+            return (
+                model,
+                X_test,
+                y_test,
+                selected_features,
+                train_auc,
+                cv_val_auc,
+                best_params,
+            )
+
+        def automated_with_rfe(self):
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            def objective(trial):
+                n_features_to_select = trial.suggest_categorical(
+                    "n_features_to_select", self.optuna_rfe_spaces["n_features_to_select"]
+                )
+                max_depth = trial.suggest_categorical(
+                    "max_depth", self.optuna_search_spaces["max_depth"]
+                )
+                eta = trial.suggest_float(
+                    "eta",
+                    self.optuna_search_spaces["eta"]["low"],
+                    self.optuna_search_spaces["eta"]["high"],
+                    log=self.optuna_search_spaces["eta"]["log"],
+                )
+                subsample = trial.suggest_categorical(
+                    "subsample", self.optuna_search_spaces["subsample"]
+                )
+                colsample_bytree = trial.suggest_categorical(
+                    "colsample_bytree", self.optuna_search_spaces["colsample_bytree"]
+                )
+                reg_alpha = trial.suggest_float(
+                    "reg_alpha",
+                    self.optuna_search_spaces["reg_alpha"]["low"],
+                    self.optuna_search_spaces["reg_alpha"]["high"],
+                    log=self.optuna_search_spaces["reg_alpha"]["log"],
+                )
+                reg_lambda = trial.suggest_float(
+                    "reg_lambda",
+                    self.optuna_search_spaces["reg_lambda"]["low"],
+                    self.optuna_search_spaces["reg_lambda"]["high"],
+                    log=self.optuna_search_spaces["reg_lambda"]["log"],
+                )
+
+                base_model = xgb.XGBClassifier(
+                    **self.default_params,
+                    random_state=self.random_state,
+                    enable_categorical=True,
+                )
+                rfe = RFE(estimator=base_model, n_features_to_select=n_features_to_select)
+                rfe.fit(X_train_full, y_train_full)
+
+                selected_features_trial = X_train_full.columns[rfe.support_].tolist()
+
+                X_train_selected = X_train_full[selected_features_trial]
+
+                dtrain = xgb.DMatrix(
+                    X_train_selected, label=y_train_full, enable_categorical=True
+                )
+
+                params = {
+                    "objective": "binary:logistic",
+                    "eval_metric": "auc",
+                    "max_depth": max_depth,
+                    "eta": eta,
+                    "subsample": subsample,
+                    "colsample_bytree": colsample_bytree,
+                    "reg_alpha": reg_alpha,
+                    "reg_lambda": reg_lambda,
+                }
+                cv_results = xgb.cv(
+                    params,
+                    dtrain,
+                    num_boost_round=self.optuna_boost_round,
+                    nfold=self.n_folds,
+                    stratified=True,
+                    early_stopping_rounds=self.optuna_early_stopping,
+                    metrics="auc",
+                    seed=self.random_state,
+                    verbose_eval=False,
+                )
+                best_score = cv_results["test-auc-mean"].max()
+                return best_score
+
+            study = optuna.create_study(direction="maximize")
+            study.optimize(objective, n_trials=self.n_trials)
+
+            best_params = study.best_params
+            best_n = best_params.pop("n_features_to_select")
+            best_params["objective"] = "binary:logistic"
+            best_params["eval_metric"] = "auc"
+
+            # Re-do RFE with best_n on full train
+            base_model = xgb.XGBClassifier(
+                **self.default_params,
+                random_state=self.random_state,
+                enable_categorical=True,
+            )
+            rfe = RFE(estimator=base_model, n_features_to_select=best_n)
+            rfe.fit(X_train_full, y_train_full)
+
+            selected_features = X_train_full.columns[rfe.support_].tolist()
+
+            X_train_full_selected = X_train_full[selected_features]
+            X_test_selected = X_test[selected_features]
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full_selected, label=y_train_full, enable_categorical=True
+            )
+
+            cv_results = xgb.cv(
+                best_params,
+                dtrain_full,
+                num_boost_round=self.optuna_boost_round,
+                nfold=self.n_folds,
+                stratified=True,
+                early_stopping_rounds=self.optuna_early_stopping,
+                metrics="auc",
+                seed=self.random_state,
+                verbose_eval=False,
+            )
+            best_iter = cv_results["test-auc-mean"].argmax()
+            cv_val_auc = cv_results["test-auc-mean"].max()
+
+            model = xgb.train(
+                best_params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            train_auc = roc_auc_score(y_train_full, y_pred_train)
+            return (
+                model,
+                X_test_selected,
+                y_test,
+                selected_features,
+                train_auc,
+                cv_val_auc,
+                best_params,
+            )
 
         def run_all(self):
-            print("\n=== 1. Manual without RFE ===")
-            model1, X_test1, y_test, sel1 = self.manual_without_rfe()
-            y_pred1 = model1.predict(xgb.DMatrix(X_test1))
-            auc1 = roc_auc_score(y_test, y_pred1)
-            print(f"AUC: {auc1:.4f}")
-            self.results["Manual without RFE"] = (auc1, model1, X_test1, y_test, sel1, y_pred1)
+            model1, X_test1, y_test, sel1, train_auc1, cv_val_auc1, params1 = (
+                self.manual_without_rfe()
+            )
+            dtest1 = xgb.DMatrix(X_test1)
+            y_pred1 = model1.predict(dtest1)
+            test_auc1 = roc_auc_score(y_test, y_pred1)
+            self.results["Manual without RFE"] = (
+                test_auc1,
+                train_auc1,
+                model1,
+                X_test1,
+                y_test,
+                sel1,
+                y_pred1,
+                cv_val_auc1,
+                params1,
+            )
 
-            print("\n=== 2. Manual with RFE ===")
-            model2, X_test2, y_test, sel2 = self.manual_with_rfe()
-            y_pred2 = model2.predict(xgb.DMatrix(X_test2))
-            auc2 = roc_auc_score(y_test, y_pred2)
-            print(f"AUC: {auc2:.4f}")
-            self.results["Manual with RFE"] = (auc2, model2, X_test2, y_test, sel2, y_pred2)
+            model2, X_test2, y_test, sel2, train_auc2, cv_val_auc2, params2 = (
+                self.manual_with_rfe()
+            )
+            dtest2 = xgb.DMatrix(X_test2)
+            y_pred2 = model2.predict(dtest2)
+            test_auc2 = roc_auc_score(y_test, y_pred2)
+            self.results["Manual with RFE"] = (
+                test_auc2,
+                train_auc2,
+                model2,
+                X_test2,
+                y_test,
+                sel2,
+                y_pred2,
+                cv_val_auc2,
+                params2,
+            )
 
-            print("\n=== 3. Automated (Optuna) without RFE ===")
-            model3, X_test3, y_test, sel3 = self.automated_without_rfe()
-            y_pred3 = model3.predict(xgb.DMatrix(X_test3))
-            auc3 = roc_auc_score(y_test, y_pred3)
-            print(f"AUC: {auc3:.4f}")
-            self.results["Automated without RFE"] = (auc3, model3, X_test3, y_test, sel3, y_pred3)
+            model3, X_test3, y_test, sel3, train_auc3, cv_val_auc3, params3 = (
+                self.automated_without_rfe()
+            )
+            dtest3 = xgb.DMatrix(X_test3)
+            y_pred3 = model3.predict(dtest3)
+            test_auc3 = roc_auc_score(y_test, y_pred3)
+            self.results["Automated without RFE"] = (
+                test_auc3,
+                train_auc3,
+                model3,
+                X_test3,
+                y_test,
+                sel3,
+                y_pred3,
+                cv_val_auc3,
+                params3,
+            )
 
-            print("\n=== 4. Automated (Optuna) with RFE ===")
-            model4, X_test4, y_test, sel4 = self.automated_with_rfe()
-            y_pred4 = model4.predict(xgb.DMatrix(X_test4))
-            auc4 = roc_auc_score(y_test, y_pred4)
-            print(f"AUC: {auc4:.4f}")
-            self.results["Automated with RFE"] = (auc4, model4, X_test4, y_test, sel4, y_pred4)
+            model4, X_test4, y_test, sel4, train_auc4, cv_val_auc4, params4 = (
+                self.automated_with_rfe()
+            )
+            dtest4 = xgb.DMatrix(X_test4)
+            y_pred4 = model4.predict(dtest4)
+            test_auc4 = roc_auc_score(y_test, y_pred4)
+            self.results["Automated with RFE"] = (
+                test_auc4,
+                train_auc4,
+                model4,
+                X_test4,
+                y_test,
+                sel4,
+                y_pred4,
+                cv_val_auc4,
+                params4,
+            )
 
         def build_comparative(self):
             comparative_data = {
-                'model': list(self.results.keys()),
-                'auc': [self.results[k][0] for k in self.results],
-                'num_features': [len(self.results[k][4]) for k in self.results]
+                "method": list(self.results.keys()),
+                "train_auc": [self.results[k][1] for k in self.results],
+                "train_cv_val_auc": [self.results[k][7] for k in self.results],
+                "test_auc": [self.results[k][0] for k in self.results],
             }
             self.comparative_df = pd.DataFrame(comparative_data)
-            self.comparative_df = self.comparative_df.sort_values(by='auc', ascending=False).reset_index(drop=True)
+            abs_delta = np.abs(
+                self.comparative_df["train_auc"] - self.comparative_df["train_cv_val_auc"]
+            )
+            self.comparative_df["brownie_points"] = (
+                self.comparative_df["train_cv_val_auc"] - abs_delta
+            )
+            self.comparative_df = self.comparative_df.sort_values(
+                by="brownie_points", ascending=False
+            ).reset_index(drop=True)
 
         def select_best(self):
-            self.best_name = self.comparative_df.iloc[0]['model']
-            self.best_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
-            self.base_rate = self.y_test.mean()
+            # Updated to directly select the model with the highest brownie points
+            self.best_name = self.comparative_df.iloc[0]["method"]
+
+            (
+                self.best_auc,
+                train_auc,
+                self.model,
+                self.X_test_selected,
+                self.y_test,
+                self.selected_features,
+                self.y_pred_test,
+                _,
+                self.best_params,
+            ) = self.results[self.best_name]
+
+            self.test_base_rate = self.y_test.mean()
+
+        def create_metrics_df(self, y_test, y_pred_test, test_base_rate):
+            percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
+            table_rows = []
+            for p in percentiles:
+                cutoff = np.percentile(y_pred_test, p)
+                y_pred_binary = (y_pred_test >= cutoff).astype(int)
+                tn, fp, fn, tp = confusion_matrix(y_test, y_pred_binary).ravel()
+                precision = precision_score(y_test, y_pred_binary, zero_division=0)
+                recall = recall_score(y_test, y_pred_binary, zero_division=0)
+                f1 = f1_score(y_test, y_pred_binary, zero_division=0)
+                accuracy = accuracy_score(y_test, y_pred_binary)
+                lift = (
+                    precision / test_base_rate
+                    if test_base_rate > 0 and precision > 0
+                    else 0
+                )
+                table_rows.append(
+                    {
+                        "percentile": f"P{p}",
+                        "cutoff_prob": round(cutoff, 4),
+                        "tp": int(tp),
+                        "fp": int(fp),
+                        "fn": int(fn),
+                        "tn": int(tn),
+                        "precision": round(precision, 4),
+                        "recall": round(recall, 4),
+                        "f1": round(f1, 4),
+                        "accuracy": round(accuracy, 4),
+                        "lift": round(lift, 2),
+                    }
+                )
+            metrics_df = pd.DataFrame(table_rows).set_index("percentile")
+            return metrics_df
 
         def optimize(self):
             self.run_all()
             self.build_comparative()
             self.select_best()
-            
-            # Compute feature importance for the best model
+
             importance_gain = self.model.get_score(importance_type="gain")
             if importance_gain:
                 total_gain = sum(importance_gain.values())
-                normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
-                self.best_features_df = pd.DataFrame({
-                    "feature": list(normalized_gain.keys()),
-                    "importance_gain_normalized": list(normalized_gain.values()),
-                }).sort_values(by="importance_gain_normalized", ascending=False)
-                self.best_features_df["importance_rank"] = range(1, len(self.best_features_df) + 1)
+                normalized_gain = {
+                    feat: gain / total_gain for feat, gain in importance_gain.items()
+                }
+                self.best_features_df = pd.DataFrame(
+                    {
+                        "feature": list(normalized_gain.keys()),
+                        "importance_gain_normalized": list(normalized_gain.values()),
+                    }
+                ).sort_values(by="importance_gain_normalized", ascending=False)
+                self.best_features_df["importance_rank"] = range(
+                    1, len(self.best_features_df) + 1
+                )
                 self.best_features_df = self.best_features_df.set_index("importance_rank")
             else:
                 self.best_features_df = pd.DataFrame()
-            
+
+            model_v_baseline_data = {
+                "approach": ["Model", "Baseline"],
+                "auc": [self.best_auc, 0.5],
+            }
+            model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index("approach")
+
+            metrics_df = self.create_metrics_df(
+                self.y_test, self.y_pred_test, self.test_base_rate
+            )
+
             return {
-                'comparative_df': self.comparative_df,
-                'best_name': self.best_name,
-                'best_auc': self.best_auc,
-                'model': self.model,
-                'X_test_selected': self.X_test_selected,
-                'y_test': self.y_test,
-                'selected_features': self.selected_features,
-                'y_pred_test': self.y_pred_test,
-                'base_rate': self.base_rate,
-                'best_features_df': self.best_features_df
+                "comparative_df": self.comparative_df,
+                "model": self.model,
+                "selected_features": self.selected_features,
+                "test_base_rate": self.test_base_rate,
+                "best_features_df": self.best_features_df,
+                "model_v_baseline_df": model_v_baseline_df,
+                "metrics_df": metrics_df,
+                "best_params": self.best_params,
             }
 
-        def print_results(self):
-            print("\n=== Comparative Model Results ===")
-            print(self.comparative_df.to_string(index=False))
 
-            print("\n" + "="*50)
-            print(f"BEST MODEL: {self.best_name}")
-            print(f"Best Test AUC: {self.best_auc:.4f}")
-            print("="*50)
+    print("=== tabular_data_df (first 10 rows) ===")
+    print(tabular_data_df.head(10))
 
-            print("\nSelected Features:")
-            print(self.selected_features)
+    columns = tabular_data_df.columns.to_list()
+    columns.remove("target")
+    columns.remove("timestamp")
+    features = columns
+    target = "target"
 
-            print(f"\nBase conversion rate on test set: {self.base_rate:.4f}")
-
-            print(f'AUC on test set (best model): {self.best_auc:.4f}\n')
-
-    class MetricsComputer:
-        def __init__(self, y_test, y_pred_test, base_rate=None):
-            self.y_test = y_test
-            self.y_pred_test = y_pred_test
-            self.base_rate = base_rate if base_rate is not None else y_test.mean()
-
-        def compute_metrics(self):
-            percentiles = [99] + list(range(95, 0, -5)) + [1]
-            table_rows = []
-            for p in percentiles:
-                cutoff = np.percentile(self.y_pred_test, p)
-                y_pred_binary = (self.y_pred_test >= cutoff).astype(int)
-                tn, fp, fn, tp = confusion_matrix(self.y_test, y_pred_binary).ravel()
-                precision = precision_score(self.y_test, y_pred_binary, zero_division=0)
-                recall = recall_score(self.y_test, y_pred_binary, zero_division=0)
-                f1 = f1_score(self.y_test, y_pred_binary, zero_division=0)
-                accuracy = accuracy_score(self.y_test, y_pred_binary)
-                lift = precision / self.base_rate if self.base_rate > 0 and precision > 0 else 0
-                table_rows.append({
-                    'percentile': f'P{p}',
-                    'cutoff_prob': round(cutoff, 4),
-                    'tp': int(tp),
-                    'fp': int(fp),
-                    'fn': int(fn),
-                    'tn': int(tn),
-                    'precision': round(precision, 4),
-                    'recall': round(recall, 4),
-                    'f1': round(f1, 4),
-                    'accuracy': round(accuracy, 4),
-                    'lift': round(lift, 2),
-                })
-            metrics_df = pd.DataFrame(table_rows).set_index('percentile')
-            return metrics_df
-
-    # Example usage
-    maximizer = AUCMaximizer(tabular_data_df, features, 'converted')
+    splitter = TrainTestSplitter(
+        tabular_data_df, features, target, xgb_objective="binary:logistic"
+    )
+    train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
+    maximizer = AUCMaximizer(train_df, test_df, features, target, Config())
     results = maximizer.optimize()
-    maximizer.print_results()
+
+    print("\n=== Comparative Model Results ===")
+    print(results["comparative_df"].to_string(index=False))
+
+    print("\n=== Model vs Baseline ===")
+    print(results["model_v_baseline_df"].to_string(float_format="{:.4f}".format))
+
+    print("\nSelected Features:")
+    print(results["selected_features"])
+
+    print(f"\nBase conversion rate on test set: {results['test_base_rate']:.4f}")
 
     print("\n=== best_features_df (Top Features by Gain) ===")
-    print(results['best_features_df'].to_string(float_format="{:.4f}".format))
+    print(results["best_features_df"].to_string(float_format="{:.4f}".format))
 
-    metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['base_rate'])
-    metrics_df = metrics_comp.compute_metrics()
     print("\n=== Performance by Percentile Threshold (Best Model) ===")
-    print(metrics_df.to_string())
-    #!             cutoff_prob   tp    fp   fn    tn  precision  recall      f1  accuracy  lift
-    #! percentile
-    #! P1               0.3478    7    13  253  1727     0.3500  0.0269  0.0500     0.867  2.69
-    #! P5               0.2452   27    73  233  1667     0.2700  0.1038  0.1500     0.847  2.08
-    #! ...
-    #! P70              0.0879  207  1193   53   547     0.1479  0.7962  0.2494     0.377  1.14
-    #! P75              0.0829  215  1285   45   455     0.1433  0.8269  0.2443     0.335  1.10
-    #! P80              0.0776  223  1377   37   363     0.1394  0.8577  0.2398     0.293  1.07
-    #! P85              0.0725  232  1468   28   272     0.1365  0.8923  0.2367     0.252  1.05
-    #! P90              0.0663  243  1557   17   183     0.1350  0.9346  0.2359     0.213  1.04
-    #! P95              0.0587  251  1649    9    91     0.1321  0.9654  0.2324     0.171  1.02
-    #! P99              0.0493  258  1722    2    18     0.1303  0.9923  0.2304     0.138  1.00
+    print(results["metrics_df"].to_string())
+
+    print("\n=== Best Model Parameters ===")
+    print(results["best_params"])
 
     print("\nNOTE:")
     print("- 'Pxx' means selecting users with predicted probability >= xx-th percentile")
@@ -2373,15 +2847,15 @@
     print("- Lift = precision / base_rate")
 
     # Demonstrate making a prediction
-    example_row = tabular_data_df.iloc[0][results['selected_features']]
+    example_row = tabular_data_df.iloc[0][results["selected_features"]]
     dexample = xgb.DMatrix(pd.DataFrame([example_row]))
-    example_pred = results['model'].predict(dexample)[0]
+    example_pred = results["model"].predict(dexample)[0]
 
     print(f"\n=== Example Prediction ===")
     print(f"Input features:\n{results['selected_features']}")
     print(f"Predicted probability: {example_pred:.4f}")
 
-#### Lesson 7: Linear Regression Intuition
+#### Lesson 9: Linear Regression Intuition
 
     # 1. Metrics
     #!----------
@@ -2487,90 +2961,289 @@
     #!  robustness | CV R_squared | CV R_squared > 0.5, drop <10% from train R_squared |
     #!----------------------------------------------------------------------------------
 
-#### Lesson 8: Supervised Regression Implementation 
+#### Lesson 10: Supervised Regression Implementation 
+
+    import pandas as pd
+    import numpy as np
+    import xgboost as xgb
+    from sklearn.metrics import (
+        mean_absolute_error,
+        r2_score,
+        root_mean_squared_error,
+    )
+    from sklearn.model_selection import KFold
+    from xgb_train_test_splitter import TrainTestSplitter
+
+
+    class ModelBuilder:
+        def __init__(
+            self,
+            train_df,
+            test_df,
+            selected_features,
+            target,
+            params,
+            num_boost_round=200,
+            early_stopping_rounds=20,
+            n_folds=3,
+            random_state=42,
+        ):
+            self.train_df = train_df.copy()
+            self.test_df = test_df.copy()
+            self.selected_features = selected_features
+            self.target = target
+            self.params = params
+            self.num_boost_round = num_boost_round
+            self.early_stopping_rounds = early_stopping_rounds
+            self.n_folds = n_folds
+            self.random_state = random_state
+            self.model = None
+            self.train_r2 = None
+            self.cv_val_r2 = None
+            self.test_r2 = None
+            self.test_base_mean = None
+            self.y_pred_test = None
+
+        def _compute_cv_r2_best_iter(self, X, y):
+            kf = KFold(n_splits=self.n_folds, shuffle=True, random_state=self.random_state)
+            r2s = []
+            best_iters = []
+            for train_idx, val_idx in kf.split(X):
+                X_tr, X_v = X.iloc[train_idx], X.iloc[val_idx]
+                y_tr, y_v = y.iloc[train_idx], y.iloc[val_idx]
+                dtr = xgb.DMatrix(X_tr, label=y_tr, enable_categorical=True)
+                dv = xgb.DMatrix(X_v, label=y_v, enable_categorical=True)
+                model = xgb.train(
+                    self.params,
+                    dtr,
+                    num_boost_round=self.num_boost_round,
+                    evals=[(dv, "val")],
+                    early_stopping_rounds=self.early_stopping_rounds,
+                    verbose_eval=False,
+                )
+                pred_v = model.predict(dv)
+                r2 = r2_score(y_v, pred_v)
+                r2s.append(r2)
+                best_iters.append(model.best_iteration)
+            return np.mean(r2s), int(np.mean(best_iters))
+
+        def build(self):
+            X_train = self.train_df[self.selected_features]
+            y_train = self.train_df[self.target]
+            X_test = self.test_df[self.selected_features]
+            y_test = self.test_df[self.target]
+
+            self.cv_val_r2, best_iter = self._compute_cv_r2_best_iter(X_train, y_train)
+
+            dtrain_full = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
+
+            self.model = xgb.train(
+                self.params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+
+            y_pred_train = self.model.predict(dtrain_full)
+            self.train_r2 = r2_score(y_train, y_pred_train)
+
+            dtest = xgb.DMatrix(X_test)
+            self.y_pred_test = self.model.predict(dtest)
+            self.test_r2 = r2_score(y_test, self.y_pred_test)
+
+            self.test_base_mean = y_test.mean()
+
+            metrics_df = self.create_metrics_df(
+                y_test, self.y_pred_test, self.test_base_mean
+            )
+
+            performance_df = pd.DataFrame(
+                {
+                    "metric": ["Train R2", "CV Val R2", "Test R2"],
+                    "value": [self.train_r2, self.cv_val_r2, self.test_r2],
+                }
+            )
+
+            return {
+                "model": self.model,
+                "metrics_df": metrics_df,
+                "performance_df": performance_df,
+                "test_base_mean": self.test_base_mean,
+            }
+
+        def create_metrics_df(self, y_test, y_pred, test_base_mean):
+            percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
+            table_rows = []
+            for p in percentiles:
+                cutoff = np.percentile(y_pred, p)
+                mask = y_pred >= cutoff
+                if not np.any(mask):
+                    continue
+                sub_pred = y_pred[mask]
+                sub_actual = y_test[mask]
+                avg_pred = np.mean(sub_pred)
+                avg_actual = np.mean(sub_actual)
+                mae_val = mean_absolute_error(sub_actual, sub_pred)
+                rmse_val = root_mean_squared_error(sub_actual, sub_pred)
+                lift = avg_actual / test_base_mean if test_base_mean > 0 else 0
+                table_rows.append(
+                    {
+                        "percentile": f"P{p}",
+                        "cutoff": round(cutoff, 4),
+                        "avg_pred": round(avg_pred, 4),
+                        "avg_actual": round(avg_actual, 4),
+                        "mae": round(mae_val, 4),
+                        "rmse": round(rmse_val, 4),
+                        "lift": round(lift, 2),
+                    }
+                )
+            metrics_df = pd.DataFrame(table_rows).set_index("percentile")
+            return metrics_df
+
+
+    print("=== tabular_data_df (first 10 rows) ===")
+    print(tabular_data_df.head(10))
+
+    # Hardcoded configurations (update these based on results from the maximizer script)
+    target = "target"
+    selected_features = ["feat_0", "feat_1", "feat_2", "feat_3", "feat_4"]
+    params = {
+        "objective": "reg:squarederror",
+        "eval_metric": "rmse",
+        "max_depth": 6,
+        "eta": 0.1,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        # Add/update other params as needed, e.g., 'reg_alpha': 0.001, etc.
+    }
+
+    splitter = TrainTestSplitter(
+        tabular_data_df,
+        selected_features,
+        target="target",
+        xgb_objective="reg:squarederror",
+    )
+    train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
+
+    builder = ModelBuilder(train_df, test_df, selected_features, target, params)
+    results = builder.build()
+    model = results["model"]
+    metrics_df = results["metrics_df"]
+    performance_df = results["performance_df"]
+    test_base_mean = results["test_base_mean"]
+
+    # Modify for printing
+    performance_df["metric"] = performance_df["metric"] + ":"
+
+    # Outputs
+    print("\n=== Model Performance ===")
+    print(performance_df.to_string(index=False))
+
+    print(f"\nBase mean on test set: {test_base_mean:.4f}")
+
+    print("\n=== Performance by Percentile Threshold ===")
+    print(metrics_df.to_string())
+
+    print("\n=== Model Parameters ===")
+    print(params)
+
+    # Demonstrate making a prediction
+    example_row = tabular_data_df.iloc[0][selected_features]
+    dexample = xgb.DMatrix(pd.DataFrame([example_row]))
+    example_pred = model.predict(dexample)[0]
+
+    print(f"\n=== Example Prediction ===")
+    print(f"Input features:\n{selected_features}")
+    print(f"Predicted target: {example_pred:.4f}")
+
+    print("\nNOTE:")
+    print(
+        "- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)"
+    )
+    print("- Higher percentile = stricter threshold = higher lift, lower count")
+    print("- Lift = avg_actual / base_mean")
+
+#### Lesson 11: Supervised Regression (Maximizing R2)
 
     import pandas as pd
     import numpy as np
     import xgboost as xgb
     import optuna
-    from scipy.stats import skew
-    from sklearn.model_selection import train_test_split
+    from sklearn.model_selection import KFold
     from sklearn.metrics import (
-        mean_squared_error,
         mean_absolute_error,
         r2_score,
         root_mean_squared_error,
     )
     from sklearn.feature_selection import RFE
+    from xgb_train_test_splitter import TrainTestSplitter
+    from dataclasses import dataclass, field
 
-    #! features = ['feat_0', 'feat_1', ... 'feat_19']
-    #! print(tabular_data_df.head(10))
-    #!       feat_0    feat_1    feat_2  ...   feat_18   feat_19    target
-    #! id                                ...
-    #! 0   0.496714 -0.138264  0.647689  ... -0.908024 -1.412304  7.100724
-    #! 1   1.465649 -0.225776  0.067528  ... -1.328186  0.196861  4.862268
-    #! 2   0.738467  0.171368 -0.115648  ...  0.331263  0.975545  2.674120
-    #! 3  -0.479174 -0.185659 -1.106335  ...  0.091761 -1.987569  1.147614
-    #! 4  -0.219672  0.357113  1.477894  ...  0.005113 -0.234587  2.540443
-    #! 5  -1.415371 -0.420645 -0.342715  ...  1.142823  0.751933  0.917154
-    #! 6   0.791032 -0.909387  1.402794  ...  0.813517 -1.230864  6.398368
-    #! 7   0.227460  1.307143 -1.607483  ... -1.191303  0.656554  1.595872
-    #! 8  -0.974682  0.787085  1.158596  ... -0.264657  2.720169  1.484465
-    #! 9   0.625667 -0.857158 -1.070892  ...  0.058209 -1.142970  3.685111
 
-    # 1. Skewness check and possible target variable transformation
-    skew_value = skew(tabular_data_df['target'])
-    log_transformation_needed = abs(skew_value) > 0.5
-    if log_transformation_needed:
-        tabular_data_df['target'] = np.log(tabular_data_df['target'])
-    #!       feat_0    feat_1    feat_2  ...   feat_18   feat_19    target
-    #! id                                ...
-    #! 0   0.496714 -0.138264  0.647689  ... -0.908024 -1.412304  1.960197
-    #! 1   1.465649 -0.225776  0.067528  ... -1.328186  0.196861  1.581505
-    #! 2   0.738467  0.171368 -0.115648  ...  0.331263  0.975545  0.983620
-    #! 3  -0.479174 -0.185659 -1.106335  ...  0.091761 -1.987569  0.137685
-    #! 4  -0.219672  0.357113  1.477894  ...  0.005113 -0.234587  0.932338
-    #! 5  -1.415371 -0.420645 -0.342715  ...  1.142823  0.751933 -0.086480
-    #! 6   0.791032 -0.909387  1.402794  ...  0.813517 -1.230864  1.856043
-    #! 7   0.227460  1.307143 -1.607483  ... -1.191303  0.656554  0.467420
-    #! 8  -0.974682  0.787085  1.158596  ... -0.264657  2.720169  0.395054
-    #! 9   0.625667 -0.857158 -1.070892  ...  0.058209 -1.142970  1.304301
+    @dataclass
+    class Config:
+        n_features_to_select: int = 10
+        n_trials: int = 30
+        random_state: int = 42
+        delta_threshold: float = 0.05
+        underfit_threshold: float = 0.6
+        n_folds: int = 3
+        default_params: dict = field(
+            default_factory=lambda: {
+                "objective": "reg:squarederror",
+                "eval_metric": "rmse",
+                "max_depth": 6,
+                "eta": 0.1,
+                "subsample": 0.8,
+                "colsample_bytree": 0.8,
+            }
+        )
+        num_boost_round: int = 200
+        early_stopping_rounds: int = 20
+        optuna_boost_round: int = 1000
+        optuna_early_stopping: int = 20
+        optuna_search_spaces: dict = field(
+            default_factory=lambda: {
+                "max_depth": [3, 4, 5, 6, 7, 8, 9, 10],
+                "eta": {"low": 0.01, "high": 0.3, "log": True},
+                "subsample": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+                "colsample_bytree": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+                "reg_alpha": {"low": 1e-5, "high": 10.0, "log": True},
+                "reg_lambda": {"low": 1e-5, "high": 10.0, "log": True},
+            }
+        )
+        optuna_rfe_spaces: dict = field(
+            default_factory=lambda: {"n_features_to_select": [5, 7, 10, 12, 15]}
+        )
+
 
     class R2Maximizer:
-        def __init__(self, tabular_data_df, features, target):
-            self.tabular_data_df = tabular_data_df
+        def __init__(self, train_df, test_df, features, target, config: Config):
+            self.train_df = train_df.copy()
+            self.test_df = test_df.copy()
             self.features = features
             self.target = target
-            self.n_features_to_select = 10
-            self.n_trials = 30
-            self.test_size = 0.2
-            self.val_size = 0.2
-            self.random_state = 42
-            self.default_params = {
-                'objective': 'reg:squarederror',
-                'eval_metric': 'rmse',
-                'max_depth': 6,
-                'eta': 0.1,
-                'subsample': 0.8,
-                'colsample_bytree': 0.8,
-            }
-            self.num_boost_round = 200
-            self.early_stopping_rounds = 20
-            self.optuna_boost_round = 1000
-            self.optuna_early_stopping = 20
-            self.optuna_search_spaces = {
-                'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
-                'eta': {'low': 0.01, 'high': 0.3, 'log': True},
-                'subsample': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-                'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            }
+
+            # Assign config values to instance vars
+            self.n_features_to_select = config.n_features_to_select
+            self.n_trials = config.n_trials
+            self.random_state = config.random_state
+            self.delta_threshold = config.delta_threshold
+            self.underfit_threshold = config.underfit_threshold
+            self.n_folds = config.n_folds
+            self.default_params = config.default_params
+            self.num_boost_round = config.num_boost_round
+            self.early_stopping_rounds = config.early_stopping_rounds
+            self.optuna_boost_round = config.optuna_boost_round
+            self.optuna_early_stopping = config.optuna_early_stopping
+            self.optuna_search_spaces = config.optuna_search_spaces
+            self.optuna_rfe_spaces = config.optuna_rfe_spaces
+
             self.log_transformation_needed = False
             self.results = {}
             self.comparative_df = None
             self.best_name = None
             self.best_r2 = None
-            self.best_mae = None
-            self.best_rmse = None
             self.model = None
             self.X_test_selected = None
             self.y_test = None
@@ -2578,31 +3251,17 @@
             self.y_pred_test = None
             self.y_test_orig = None
             self.y_pred_orig = None
-            self.base_mean = None
+            self.train_base_mean = None
+            self.test_base_mean = None
             self.baseline_r2 = None
             self.baseline_mae = None
             self.baseline_rmse = None
             self.best_features_df = None
-
-            # Skewness Check and log transformation of target
-            skew_value = skew(self.tabular_data_df[self.target])
-            print(f"\nSkewness of original target: {skew_value:.4f}")
-            if abs(skew_value) > 0.5:
-                print("Target is skewed. Applying log transformation.")
-                self.tabular_data_df[self.target] = np.log(self.tabular_data_df[self.target])
-                skew_transformed = skew(self.tabular_data_df[self.target])
-                print(f"Skewness after log transformation: {skew_transformed:.4f}")
-                self.log_transformation_needed = True
-            else:
-                print("Target is approximately normal. No transformation applied.")
+            self.best_params = None
 
         def compute_baseline(self):
-            X_train, _, y_train, y_test = train_test_split(
-                self.tabular_data_df[self.features],
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-            )
+            y_train = self.train_df[self.target]
+            y_test = self.test_df[self.target]
             y_train_orig = np.exp(y_train) if self.log_transformation_needed else y_train
             y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
             mean_target = y_train_orig.mean()
@@ -2612,419 +3271,594 @@
             rmse = root_mean_squared_error(y_test_orig, baseline_pred)
             return r2, mae, rmse, mean_target, y_test_orig, baseline_pred
 
+        def _compute_cv_r2(self, params, X, y, selected_features=None):
+            if selected_features is not None:
+                X = X[selected_features]
+            kf = KFold(n_splits=self.n_folds, shuffle=True, random_state=self.random_state)
+            r2s = []
+            best_iters = []
+            for train_idx, val_idx in kf.split(X):
+                X_tr, X_v = X.iloc[train_idx], X.iloc[val_idx]
+                y_tr, y_v = y.iloc[train_idx], y.iloc[val_idx]
+                dtr = xgb.DMatrix(X_tr, label=y_tr, enable_categorical=True)
+                dv = xgb.DMatrix(X_v, label=y_v, enable_categorical=True)
+                model = xgb.train(
+                    params,
+                    dtr,
+                    num_boost_round=self.optuna_boost_round,
+                    evals=[(dv, "val")],
+                    early_stopping_rounds=self.optuna_early_stopping,
+                    verbose_eval=False,
+                )
+                pred_v = model.predict(dv)
+                y_v_orig = np.exp(y_v) if self.log_transformation_needed else y_v
+                pred_orig = np.exp(pred_v) if self.log_transformation_needed else pred_v
+                r2 = r2_score(y_v_orig, pred_orig)
+                r2s.append(r2)
+                best_iters.append(model.best_iteration)
+            return np.mean(r2s), int(np.mean(best_iters))
+
         def manual_without_rfe(self):
-            X_train, X_test, y_train, y_test = train_test_split(
-                self.tabular_data_df[self.features],
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-            )
-            
-            selected_features = self.features  # No RFE, use all features
-            
-            dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
-            
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            selected_features = self.features
+
             params = self.default_params.copy()
+            cv_val_r2, best_iter = self._compute_cv_r2(params, X_train_full, y_train_full)
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full, label=y_train_full, enable_categorical=True
+            )
             model = xgb.train(
                 params,
-                dtrain,
-                num_boost_round=self.num_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.early_stopping_rounds,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
                 verbose_eval=False,
             )
-            return model, X_test, y_test, selected_features
+            y_pred_train = model.predict(dtrain_full)
+            y_train_orig = (
+                np.exp(y_train_full) if self.log_transformation_needed else y_train_full
+            )
+            y_pred_train_orig = (
+                np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
+            )
+            train_r2 = r2_score(y_train_orig, y_pred_train_orig)
+            return model, X_test, y_test, selected_features, train_r2, cv_val_r2, params
 
         def manual_with_rfe(self):
-            X_train, X_test, y_train, y_test = train_test_split(
-                self.tabular_data_df[self.features],
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-            )
-            
-            # RFE for feature selection
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
             base_model = xgb.XGBRegressor(
                 **self.default_params,
                 random_state=self.random_state,
                 enable_categorical=True,
             )
             rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
-            rfe.fit(X_train, y_train)
-            
-            selected_features = X_train.columns[rfe.support_].tolist()
-            print("\n=== Selected Features from RFE (Manual) ===")
-            print(selected_features)
-            
-            X_train_selected = X_train[selected_features]
-            X_test_selected = X_test[selected_features]
-            
-            dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test_selected, label=y_test, enable_categorical=True)
-            
+            rfe.fit(X_train_full, y_train_full)
+
+            selected_features = X_train_full.columns[rfe.support_].tolist()
+
             params = self.default_params.copy()
-            model = xgb.train(
-                params,
-                dtrain,
-                num_boost_round=self.num_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.early_stopping_rounds,
-                verbose_eval=False,
+            cv_val_r2, best_iter = self._compute_cv_r2(
+                params, X_train_full, y_train_full, selected_features
             )
-            return model, X_test_selected, y_test, selected_features
 
-        def automated_without_rfe(self):
-            X_train_full, X_test, y_train_full, y_test = train_test_split(
-                self.tabular_data_df.drop(self.target, axis=1),
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-            )
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train_full,
-                y_train_full,
-                test_size=self.val_size,
-                random_state=self.random_state,
-            )
-            
-            selected_features = X_train.columns.tolist()  # No RFE, use all features
-            
-            # Define the objective function for Optuna
-            def objective(trial):
-                max_depth = trial.suggest_categorical('max_depth', self.optuna_search_spaces['max_depth'])
-                eta = trial.suggest_float('eta', 
-                                          self.optuna_search_spaces['eta']['low'], 
-                                          self.optuna_search_spaces['eta']['high'], 
-                                          log=self.optuna_search_spaces['eta']['log'])
-                subsample = trial.suggest_categorical('subsample', self.optuna_search_spaces['subsample'])
-                colsample_bytree = trial.suggest_categorical('colsample_bytree', self.optuna_search_spaces['colsample_bytree'])
-                params = {
-                    'objective': 'reg:squarederror',
-                    'eval_metric': 'rmse',
-                    'max_depth': max_depth,
-                    'eta': eta,
-                    'subsample': subsample,
-                    'colsample_bytree': colsample_bytree,
-                }
-                dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-                dval = xgb.DMatrix(X_val, label=y_val, enable_categorical=True)
-                model = xgb.train(
-                    params,
-                    dtrain,
-                    num_boost_round=self.optuna_boost_round,
-                    evals=[(dval, 'eval')],
-                    early_stopping_rounds=self.optuna_early_stopping,
-                    verbose_eval=False,
-                )
-                y_pred_val = model.predict(dval)
-                y_val_orig = np.exp(y_val) if self.log_transformation_needed else y_val
-                y_pred_orig = np.exp(y_pred_val) if self.log_transformation_needed else y_pred_val
-                r2 = r2_score(y_val_orig, y_pred_orig)
-                return r2
-            
-            # Create and optimize the study
-            study = optuna.create_study(direction='maximize')
-            study.optimize(objective, n_trials=self.n_trials)
-            
-            # Get the best parameters
-            best_params = study.best_params
-            best_params['objective'] = 'reg:squarederror'
-            best_params['eval_metric'] = 'rmse'
-            
-            print('Best hyperparameters found by Optuna (without RFE):')
-            print(best_params)
-            
-            # Train the final model with best params on full train set
-            dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
-            
-            model = xgb.train(
-                best_params,
-                dtrain_full,
-                num_boost_round=self.optuna_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.optuna_early_stopping,
-                verbose_eval=False,
-            )
-            return model, X_test, y_test, selected_features
-
-        def automated_with_rfe(self):
-            X_train_full, X_test, y_train_full, y_test = train_test_split(
-                self.tabular_data_df.drop(self.target, axis=1),
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-            )
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train_full,
-                y_train_full,
-                test_size=self.val_size,
-                random_state=self.random_state,
-            )
-            
-            # RFE for feature selection
-            base_model = xgb.XGBRegressor(
-                **self.default_params,
-                random_state=self.random_state,
-                enable_categorical=True,
-            )
-            rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
-            rfe.fit(X_train, y_train)
-            
-            selected_features = X_train.columns[rfe.support_].tolist()
-            print("\n=== Selected Features from RFE (Automated) ===")
-            print(selected_features)
-            
-            X_train_selected = X_train[selected_features]
-            X_val_selected = X_val[selected_features]
             X_train_full_selected = X_train_full[selected_features]
             X_test_selected = X_test[selected_features]
-            
-            # Define the objective function for Optuna on selected features
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full_selected, label=y_train_full, enable_categorical=True
+            )
+            model = xgb.train(
+                params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            y_train_orig = (
+                np.exp(y_train_full) if self.log_transformation_needed else y_train_full
+            )
+            y_pred_train_orig = (
+                np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
+            )
+            train_r2 = r2_score(y_train_orig, y_pred_train_orig)
+            return (
+                model,
+                X_test_selected,
+                y_test,
+                selected_features,
+                train_r2,
+                cv_val_r2,
+                params,
+            )
+
+        def automated_without_rfe(self):
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            selected_features = self.features
+
             def objective(trial):
-                max_depth = trial.suggest_categorical('max_depth', self.optuna_search_spaces['max_depth'])
-                eta = trial.suggest_float('eta', 
-                                          self.optuna_search_spaces['eta']['low'], 
-                                          self.optuna_search_spaces['eta']['high'], 
-                                          log=self.optuna_search_spaces['eta']['log'])
-                subsample = trial.suggest_categorical('subsample', self.optuna_search_spaces['subsample'])
-                colsample_bytree = trial.suggest_categorical('colsample_bytree', self.optuna_search_spaces['colsample_bytree'])
-                params = {
-                    'objective': 'reg:squarederror',
-                    'eval_metric': 'rmse',
-                    'max_depth': max_depth,
-                    'eta': eta,
-                    'subsample': subsample,
-                    'colsample_bytree': colsample_bytree,
-                }
-                dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-                dval = xgb.DMatrix(X_val_selected, label=y_val, enable_categorical=True)
-                model = xgb.train(
-                    params,
-                    dtrain,
-                    num_boost_round=self.optuna_boost_round,
-                    evals=[(dval, 'eval')],
-                    early_stopping_rounds=self.optuna_early_stopping,
-                    verbose_eval=False,
+                max_depth = trial.suggest_categorical(
+                    "max_depth", self.optuna_search_spaces["max_depth"]
                 )
-                y_pred_val = model.predict(dval)
-                y_val_orig = np.exp(y_val) if self.log_transformation_needed else y_val
-                y_pred_orig = np.exp(y_pred_val) if self.log_transformation_needed else y_pred_val
-                r2 = r2_score(y_val_orig, y_pred_orig)
+                eta = trial.suggest_float(
+                    "eta",
+                    self.optuna_search_spaces["eta"]["low"],
+                    self.optuna_search_spaces["eta"]["high"],
+                    log=self.optuna_search_spaces["eta"]["log"],
+                )
+                subsample = trial.suggest_categorical(
+                    "subsample", self.optuna_search_spaces["subsample"]
+                )
+                colsample_bytree = trial.suggest_categorical(
+                    "colsample_bytree", self.optuna_search_spaces["colsample_bytree"]
+                )
+                reg_alpha = trial.suggest_float(
+                    "reg_alpha",
+                    self.optuna_search_spaces["reg_alpha"]["low"],
+                    self.optuna_search_spaces["reg_alpha"]["high"],
+                    log=self.optuna_search_spaces["reg_alpha"]["log"],
+                )
+                reg_lambda = trial.suggest_float(
+                    "reg_lambda",
+                    self.optuna_search_spaces["reg_lambda"]["low"],
+                    self.optuna_search_spaces["reg_lambda"]["high"],
+                    log=self.optuna_search_spaces["reg_lambda"]["log"],
+                )
+                params = {
+                    "objective": "reg:squarederror",
+                    "eval_metric": "rmse",
+                    "max_depth": max_depth,
+                    "eta": eta,
+                    "subsample": subsample,
+                    "colsample_bytree": colsample_bytree,
+                    "reg_alpha": reg_alpha,
+                    "reg_lambda": reg_lambda,
+                }
+                r2, _ = self._compute_cv_r2(params, X_train_full, y_train_full)
                 return r2
-            
-            # Create and optimize the study
-            study = optuna.create_study(direction='maximize')
+
+            study = optuna.create_study(direction="maximize")
             study.optimize(objective, n_trials=self.n_trials)
-            
-            # Get the best parameters
+
             best_params = study.best_params
-            best_params['objective'] = 'reg:squarederror'
-            best_params['eval_metric'] = 'rmse'
-            
-            print('Best hyperparameters found by Optuna (with RFE):')
-            print(best_params)
-            
-            # Train the final model with best params on full train set with selected features
-            dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test_selected, label=y_test, enable_categorical=True)
-            
+            best_params["objective"] = "reg:squarederror"
+            best_params["eval_metric"] = "rmse"
+
+            cv_val_r2, best_iter = self._compute_cv_r2(
+                best_params, X_train_full, y_train_full
+            )
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full, label=y_train_full, enable_categorical=True
+            )
             model = xgb.train(
                 best_params,
                 dtrain_full,
-                num_boost_round=self.optuna_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.optuna_early_stopping,
+                num_boost_round=best_iter + 1,
                 verbose_eval=False,
             )
-            return model, X_test_selected, y_test, selected_features
+            y_pred_train = model.predict(dtrain_full)
+            y_train_orig = (
+                np.exp(y_train_full) if self.log_transformation_needed else y_train_full
+            )
+            y_pred_train_orig = (
+                np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
+            )
+            train_r2 = r2_score(y_train_orig, y_pred_train_orig)
+            return (
+                model,
+                X_test,
+                y_test,
+                selected_features,
+                train_r2,
+                cv_val_r2,
+                best_params,
+            )
+
+        def automated_with_rfe(self):
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            def objective(trial):
+                n_features_to_select = trial.suggest_categorical(
+                    "n_features_to_select", self.optuna_rfe_spaces["n_features_to_select"]
+                )
+                max_depth = trial.suggest_categorical(
+                    "max_depth", self.optuna_search_spaces["max_depth"]
+                )
+                eta = trial.suggest_float(
+                    "eta",
+                    self.optuna_search_spaces["eta"]["low"],
+                    self.optuna_search_spaces["eta"]["high"],
+                    log=self.optuna_search_spaces["eta"]["log"],
+                )
+                subsample = trial.suggest_categorical(
+                    "subsample", self.optuna_search_spaces["subsample"]
+                )
+                colsample_bytree = trial.suggest_categorical(
+                    "colsample_bytree", self.optuna_search_spaces["colsample_bytree"]
+                )
+                reg_alpha = trial.suggest_float(
+                    "reg_alpha",
+                    self.optuna_search_spaces["reg_alpha"]["low"],
+                    self.optuna_search_spaces["reg_alpha"]["high"],
+                    log=self.optuna_search_spaces["reg_alpha"]["log"],
+                )
+                reg_lambda = trial.suggest_float(
+                    "reg_lambda",
+                    self.optuna_search_spaces["reg_lambda"]["low"],
+                    self.optuna_search_spaces["reg_lambda"]["high"],
+                    log=self.optuna_search_spaces["reg_lambda"]["log"],
+                )
+
+                base_model = xgb.XGBRegressor(
+                    **self.default_params,
+                    random_state=self.random_state,
+                    enable_categorical=True,
+                )
+                rfe = RFE(estimator=base_model, n_features_to_select=n_features_to_select)
+                rfe.fit(X_train_full, y_train_full)
+
+                selected_features_trial = X_train_full.columns[rfe.support_].tolist()
+
+                params = {
+                    "objective": "reg:squarederror",
+                    "eval_metric": "rmse",
+                    "max_depth": max_depth,
+                    "eta": eta,
+                    "subsample": subsample,
+                    "colsample_bytree": colsample_bytree,
+                    "reg_alpha": reg_alpha,
+                    "reg_lambda": reg_lambda,
+                }
+                r2, _ = self._compute_cv_r2(
+                    params, X_train_full, y_train_full, selected_features_trial
+                )
+                return r2
+
+            study = optuna.create_study(direction="maximize")
+            study.optimize(objective, n_trials=self.n_trials)
+
+            best_params = study.best_params
+            best_n = best_params.pop("n_features_to_select")
+            best_params["objective"] = "reg:squarederror"
+            best_params["eval_metric"] = "rmse"
+
+            # Re-do RFE with best_n on full train
+            base_model = xgb.XGBRegressor(
+                **self.default_params,
+                random_state=self.random_state,
+                enable_categorical=True,
+            )
+            rfe = RFE(estimator=base_model, n_features_to_select=best_n)
+            rfe.fit(X_train_full, y_train_full)
+
+            selected_features = X_train_full.columns[rfe.support_].tolist()
+
+            cv_val_r2, best_iter = self._compute_cv_r2(
+                best_params, X_train_full, y_train_full, selected_features
+            )
+
+            X_train_full_selected = X_train_full[selected_features]
+            X_test_selected = X_test[selected_features]
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full_selected, label=y_train_full, enable_categorical=True
+            )
+            model = xgb.train(
+                best_params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            y_train_orig = (
+                np.exp(y_train_full) if self.log_transformation_needed else y_train_full
+            )
+            y_pred_train_orig = (
+                np.exp(y_pred_train) if self.log_transformation_needed else y_pred_train
+            )
+            train_r2 = r2_score(y_train_orig, y_pred_train_orig)
+            return (
+                model,
+                X_test_selected,
+                y_test,
+                selected_features,
+                train_r2,
+                cv_val_r2,
+                best_params,
+            )
 
         def run_all(self):
-            self.baseline_r2, self.baseline_mae, self.baseline_rmse, self.base_mean, _, _ = self.compute_baseline()
+            (
+                self.baseline_r2,
+                self.baseline_mae,
+                self.baseline_rmse,
+                self.train_base_mean,
+                _,
+                _,
+            ) = self.compute_baseline()
 
-            print("\n=== 1. Manual without RFE ===")
-            model1, X_test1, y_test, sel1 = self.manual_without_rfe()
-            y_pred1 = model1.predict(xgb.DMatrix(X_test1))
+            model1, X_test1, y_test, sel1, train_r21, cv_val_r21, params1 = (
+                self.manual_without_rfe()
+            )
+            dtest1 = xgb.DMatrix(X_test1)
+            y_pred1 = model1.predict(dtest1)
             y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
             y_pred_orig1 = np.exp(y_pred1) if self.log_transformation_needed else y_pred1
-            r21 = r2_score(y_test_orig, y_pred_orig1)
-            mae1 = mean_absolute_error(y_test_orig, y_pred_orig1)
-            rmse1 = root_mean_squared_error(y_test_orig, y_pred_orig1)
-            print(f"R2: {r21:.4f}")
-            self.results["Manual without RFE"] = (r21, mae1, rmse1, model1, X_test1, y_test, sel1, y_pred1)
+            test_r21 = r2_score(y_test_orig, y_pred_orig1)
+            self.results["Manual without RFE"] = (
+                test_r21,
+                train_r21,
+                model1,
+                X_test1,
+                y_test,
+                sel1,
+                y_pred1,
+                cv_val_r21,
+                params1,
+            )
 
-            print("\n=== 2. Manual with RFE ===")
-            model2, X_test2, y_test, sel2 = self.manual_with_rfe()
-            y_pred2 = model2.predict(xgb.DMatrix(X_test2))
+            model2, X_test2, y_test, sel2, train_r22, cv_val_r22, params2 = (
+                self.manual_with_rfe()
+            )
+            dtest2 = xgb.DMatrix(X_test2)
+            y_pred2 = model2.predict(dtest2)
             y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
             y_pred_orig2 = np.exp(y_pred2) if self.log_transformation_needed else y_pred2
-            r22 = r2_score(y_test_orig, y_pred_orig2)
-            mae2 = mean_absolute_error(y_test_orig, y_pred_orig2)
-            rmse2 = root_mean_squared_error(y_test_orig, y_pred_orig2)
-            print(f"R2: {r22:.4f}")
-            self.results["Manual with RFE"] = (r22, mae2, rmse2, model2, X_test2, y_test, sel2, y_pred2)
+            test_r22 = r2_score(y_test_orig, y_pred_orig2)
+            self.results["Manual with RFE"] = (
+                test_r22,
+                train_r22,
+                model2,
+                X_test2,
+                y_test,
+                sel2,
+                y_pred2,
+                cv_val_r22,
+                params2,
+            )
 
-            print("\n=== 3. Automated (Optuna) without RFE ===")
-            model3, X_test3, y_test, sel3 = self.automated_without_rfe()
-            y_pred3 = model3.predict(xgb.DMatrix(X_test3))
+            model3, X_test3, y_test, sel3, train_r23, cv_val_r23, params3 = (
+                self.automated_without_rfe()
+            )
+            dtest3 = xgb.DMatrix(X_test3)
+            y_pred3 = model3.predict(dtest3)
             y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
             y_pred_orig3 = np.exp(y_pred3) if self.log_transformation_needed else y_pred3
-            r23 = r2_score(y_test_orig, y_pred_orig3)
-            mae3 = mean_absolute_error(y_test_orig, y_pred_orig3)
-            rmse3 = root_mean_squared_error(y_test_orig, y_pred_orig3)
-            print(f"R2: {r23:.4f}")
-            self.results["Automated without RFE"] = (r23, mae3, rmse3, model3, X_test3, y_test, sel3, y_pred3)
+            test_r23 = r2_score(y_test_orig, y_pred_orig3)
+            self.results["Automated without RFE"] = (
+                test_r23,
+                train_r23,
+                model3,
+                X_test3,
+                y_test,
+                sel3,
+                y_pred3,
+                cv_val_r23,
+                params3,
+            )
 
-            print("\n=== 4. Automated (Optuna) with RFE ===")
-            model4, X_test4, y_test, sel4 = self.automated_with_rfe()
-            y_pred4 = model4.predict(xgb.DMatrix(X_test4))
+            model4, X_test4, y_test, sel4, train_r24, cv_val_r24, params4 = (
+                self.automated_with_rfe()
+            )
+            dtest4 = xgb.DMatrix(X_test4)
+            y_pred4 = model4.predict(dtest4)
             y_test_orig = np.exp(y_test) if self.log_transformation_needed else y_test
             y_pred_orig4 = np.exp(y_pred4) if self.log_transformation_needed else y_pred4
-            r24 = r2_score(y_test_orig, y_pred_orig4)
-            mae4 = mean_absolute_error(y_test_orig, y_pred_orig4)
-            rmse4 = root_mean_squared_error(y_test_orig, y_pred_orig4)
-            print(f"R2: {r24:.4f}")
-            self.results["Automated with RFE"] = (r24, mae4, rmse4, model4, X_test4, y_test, sel4, y_pred4)
+            test_r24 = r2_score(y_test_orig, y_pred_orig4)
+            self.results["Automated with RFE"] = (
+                test_r24,
+                train_r24,
+                model4,
+                X_test4,
+                y_test,
+                sel4,
+                y_pred4,
+                cv_val_r24,
+                params4,
+            )
 
         def build_comparative(self):
             comparative_data = {
-                'model': list(self.results.keys()),
-                'r2': [self.results[k][0] for k in self.results],
-                'mae': [self.results[k][1] for k in self.results],
-                'rmse': [self.results[k][2] for k in self.results],
-                'num_features': [len(self.results[k][6]) for k in self.results]
+                "method": list(self.results.keys()),
+                "train_r2": [self.results[k][1] for k in self.results],
+                "train_cv_val_r2": [self.results[k][7] for k in self.results],
+                "test_r2": [self.results[k][0] for k in self.results],
             }
             self.comparative_df = pd.DataFrame(comparative_data)
-            self.comparative_df = self.comparative_df.sort_values(by='r2', ascending=False).reset_index(drop=True)
+            abs_delta = np.abs(
+                self.comparative_df["train_r2"] - self.comparative_df["train_cv_val_r2"]
+            )
+            self.comparative_df["brownie_points"] = (
+                self.comparative_df["train_cv_val_r2"] - abs_delta
+            )
+            self.comparative_df = self.comparative_df.sort_values(
+                by="brownie_points", ascending=False
+            ).reset_index(drop=True)
 
         def select_best(self):
-            self.best_name = self.comparative_df.iloc[0]['model']
-            self.best_r2, self.best_mae, self.best_rmse, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
-            self.y_test_orig = np.exp(self.y_test) if self.log_transformation_needed else self.y_test
-            self.y_pred_orig = np.exp(self.y_pred_test) if self.log_transformation_needed else self.y_pred_test
+            self.best_name = self.comparative_df.iloc[0]["method"]
+
+            (
+                self.best_r2,
+                train_r2,
+                self.model,
+                self.X_test_selected,
+                self.y_test,
+                self.selected_features,
+                self.y_pred_test,
+                _,
+                self.best_params,
+            ) = self.results[self.best_name]
+            self.y_test_orig = (
+                np.exp(self.y_test) if self.log_transformation_needed else self.y_test
+            )
+            self.y_pred_orig = (
+                np.exp(self.y_pred_test)
+                if self.log_transformation_needed
+                else self.y_pred_test
+            )
+            self.test_base_mean = self.y_test_orig.mean()
+
+        def create_metrics_df(self, y_test_orig, y_pred_orig, test_base_mean):
+            percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
+            table_rows = []
+            for p in percentiles:
+                cutoff = np.percentile(y_pred_orig, p)
+                mask = y_pred_orig >= cutoff
+                if not np.any(mask):
+                    continue
+                sub_pred = y_pred_orig[mask]
+                sub_actual = y_test_orig[mask]
+                avg_pred = np.mean(sub_pred)
+                avg_actual = np.mean(sub_actual)
+                mae_val = mean_absolute_error(sub_actual, sub_pred)
+                rmse_val = root_mean_squared_error(sub_actual, sub_pred)
+                lift = avg_actual / test_base_mean if test_base_mean > 0 else 0
+                table_rows.append(
+                    {
+                        "percentile": f"P{p}",
+                        "cutoff": cutoff,
+                        "avg_pred": avg_pred,
+                        "avg_actual": avg_actual,
+                        "mae": mae_val,
+                        "rmse": rmse_val,
+                        "lift": lift,
+                    }
+                )
+            metrics_df = pd.DataFrame(table_rows).set_index("percentile")
+            return metrics_df.round(4)
 
         def optimize(self):
             self.run_all()
             self.build_comparative()
             self.select_best()
-            
+
             # Compute feature importance for the best model
             importance_gain = self.model.get_score(importance_type="gain")
             if importance_gain:
                 total_gain = sum(importance_gain.values())
-                normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
-                self.best_features_df = pd.DataFrame({
-                    "feature": list(normalized_gain.keys()),
-                    "importance_gain_normalized": list(normalized_gain.values()),
-                }).sort_values(by="importance_gain_normalized", ascending=False)
-                self.best_features_df["importance_rank"] = range(1, len(self.best_features_df) + 1)
+                normalized_gain = {
+                    feat: gain / total_gain for feat, gain in importance_gain.items()
+                }
+                self.best_features_df = pd.DataFrame(
+                    {
+                        "feature": list(normalized_gain.keys()),
+                        "importance_gain_normalized": list(normalized_gain.values()),
+                    }
+                ).sort_values(by="importance_gain_normalized", ascending=False)
+                self.best_features_df["importance_rank"] = range(
+                    1, len(self.best_features_df) + 1
+                )
                 self.best_features_df = self.best_features_df.set_index("importance_rank")
             else:
                 self.best_features_df = pd.DataFrame()
-            
+
+            model_v_baseline_data = {
+                "approach": ["Model", "Baseline"],
+                "r2": [self.best_r2, self.baseline_r2],
+                "mae": [
+                    mean_absolute_error(self.y_test_orig, self.y_pred_orig),
+                    self.baseline_mae,
+                ],
+                "rmse": [
+                    root_mean_squared_error(self.y_test_orig, self.y_pred_orig),
+                    self.baseline_rmse,
+                ],
+            }
+            model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index("approach")
+
+            metrics_df = self.create_metrics_df(
+                self.y_test_orig, self.y_pred_orig, self.test_base_mean
+            )
+
             return {
-                'comparative_df': self.comparative_df,
-                'best_name': self.best_name,
-                'best_r2': self.best_r2,
-                'best_mae': self.best_mae,
-                'best_rmse': self.best_rmse,
-                'model': self.model,
-                'X_test_selected': self.X_test_selected,
-                'y_test': self.y_test,
-                'selected_features': self.selected_features,
-                'y_pred_test': self.y_pred_test,
-                'y_test_orig': self.y_test_orig,
-                'y_pred_orig': self.y_pred_orig,
-                'base_mean': self.base_mean,
-                'baseline_r2': self.baseline_r2,
-                'baseline_mae': self.baseline_mae,
-                'baseline_rmse': self.baseline_rmse,
-                'best_features_df': self.best_features_df
+                "comparative_df": self.comparative_df,
+                "model": self.model,
+                "selected_features": self.selected_features,
+                "test_base_mean": self.test_base_mean,
+                "model_v_baseline_df": model_v_baseline_df,
+                "best_features_df": self.best_features_df,
+                "metrics_df": metrics_df,
+                "best_params": self.best_params,
             }
 
-        def print_results(self):
-            print("\n=== Comparative Model Results ===")
-            print(self.comparative_df.to_string(index=False))
 
-            print("\nBaseline (mean prediction):")
-            print(f"R2: {self.baseline_r2:.4f}, MAE: {self.baseline_mae:.4f}, RMSE: {self.baseline_rmse:.4f}")
+    # Create synthetic dataset using generator
+    generator = SyntheticTabularDataDfGenerator()
+    tabular_data_df = generator.generate("reg:squarederror")
+    print("=== tabular_data_df (first 10 rows) ===")
+    print(tabular_data_df.head(10))
 
-            print("\n" + "="*50)
-            print(f"BEST MODEL: {self.best_name}")
-            print(f"Best Test R2: {self.best_r2:.4f}")
-            print("="*50)
-
-            print("\nSelected Features:")
-            print(self.selected_features)
-
-            print(f"\nBase mean on train set: {self.base_mean:.4f}")
-
-            print(f'R2 on test set (best model): {self.best_r2:.4f}\n')
-
-    class MetricsComputer:
-        def __init__(self, y_test_orig, y_pred_orig, base_mean):
-            self.y_test_orig = y_test_orig
-            self.y_pred_orig = y_pred_orig
-            self.base_mean = base_mean
-
-        def compute_metrics(self):
-            percentiles = [99] + list(range(95, 0, -5)) + [1]
-            table_rows = []
-            for p in percentiles:
-                cutoff = np.percentile(self.y_pred_orig, p)
-                mask = self.y_pred_orig >= cutoff
-                if not np.any(mask):
-                    continue
-                sub_pred = self.y_pred_orig[mask]
-                sub_actual = self.y_test_orig[mask]
-                avg_pred = np.mean(sub_pred)
-                avg_actual = np.mean(sub_actual)
-                mae_val = mean_absolute_error(sub_actual, sub_pred)
-                rmse_val = root_mean_squared_error(sub_actual, sub_pred)
-                lift = avg_actual / self.base_mean if self.base_mean > 0 else 0
-                table_rows.append({
-                    'percentile': f'P{p}',
-                    'cutoff': cutoff,
-                    'avg_pred': avg_pred,
-                    'avg_actual': avg_actual,
-                    'mae': mae_val,
-                    'rmse': rmse_val,
-                    'lift': lift,
-                })
-            metrics_df = pd.DataFrame(table_rows).set_index('percentile')
-            return metrics_df.round(4)
+    columns = tabular_data_df.columns.to_list()
+    columns.remove("target")
+    columns.remove("timestamp")
+    features = columns
+    target = "target"
 
     # Example usage
-    maximizer = R2Maximizer(tabular_data_df, features, 'target')
+    splitter = TrainTestSplitter(
+        tabular_data_df, features, target="target", xgb_objective="reg:squarederror"
+    )
+    train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
+
+    maximizer = R2Maximizer(train_df, test_df, features, "target", Config())
     results = maximizer.optimize()
-    maximizer.print_results()
+
+    print("\n=== Comparative Model Results ===")
+    print(results["comparative_df"].to_string(index=False))
+
+    print("\n=== Model vs Baseline ===")
+    print(results["model_v_baseline_df"].to_string(float_format="{:.4f}".format))
+
+    print("\nSelected Features:")
+    print(results["selected_features"])
+
+    print(f"\nBase mean on test set: {results['test_base_mean']:.4f}")
 
     print("\n=== best_features_df (Top Features by Gain) ===")
-    print(results['best_features_df'].to_string(float_format="{:.4f}".format))
+    print(results["best_features_df"].to_string(float_format="{:.4f}".format))
 
-    metrics_comp = MetricsComputer(results['y_test_orig'], results['y_pred_orig'], results['base_mean'])
-    metrics_df = metrics_comp.compute_metrics()
     print("\n=== Performance by Percentile Threshold (Best Model) ===")
-    print(metrics_df.to_string())
+    print(results["metrics_df"].to_string())
+
+    print("\n=== Best Model Parameters ===")
+    print(results["best_params"])
 
     print("\nNOTE:")
-    print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
+    print(
+        "- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)"
+    )
     print("- Higher percentile = stricter threshold = higher lift, lower count")
     print("- Lift = avg_actual / base_mean")
 
     # Demonstrate making a prediction
-    example_row = maximizer.tabular_data_df.iloc[0][results['selected_features']]
+    example_row = tabular_data_df.iloc[0][results["selected_features"]]
     dexample = xgb.DMatrix(pd.DataFrame([example_row]))
-    example_pred = results['model'].predict(dexample)[0]
-    example_pred = np.exp(example_pred) if maximizer.log_transformation_needed else example_pred
+    example_pred = results["model"].predict(dexample)[0]
+    example_pred = (
+        np.exp(example_pred) if maximizer.log_transformation_needed else example_pred
+    )
 
     print(f"\n=== Example Prediction ===")
     print(f"Input features:\n{results['selected_features']}")
     print(f"Predicted target: {example_pred:.4f}")
 
-
-#### Lesson 9: Multi-Class Classification Intuition
+#### Lesson 12: Multi-Class Classification Intuition
 
     # 1. Metrics
     #!----------
@@ -3145,495 +3979,139 @@
     #   only 1% of data but with near-perfect metrics-ideal for automation where humans 
     #   handle the rest.
 
-#### Lesson 10: Multi-Class Classification Implementation
+#### Lesson 13: Multi-Class Classification Implementation
 
     import pandas as pd
     import numpy as np
     import xgboost as xgb
-    import optuna
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import (
         confusion_matrix,
         roc_auc_score,
         accuracy_score,
     )
-    from sklearn.feature_selection import RFE
+    from sklearn.model_selection import StratifiedKFold
+    from xgb_train_test_splitter import TrainTestSplitter
 
-    #! features = ['feat_0', 'feat_1', ... 'feat_19']
-    #! print(tabular_data_df.head(10))
-    #!            feat_0    feat_1  ...   feat_17   feat_18   feat_19  class
-    #! user_id                      ...
-    #! 0        0.025729  0.165038  ...  0.040788  0.031007  0.018873      2
-    #! 1        0.054640  0.008674  ...  0.005934  0.066555  0.033492      2
-    #! 2        0.006200  0.032563  ...  0.010392  0.002205  0.018747      2
-    #! 3        0.026806  0.017243  ...  0.004190  0.024178  0.006708      2
-    #! 4        0.120043  0.058937  ...  0.033674  0.001554  0.006892      2
-    #! 5        0.001613  0.051109  ...  0.010431  0.112692  0.039155      2
-    #! 6        0.081659  0.112238  ...  0.060182  0.022404  0.176855      1
-    #! 7        0.171431  0.015151  ...  0.074897  0.014173  0.068047      2
-    #! 8        0.031450  0.068625  ...  0.033538  0.189332  0.010147      2
-    #! 9        0.017432  0.005033  ...  0.095035  0.091150  0.063252      1
 
-    # 1. Compute base_rate for each class
-    base_rates = y.value_counts(normalize=True).sort_index()
-    print('Class base rates:')
-    for cls, rate in base_rates.items():
-        print(f'Class {cls}: {rate:.2%}')
-    print()
-
-    class AUCMaximizer:
-        def __init__(self, tabular_data_df, features, target):
-            self.tabular_data_df = tabular_data_df
-            self.features = features
+    class ModelBuilder:
+        def __init__(
+            self,
+            train_df,
+            test_df,
+            selected_features,
+            target,
+            params,
+            num_boost_round=200,
+            early_stopping_rounds=20,
+            n_folds=3,
+            random_state=42,
+        ):
+            self.train_df = train_df
+            self.test_df = test_df
+            self.selected_features = selected_features
             self.target = target
-            self.n_classes = self.tabular_data_df[self.target].nunique()
-            self.n_features_to_select = 10
-            self.n_trials = 30
-            self.test_size = 0.2
-            self.val_size = 0.2
-            self.random_state = 42
-            self.default_params = {
-                'objective': 'multi:softprob',
-                'num_class': self.n_classes,
-                'eval_metric': 'mlogloss',
-                'max_depth': 6,
-                'eta': 0.1,
-                'subsample': 0.8,
-                'colsample_bytree': 0.8,
-            }
-            self.num_boost_round = 200
-            self.early_stopping_rounds = 20
-            self.optuna_boost_round = 1000
-            self.optuna_early_stopping = 20
-            self.optuna_search_spaces = {
-                'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
-                'eta': {'low': 0.01, 'high': 0.3, 'log': True},
-                'subsample': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-                'colsample_bytree': [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            }
-            self.results = {}
-            self.comparative_df = None
-            self.best_name = None
-            self.best_auc = None
+            self.params = params
+            self.num_boost_round = num_boost_round
+            self.early_stopping_rounds = early_stopping_rounds
+            self.n_folds = n_folds
+            self.random_state = random_state
             self.model = None
-            self.X_test_selected = None
-            self.y_test = None
-            self.selected_features = None
+            self.train_auc = None
+            self.cv_val_auc = None
+            self.test_auc = None
+            self.test_base_rate = None
             self.y_pred_test = None
-            self.base_rates = None
-            self.best_features_df = None
+            self.n_classes = self.train_df[self.target].nunique()
 
-        def manual_without_rfe(self):
-            X_train, X_test, y_train, y_test = train_test_split(
-                self.tabular_data_df[self.features],
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=self.tabular_data_df[self.target]
+        def _compute_cv_auc_best_iter(self, X, y):
+            skf = StratifiedKFold(
+                n_splits=self.n_folds, shuffle=True, random_state=self.random_state
             )
-            
-            selected_features = self.features  # No RFE, use all features
-            
-            dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
-            
-            params = self.default_params.copy()
-            model = xgb.train(
-                params,
-                dtrain,
-                num_boost_round=self.num_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.early_stopping_rounds,
-                verbose_eval=False,
-            )
-            return model, X_test, y_test, selected_features
-
-        def manual_with_rfe(self):
-            X_train, X_test, y_train, y_test = train_test_split(
-                self.tabular_data_df[self.features],
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=self.tabular_data_df[self.target]
-            )
-            
-            # RFE for feature selection
-            base_model = xgb.XGBClassifier(
-                **self.default_params,
-                random_state=self.random_state,
-                enable_categorical=True,
-            )
-            rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
-            rfe.fit(X_train, y_train)
-            
-            selected_features = X_train.columns[rfe.support_].tolist()
-            print("\n=== Selected Features from RFE (Manual) ===")
-            print(selected_features)
-            
-            X_train_selected = X_train[selected_features]
-            X_test_selected = X_test[selected_features]
-            
-            dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test_selected, label=y_test, enable_categorical=True)
-            
-            params = self.default_params.copy()
-            model = xgb.train(
-                params,
-                dtrain,
-                num_boost_round=self.num_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.early_stopping_rounds,
-                verbose_eval=False,
-            )
-            return model, X_test_selected, y_test, selected_features
-
-        def automated_without_rfe(self):
-            X_train_full, X_test, y_train_full, y_test = train_test_split(
-                self.tabular_data_df.drop(self.target, axis=1),
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=self.tabular_data_df[self.target]
-            )
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train_full,
-                y_train_full,
-                test_size=self.val_size,
-                random_state=self.random_state,
-                stratify=y_train_full
-            )
-            
-            selected_features = X_train.columns.tolist()  # No RFE, use all features
-            
-            # Define the objective function for Optuna
-            def objective(trial):
-                max_depth = trial.suggest_categorical('max_depth', self.optuna_search_spaces['max_depth'])
-                eta = trial.suggest_float('eta', 
-                                          self.optuna_search_spaces['eta']['low'], 
-                                          self.optuna_search_spaces['eta']['high'], 
-                                          log=self.optuna_search_spaces['eta']['log'])
-                subsample = trial.suggest_categorical('subsample', self.optuna_search_spaces['subsample'])
-                colsample_bytree = trial.suggest_categorical('colsample_bytree', self.optuna_search_spaces['colsample_bytree'])
-                params = {
-                    'objective': 'multi:softprob',
-                    'num_class': self.n_classes,
-                    'eval_metric': 'mlogloss',
-                    'max_depth': max_depth,
-                    'eta': eta,
-                    'subsample': subsample,
-                    'colsample_bytree': colsample_bytree,
-                }
-                dtrain = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
-                dval = xgb.DMatrix(X_val, label=y_val, enable_categorical=True)
+            aucs = []
+            best_iters = []
+            for train_idx, val_idx in skf.split(X, y):
+                X_tr, X_v = X.iloc[train_idx], X.iloc[val_idx]
+                y_tr, y_v = y.iloc[train_idx], y.iloc[val_idx]
+                dtr = xgb.DMatrix(X_tr, label=y_tr, enable_categorical=True)
+                dv = xgb.DMatrix(X_v, label=y_v, enable_categorical=True)
                 model = xgb.train(
-                    params,
-                    dtrain,
-                    num_boost_round=self.optuna_boost_round,
-                    evals=[(dval, 'eval')],
-                    early_stopping_rounds=self.optuna_early_stopping,
+                    self.params,
+                    dtr,
+                    num_boost_round=self.num_boost_round,
+                    evals=[(dv, "val")],
+                    early_stopping_rounds=self.early_stopping_rounds,
                     verbose_eval=False,
                 )
-                y_pred_val = model.predict(dval)
-                auc = roc_auc_score(y_val, y_pred_val, multi_class='ovr')
-                return auc
-            
-            # Create and optimize the study
-            study = optuna.create_study(direction='maximize')
-            study.optimize(objective, n_trials=self.n_trials)
-            
-            # Get the best parameters
-            best_params = study.best_params
-            best_params['objective'] = 'multi:softprob'
-            best_params['num_class'] = self.n_classes
-            best_params['eval_metric'] = 'mlogloss'
-            
-            print('Best hyperparameters found by Optuna (without RFE):')
-            print(best_params)
-            
-            # Train the final model with best params on full train set
-            dtrain_full = xgb.DMatrix(X_train_full, label=y_train_full, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test, label=y_test, enable_categorical=True)
-            
-            model = xgb.train(
-                best_params,
+                pred_v = model.predict(dv)
+                auc = roc_auc_score(y_v, pred_v, multi_class="ovr")
+                aucs.append(auc)
+                best_iters.append(model.best_iteration)
+            return np.mean(aucs), int(np.mean(best_iters))
+
+        def build(self):
+            X_train = self.train_df[self.selected_features]
+            y_train = self.train_df[self.target]
+            X_test = self.test_df[self.selected_features]
+            y_test = self.test_df[self.target]
+
+            self.cv_val_auc, best_iter = self._compute_cv_auc_best_iter(X_train, y_train)
+
+            dtrain_full = xgb.DMatrix(X_train, label=y_train, enable_categorical=True)
+
+            self.model = xgb.train(
+                self.params,
                 dtrain_full,
-                num_boost_round=self.optuna_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.optuna_early_stopping,
+                num_boost_round=best_iter + 1,
                 verbose_eval=False,
             )
-            return model, X_test, y_test, selected_features
 
-        def automated_with_rfe(self):
-            X_train_full, X_test, y_train_full, y_test = train_test_split(
-                self.tabular_data_df.drop(self.target, axis=1),
-                self.tabular_data_df[self.target],
-                test_size=self.test_size,
-                random_state=self.random_state,
-                stratify=self.tabular_data_df[self.target]
+            y_pred_train = self.model.predict(dtrain_full)
+            self.train_auc = roc_auc_score(y_train, y_pred_train, multi_class="ovr")
+
+            dtest = xgb.DMatrix(X_test)
+            self.y_pred_test = self.model.predict(dtest)
+            self.test_auc = roc_auc_score(y_test, self.y_pred_test, multi_class="ovr")
+
+            self.test_base_rate = y_test.value_counts(normalize=True).sort_index().to_dict()
+
+            metrics_df = self.create_metrics_df(
+                y_test, self.y_pred_test, self.test_base_rate
             )
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train_full,
-                y_train_full,
-                test_size=self.val_size,
-                random_state=self.random_state,
-                stratify=y_train_full
-            )
-            
-            # RFE for feature selection
-            base_model = xgb.XGBClassifier(
-                **self.default_params,
-                random_state=self.random_state,
-                enable_categorical=True,
-            )
-            rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
-            rfe.fit(X_train, y_train)
-            
-            selected_features = X_train.columns[rfe.support_].tolist()
-            print("\n=== Selected Features from RFE (Automated) ===")
-            print(selected_features)
-            
-            X_train_selected = X_train[selected_features]
-            X_val_selected = X_val[selected_features]
-            X_train_full_selected = X_train_full[selected_features]
-            X_test_selected = X_test[selected_features]
-            
-            # Define the objective function for Optuna on selected features
-            def objective(trial):
-                max_depth = trial.suggest_categorical('max_depth', self.optuna_search_spaces['max_depth'])
-                eta = trial.suggest_float('eta', 
-                                          self.optuna_search_spaces['eta']['low'], 
-                                          self.optuna_search_spaces['eta']['high'], 
-                                          log=self.optuna_search_spaces['eta']['log'])
-                subsample = trial.suggest_categorical('subsample', self.optuna_search_spaces['subsample'])
-                colsample_bytree = trial.suggest_categorical('colsample_bytree', self.optuna_search_spaces['colsample_bytree'])
-                params = {
-                    'objective': 'multi:softprob',
-                    'num_class': self.n_classes,
-                    'eval_metric': 'mlogloss',
-                    'max_depth': max_depth,
-                    'eta': eta,
-                    'subsample': subsample,
-                    'colsample_bytree': colsample_bytree,
+
+            performance_df = pd.DataFrame(
+                {
+                    "metric": ["Train AUC", "CV Val AUC", "Test AUC"],
+                    "value": [self.train_auc, self.cv_val_auc, self.test_auc],
                 }
-                dtrain = xgb.DMatrix(X_train_selected, label=y_train, enable_categorical=True)
-                dval = xgb.DMatrix(X_val_selected, label=y_val, enable_categorical=True)
-                model = xgb.train(
-                    params,
-                    dtrain,
-                    num_boost_round=self.optuna_boost_round,
-                    evals=[(dval, 'eval')],
-                    early_stopping_rounds=self.optuna_early_stopping,
-                    verbose_eval=False,
-                )
-                y_pred_val = model.predict(dval)
-                auc = roc_auc_score(y_val, y_pred_val, multi_class='ovr')
-                return auc
-            
-            # Create and optimize the study
-            study = optuna.create_study(direction='maximize')
-            study.optimize(objective, n_trials=self.n_trials)
-            
-            # Get the best parameters
-            best_params = study.best_params
-            best_params['objective'] = 'multi:softprob'
-            best_params['num_class'] = self.n_classes
-            best_params['eval_metric'] = 'mlogloss'
-            
-            print('Best hyperparameters found by Optuna (with RFE):')
-            print(best_params)
-            
-            # Train the final model with best params on full train set with selected features
-            dtrain_full = xgb.DMatrix(X_train_full_selected, label=y_train_full, enable_categorical=True)
-            dtest = xgb.DMatrix(X_test_selected, label=y_test, enable_categorical=True)
-            
-            model = xgb.train(
-                best_params,
-                dtrain_full,
-                num_boost_round=self.optuna_boost_round,
-                evals=[(dtest, 'eval')],
-                early_stopping_rounds=self.optuna_early_stopping,
-                verbose_eval=False,
             )
-            return model, X_test_selected, y_test, selected_features
 
-        def run_all(self):
-            print("\n=== 1. Manual without RFE ===")
-            model1, X_test1, y_test, sel1 = self.manual_without_rfe()
-            y_pred1 = model1.predict(xgb.DMatrix(X_test1))
-            auc1 = roc_auc_score(y_test, y_pred1, multi_class='ovr')
-            print(f"AUC (ovr): {auc1:.4f}")
-            self.results["Manual without RFE"] = (auc1, model1, X_test1, y_test, sel1, y_pred1)
-
-            print("\n=== 2. Manual with RFE ===")
-            model2, X_test2, y_test, sel2 = self.manual_with_rfe()
-            y_pred2 = model2.predict(xgb.DMatrix(X_test2))
-            auc2 = roc_auc_score(y_test, y_pred2, multi_class='ovr')
-            print(f"AUC (ovr): {auc2:.4f}")
-            self.results["Manual with RFE"] = (auc2, model2, X_test2, y_test, sel2, y_pred2)
-
-            print("\n=== 3. Automated (Optuna) without RFE ===")
-            model3, X_test3, y_test, sel3 = self.automated_without_rfe()
-            y_pred3 = model3.predict(xgb.DMatrix(X_test3))
-            auc3 = roc_auc_score(y_test, y_pred3, multi_class='ovr')
-            print(f"AUC (ovr): {auc3:.4f}")
-            self.results["Automated without RFE"] = (auc3, model3, X_test3, y_test, sel3, y_pred3)
-
-            print("\n=== 4. Automated (Optuna) with RFE ===")
-            model4, X_test4, y_test, sel4 = self.automated_with_rfe()
-            y_pred4 = model4.predict(xgb.DMatrix(X_test4))
-            auc4 = roc_auc_score(y_test, y_pred4, multi_class='ovr')
-            print(f"AUC (ovr): {auc4:.4f}")
-            self.results["Automated with RFE"] = (auc4, model4, X_test4, y_test, sel4, y_pred4)
-
-        def build_comparative(self):
-            comparative_data = {
-                'model': list(self.results.keys()),
-                'auc': [self.results[k][0] for k in self.results],
-                'num_features': [len(self.results[k][4]) for k in self.results]
-            }
-            self.comparative_df = pd.DataFrame(comparative_data)
-            self.comparative_df = self.comparative_df.sort_values(by='auc', ascending=False).reset_index(drop=True)
-
-        def select_best(self):
-            self.best_name = self.comparative_df.iloc[0]['model']
-            self.best_auc, self.model, self.X_test_selected, self.y_test, self.selected_features, self.y_pred_test = self.results[self.best_name]
-            self.base_rates = self.y_test.value_counts(normalize=True).sort_index()
-
-        def optimize(self):
-            self.run_all()
-            self.build_comparative()
-            self.select_best()
-            
-            # Compute feature importance for the best model
-            importance_gain = self.model.get_score(importance_type="gain")
-            if importance_gain:
-                total_gain = sum(importance_gain.values())
-                normalized_gain = {feat: gain / total_gain for feat, gain in importance_gain.items()}
-                self.best_features_df = pd.DataFrame({
-                    "feature": list(normalized_gain.keys()),
-                    "importance_gain_normalized": list(normalized_gain.values()),
-                }).sort_values(by="importance_gain_normalized", ascending=False)
-                self.best_features_df["importance_rank"] = range(1, len(self.best_features_df) + 1)
-                self.best_features_df = self.best_features_df.set_index("importance_rank")
-            else:
-                self.best_features_df = pd.DataFrame()
-            
             return {
-                'comparative_df': self.comparative_df,
-                'best_name': self.best_name,
-                'best_auc': self.best_auc,
-                'model': self.model,
-                'X_test_selected': self.X_test_selected,
-                'y_test': self.y_test,
-                'selected_features': self.selected_features,
-                'y_pred_test': self.y_pred_test,
-                'base_rates': self.base_rates,
-                'best_features_df': self.best_features_df
+                "model": self.model,
+                "metrics_df": metrics_df,
+                "performance_df": performance_df,
+                "test_base_rate": self.test_base_rate,
             }
 
-        def print_results(self):
-            print("\n=== Comparative Model Results ===")
-            print(self.comparative_df.to_string(index=False))
-
-            print("\n" + "="*50)
-            print(f"BEST MODEL: {self.best_name}")
-            print(f"Best Test AUC (ovr): {self.best_auc:.4f}")
-            print("="*50)
-
-            print("\nSelected Features:")
-            print(self.selected_features)
-
-            print("\nClass base rates on test set:")
-            for cls, rate in self.base_rates.items():
-                print(f"Class {cls}: {rate:.4f}")
-
-            print(f'\nAUC (ovr) on test set (best model): {self.best_auc:.4f}\n')
-
-    class MetricsComputer:
-        def __init__(self, y_test, y_pred_test, base_rates=None):
-            self.y_test = y_test
-            self.y_pred_test = y_pred_test
-            self.base_rates = base_rates if base_rates is not None else y_test.value_counts(normalize=True).sort_index()
-            self.n_classes = len(self.base_rates)
-            self.preds_argmax = np.argmax(self.y_pred_test, axis=1)
-
-        def compute_metrics(self):
-            # Confusion matrix for full set
-            cm = confusion_matrix(self.y_test, self.preds_argmax, labels=range(self.n_classes))
-            
-            # Custom metrics for full set
-            precisions = []
-            recalls = []
-            f1s = []
-            for i in range(self.n_classes):
-                tp = cm[i, i]
-                fp = np.sum(cm[:, i]) - tp
-                fn = np.sum(cm[i, :]) - tp
-                precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-                recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-                f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
-                precisions.append(precision)
-                recalls.append(recall)
-                f1s.append(f1)
-            
-            precision_macro = np.mean(precisions)
-            recall_macro = np.mean(recalls)
-            f1_macro = np.mean(f1s)
-            accuracy = accuracy_score(self.y_test, self.preds_argmax)
-            
-            lifts = [precisions[i] / self.base_rates[i] if self.base_rates[i] > 0 and precisions[i] > 0 else 0 for i in range(self.n_classes)]
-            
-            # Build overall table
-            table_rows = [{
-                "metric": "macro_precision",
-                "value": round(precision_macro, 4),
-            }, {
-                "metric": "macro_recall",
-                "value": round(recall_macro, 4),
-            }, {
-                "metric": "macro_f1",
-                "value": round(f1_macro, 4),
-            }, {
-                "metric": "accuracy",
-                "value": round(accuracy, 4),
-            }]
-            
-            for i in range(self.n_classes):
-                table_rows.append({
-                    "metric": f"class_{i}_precision",
-                    "value": round(precisions[i], 4),
-                })
-                table_rows.append({
-                    "metric": f"class_{i}_recall",
-                    "value": round(recalls[i], 4),
-                })
-                table_rows.append({
-                    "metric": f"class_{i}_f1",
-                    "value": round(f1s[i], 4),
-                })
-                table_rows.append({
-                    "metric": f"class_{i}_lift",
-                    "value": round(lifts[i], 2),
-                })
-            
-            overall_metrics_df = pd.DataFrame(table_rows).set_index('metric')
-            
-            # Confusion matrix DF
-            cm_df = pd.DataFrame(cm, index=[f"actual_{i}" for i in range(self.n_classes)], columns=[f"pred_{i}" for i in range(self.n_classes)])
-            
-            # Percentile-based metrics
-            percentiles = [99] + list(range(95, 0, -5)) + [1]
+        def create_metrics_df(self, y_test, y_pred_test, test_base_rate):
+            percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
             results = []
-            max_probs = np.max(self.y_pred_test, axis=1)
+            max_probs = np.max(y_pred_test, axis=1)
+            preds_argmax = np.argmax(y_pred_test, axis=1)
             for p in percentiles:
                 cutoff = np.percentile(max_probs, p)
                 confident_mask = max_probs >= cutoff
                 num_classified = np.sum(confident_mask)
+                percentile_dict = {}
+                percentile_dict["cutoff_prob"] = round(cutoff, 4)
                 if num_classified > 0:
-                    y_test_conf = self.y_test[confident_mask]
-                    preds_conf = self.preds_argmax[confident_mask]
-                    cm_conf = confusion_matrix(y_test_conf, preds_conf, labels=range(self.n_classes))
+                    y_test_conf = y_test[confident_mask]
+                    preds_conf = preds_argmax[confident_mask]
+                    cm_conf = confusion_matrix(
+                        y_test_conf, preds_conf, labels=range(self.n_classes)
+                    )
+                    for i in range(self.n_classes):
+                        for j in range(self.n_classes):
+                            percentile_dict[f"a{i}p{j}"] = cm_conf[i, j]
                     precisions_conf = []
                     recalls_conf = []
                     f1s_conf = []
@@ -3643,7 +4121,11 @@
                         fn = np.sum(cm_conf[i, :]) - tp
                         precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
                         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-                        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+                        f1 = (
+                            2 * precision * recall / (precision + recall)
+                            if (precision + recall) > 0
+                            else 0.0
+                        )
                         precisions_conf.append(precision)
                         recalls_conf.append(recall)
                         f1s_conf.append(f1)
@@ -3652,77 +4134,779 @@
                     f1_macro = np.mean(f1s_conf)
                     accuracy = accuracy_score(y_test_conf, preds_conf)
                 else:
+                    for i in range(self.n_classes):
+                        for j in range(self.n_classes):
+                            percentile_dict[f"a{i}p{j}"] = 0
+                    precisions_conf = [0.0] * self.n_classes
+                    recalls_conf = [0.0] * self.n_classes
+                    f1s_conf = [0.0] * self.n_classes
                     precision_macro = 0.0
                     recall_macro = 0.0
                     f1_macro = 0.0
                     accuracy = 0.0
-                results.append({
-                    'percentile': f'P{p}',
-                    'cutoff_prob': round(cutoff, 4),
-                    'precision_macro': round(precision_macro, 4),
-                    'recall_macro': round(recall_macro, 4),
-                    'f1_macro': round(f1_macro, 4),
-                    'accuracy': round(accuracy, 4),
-                })
+                percentile_dict["macro_precision"] = round(precision_macro, 4)
+                percentile_dict["macro_recall"] = round(recall_macro, 4)
+                percentile_dict["macro_f1"] = round(f1_macro, 4)
+                percentile_dict["accuracy"] = round(accuracy, 4)
+                lifts_conf = [
+                    precisions_conf[i] / test_base_rate[i]
+                    if test_base_rate[i] > 0 and precisions_conf[i] > 0
+                    else 0
+                    for i in range(self.n_classes)
+                ]
+                for i in range(self.n_classes):
+                    percentile_dict[f"c{i}_precision"] = round(precisions_conf[i], 4)
+                    percentile_dict[f"c{i}_recall"] = round(recalls_conf[i], 4)
+                    percentile_dict[f"c{i}_f1"] = round(f1s_conf[i], 4)
+                    percentile_dict[f"c{i}_lift"] = round(lifts_conf[i], 2)
+                results.append(percentile_dict)
 
-            confidence_metrics_df = pd.DataFrame(results).set_index('percentile')
-            
-            return overall_metrics_df, cm_df, confidence_metrics_df
+            metrics_df = pd.DataFrame(results, index=[f"P{p}" for p in percentiles])
+            return metrics_df
+
+
+    print("=== tabular_data_df (first 10 rows) ===")
+    print(tabular_data_df.head(10))
+
+    # Hardcoded configurations (update these based on results from the maximizer script)
+    target = "target"
+    selected_features = ["feat_0", "feat_1", "feat_2", "feat_3", "feat_4"]
+
+    params = {
+        "objective": "multi:softprob",
+        "eval_metric": "mlogloss",
+        "max_depth": 6,
+        "eta": 0.1,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+    }
+    params["num_class"] = tabular_data_df[target].nunique()
+
+    splitter = TrainTestSplitter(
+        tabular_data_df, selected_features, target="target", xgb_objective="multi:softprob"
+    )
+    train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
+
+    builder = ModelBuilder(train_df, test_df, selected_features, target, params)
+    results = builder.build()
+    model = results["model"]
+    metrics_df = results["metrics_df"]
+    performance_df = results["performance_df"]
+    test_base_rate = results["test_base_rate"]
+
+    # Modify for printing
+    performance_df["metric"] = performance_df["metric"] + ":"
+
+    # Outputs
+    print("\n=== Model Performance ===")
+    print(performance_df.to_string(index=False))
+
+    print("\nClass base rates on test set:")
+    print(test_base_rate)
+
+    print("\n=== Performance by Percentile Threshold ===")
+    print(metrics_df.to_string())
+
+    print("\n=== Model Parameters ===")
+    print(params)
+
+    # Demonstrate making a prediction
+    example_row = tabular_data_df.iloc[0][selected_features]
+    dexample = xgb.DMatrix(pd.DataFrame([example_row]))
+    example_pred = model.predict(dexample)[0]
+
+    print(f"\n=== Example Prediction ===")
+    print(f"Input features:\n{selected_features}")
+    print(f"Predicted class probabilities: {example_pred}")
+    print(f"Predicted class: {np.argmax(example_pred)}")
+
+    print("\nNOTE:")
+    print(
+        "- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile"
+    )
+    print(
+        "- Higher percentile = stricter threshold = higher macro_precision, lower coverage"
+    )
+    print("- Lift = precision / base_rate for each class")
+
+#### Lesson 14: Multi-Class Classification (Maximizing AUC)
+
+    import pandas as pd
+    import numpy as np
+    import xgboost as xgb
+    import optuna
+    from sklearn.model_selection import StratifiedKFold
+    from sklearn.metrics import (
+        confusion_matrix,
+        roc_auc_score,
+        accuracy_score,
+    )
+    from sklearn.feature_selection import RFE
+    from xgb_train_test_splitter import TrainTestSplitter
+    from dataclasses import dataclass, field
+    from typing import Optional
+
+
+    @dataclass
+    class Config:
+        n_features_to_select: int = 10
+        n_trials: int = 30
+        random_state: int = 42
+        delta_threshold: float = 0.05
+        underfit_threshold: float = 0.6
+        n_folds: int = 3
+        default_params: dict = field(
+            default_factory=lambda: {
+                "objective": "multi:softprob",
+                "eval_metric": "mlogloss",
+                "max_depth": 6,
+                "eta": 0.1,
+                "subsample": 0.8,
+                "colsample_bytree": 0.8,
+            }
+        )
+        num_boost_round: int = 200
+        early_stopping_rounds: int = 20
+        optuna_boost_round: int = 1000
+        optuna_early_stopping: int = 20
+        optuna_search_spaces: dict = field(
+            default_factory=lambda: {
+                "max_depth": [3, 4, 5, 6, 7, 8, 9, 10],
+                "eta": {"low": 0.01, "high": 0.3, "log": True},
+                "subsample": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+                "colsample_bytree": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+                "reg_alpha": {"low": 1e-5, "high": 10.0, "log": True},
+                "reg_lambda": {"low": 1e-5, "high": 10.0, "log": True},
+            }
+        )
+        optuna_rfe_spaces: dict = field(
+            default_factory=lambda: {"n_features_to_select": [5, 7, 10, 12, 15]}
+        )
+        num_class: Optional[int] = None  # Optional, set dynamically if needed
+
+
+    class AUCMaximizer:
+        def __init__(self, train_df, test_df, features, target, config: Config):
+            self.train_df = train_df
+            self.test_df = test_df
+            self.features = features
+            self.target = target
+            self.n_classes = self.train_df[self.target].nunique()
+
+            # Assign config values to instance vars
+            self.n_features_to_select = config.n_features_to_select
+            self.n_trials = config.n_trials
+            self.random_state = config.random_state
+            self.delta_threshold = config.delta_threshold
+            self.underfit_threshold = config.underfit_threshold
+            self.n_folds = config.n_folds
+            self.default_params = config.default_params
+            self.num_boost_round = config.num_boost_round
+            self.early_stopping_rounds = config.early_stopping_rounds
+            self.optuna_boost_round = config.optuna_boost_round
+            self.optuna_early_stopping = config.optuna_early_stopping
+            self.optuna_search_spaces = config.optuna_search_spaces
+            self.optuna_rfe_spaces = config.optuna_rfe_spaces
+
+            # Dynamically set num_class (overrides any config value)
+            self.default_params["num_class"] = self.n_classes
+
+            self.results = {}
+            self.comparative_df = None
+            self.best_name = None
+            self.best_auc = None
+            self.model = None
+            self.X_test_selected = None
+            self.y_test = None
+            self.selected_features = None
+            self.y_pred_test = None
+            self.test_base_rate = None
+            self.best_features_df = None
+            self.best_params = None
+
+        def _compute_cv_auc(self, params, X, y, selected_features=None):
+            if selected_features is not None:
+                X = X[selected_features]
+            skf = StratifiedKFold(
+                n_splits=self.n_folds, shuffle=True, random_state=self.random_state
+            )
+            aucs = []
+            best_iters = []
+            for train_idx, val_idx in skf.split(X, y):
+                X_tr, X_v = X.iloc[train_idx], X.iloc[val_idx]
+                y_tr, y_v = y.iloc[train_idx], y.iloc[val_idx]
+                dtr = xgb.DMatrix(X_tr, label=y_tr, enable_categorical=True)
+                dv = xgb.DMatrix(X_v, label=y_v, enable_categorical=True)
+                model = xgb.train(
+                    params,
+                    dtr,
+                    num_boost_round=self.optuna_boost_round,
+                    evals=[(dv, "val")],
+                    early_stopping_rounds=self.optuna_early_stopping,
+                    verbose_eval=False,
+                )
+                pred_v = model.predict(dv)
+                auc = roc_auc_score(y_v, pred_v, multi_class="ovr")
+                aucs.append(auc)
+                best_iters.append(model.best_iteration)
+            return np.mean(aucs), int(np.mean(best_iters))
+
+        def manual_without_rfe(self):
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            selected_features = self.features
+
+            params = self.default_params.copy()
+            cv_val_auc, best_iter = self._compute_cv_auc(params, X_train_full, y_train_full)
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full, label=y_train_full, enable_categorical=True
+            )
+            model = xgb.train(
+                params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            train_auc = roc_auc_score(y_train_full, y_pred_train, multi_class="ovr")
+            return model, X_test, y_test, selected_features, train_auc, cv_val_auc, params
+
+        def manual_with_rfe(self):
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            base_model = xgb.XGBClassifier(
+                **self.default_params,
+                random_state=self.random_state,
+                enable_categorical=True,
+            )
+            rfe = RFE(estimator=base_model, n_features_to_select=self.n_features_to_select)
+            rfe.fit(X_train_full, y_train_full)
+
+            selected_features = X_train_full.columns[rfe.support_].tolist()
+
+            params = self.default_params.copy()
+            cv_val_auc, best_iter = self._compute_cv_auc(
+                params, X_train_full, y_train_full, selected_features
+            )
+
+            X_train_full_selected = X_train_full[selected_features]
+            X_test_selected = X_test[selected_features]
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full_selected, label=y_train_full, enable_categorical=True
+            )
+            model = xgb.train(
+                params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            train_auc = roc_auc_score(y_train_full, y_pred_train, multi_class="ovr")
+            return (
+                model,
+                X_test_selected,
+                y_test,
+                selected_features,
+                train_auc,
+                cv_val_auc,
+                params,
+            )
+
+        def automated_without_rfe(self):
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            selected_features = self.features
+
+            def objective(trial):
+                max_depth = trial.suggest_categorical(
+                    "max_depth", self.optuna_search_spaces["max_depth"]
+                )
+                eta = trial.suggest_float(
+                    "eta",
+                    self.optuna_search_spaces["eta"]["low"],
+                    self.optuna_search_spaces["eta"]["high"],
+                    log=self.optuna_search_spaces["eta"]["log"],
+                )
+                subsample = trial.suggest_categorical(
+                    "subsample", self.optuna_search_spaces["subsample"]
+                )
+                colsample_bytree = trial.suggest_categorical(
+                    "colsample_bytree", self.optuna_search_spaces["colsample_bytree"]
+                )
+                reg_alpha = trial.suggest_float(
+                    "reg_alpha",
+                    self.optuna_search_spaces["reg_alpha"]["low"],
+                    self.optuna_search_spaces["reg_alpha"]["high"],
+                    log=self.optuna_search_spaces["reg_alpha"]["log"],
+                )
+                reg_lambda = trial.suggest_float(
+                    "reg_lambda",
+                    self.optuna_search_spaces["reg_lambda"]["low"],
+                    self.optuna_search_spaces["reg_lambda"]["high"],
+                    log=self.optuna_search_spaces["reg_lambda"]["log"],
+                )
+                params = {
+                    "objective": "multi:softprob",
+                    "num_class": self.n_classes,
+                    "eval_metric": "mlogloss",
+                    "max_depth": max_depth,
+                    "eta": eta,
+                    "subsample": subsample,
+                    "colsample_bytree": colsample_bytree,
+                    "reg_alpha": reg_alpha,
+                    "reg_lambda": reg_lambda,
+                }
+                auc, _ = self._compute_cv_auc(params, X_train_full, y_train_full)
+                return auc
+
+            study = optuna.create_study(direction="maximize")
+            study.optimize(objective, n_trials=self.n_trials)
+
+            best_params = study.best_params
+            best_params["objective"] = "multi:softprob"
+            best_params["num_class"] = self.n_classes
+            best_params["eval_metric"] = "mlogloss"
+
+            cv_val_auc, best_iter = self._compute_cv_auc(
+                best_params, X_train_full, y_train_full
+            )
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full, label=y_train_full, enable_categorical=True
+            )
+            model = xgb.train(
+                best_params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            train_auc = roc_auc_score(y_train_full, y_pred_train, multi_class="ovr")
+            return (
+                model,
+                X_test,
+                y_test,
+                selected_features,
+                train_auc,
+                cv_val_auc,
+                best_params,
+            )
+
+        def automated_with_rfe(self):
+            X_train_full = self.train_df[self.features]
+            y_train_full = self.train_df[self.target]
+            X_test = self.test_df[self.features]
+            y_test = self.test_df[self.target]
+
+            def objective(trial):
+                n_features_to_select = trial.suggest_categorical(
+                    "n_features_to_select", self.optuna_rfe_spaces["n_features_to_select"]
+                )
+                max_depth = trial.suggest_categorical(
+                    "max_depth", self.optuna_search_spaces["max_depth"]
+                )
+                eta = trial.suggest_float(
+                    "eta",
+                    self.optuna_search_spaces["eta"]["low"],
+                    self.optuna_search_spaces["eta"]["high"],
+                    log=self.optuna_search_spaces["eta"]["log"],
+                )
+                subsample = trial.suggest_categorical(
+                    "subsample", self.optuna_search_spaces["subsample"]
+                )
+                colsample_bytree = trial.suggest_categorical(
+                    "colsample_bytree", self.optuna_search_spaces["colsample_bytree"]
+                )
+                reg_alpha = trial.suggest_float(
+                    "reg_alpha",
+                    self.optuna_search_spaces["reg_alpha"]["low"],
+                    self.optuna_search_spaces["reg_alpha"]["high"],
+                    log=self.optuna_search_spaces["reg_alpha"]["log"],
+                )
+                reg_lambda = trial.suggest_float(
+                    "reg_lambda",
+                    self.optuna_search_spaces["reg_lambda"]["low"],
+                    self.optuna_search_spaces["reg_lambda"]["high"],
+                    log=self.optuna_search_spaces["reg_lambda"]["log"],
+                )
+
+                base_model = xgb.XGBClassifier(
+                    **self.default_params,
+                    random_state=self.random_state,
+                    enable_categorical=True,
+                )
+                rfe = RFE(estimator=base_model, n_features_to_select=n_features_to_select)
+                rfe.fit(X_train_full, y_train_full)
+
+                selected_features_trial = X_train_full.columns[rfe.support_].tolist()
+
+                params = {
+                    "objective": "multi:softprob",
+                    "num_class": self.n_classes,
+                    "eval_metric": "mlogloss",
+                    "max_depth": max_depth,
+                    "eta": eta,
+                    "subsample": subsample,
+                    "colsample_bytree": colsample_bytree,
+                    "reg_alpha": reg_alpha,
+                    "reg_lambda": reg_lambda,
+                }
+                auc, _ = self._compute_cv_auc(
+                    params, X_train_full, y_train_full, selected_features_trial
+                )
+                return auc
+
+            study = optuna.create_study(direction="maximize")
+            study.optimize(objective, n_trials=self.n_trials)
+
+            best_params = study.best_params
+            best_n = best_params.pop("n_features_to_select")
+            best_params["objective"] = "multi:softprob"
+            best_params["num_class"] = self.n_classes
+            best_params["eval_metric"] = "mlogloss"
+
+            # Re-do RFE with best_n on full train
+            base_model = xgb.XGBClassifier(
+                **self.default_params,
+                random_state=self.random_state,
+                enable_categorical=True,
+            )
+            rfe = RFE(estimator=base_model, n_features_to_select=best_n)
+            rfe.fit(X_train_full, y_train_full)
+
+            selected_features = X_train_full.columns[rfe.support_].tolist()
+
+            cv_val_auc, best_iter = self._compute_cv_auc(
+                best_params, X_train_full, y_train_full, selected_features
+            )
+
+            X_train_full_selected = X_train_full[selected_features]
+            X_test_selected = X_test[selected_features]
+
+            dtrain_full = xgb.DMatrix(
+                X_train_full_selected, label=y_train_full, enable_categorical=True
+            )
+            model = xgb.train(
+                best_params,
+                dtrain_full,
+                num_boost_round=best_iter + 1,
+                verbose_eval=False,
+            )
+            y_pred_train = model.predict(dtrain_full)
+            train_auc = roc_auc_score(y_train_full, y_pred_train, multi_class="ovr")
+            return (
+                model,
+                X_test_selected,
+                y_test,
+                selected_features,
+                train_auc,
+                cv_val_auc,
+                best_params,
+            )
+
+        def run_all(self):
+            model1, X_test1, y_test, sel1, train_auc1, cv_val_auc1, params1 = (
+                self.manual_without_rfe()
+            )
+            dtest1 = xgb.DMatrix(X_test1)
+            y_pred1 = model1.predict(dtest1)
+            test_auc1 = roc_auc_score(y_test, y_pred1, multi_class="ovr")
+            self.results["Manual without RFE"] = (
+                test_auc1,
+                train_auc1,
+                model1,
+                X_test1,
+                y_test,
+                sel1,
+                y_pred1,
+                cv_val_auc1,
+                params1,
+            )
+
+            model2, X_test2, y_test, sel2, train_auc2, cv_val_auc2, params2 = (
+                self.manual_with_rfe()
+            )
+            dtest2 = xgb.DMatrix(X_test2)
+            y_pred2 = model2.predict(dtest2)
+            test_auc2 = roc_auc_score(y_test, y_pred2, multi_class="ovr")
+            self.results["Manual with RFE"] = (
+                test_auc2,
+                train_auc2,
+                model2,
+                X_test2,
+                y_test,
+                sel2,
+                y_pred2,
+                cv_val_auc2,
+                params2,
+            )
+
+            model3, X_test3, y_test, sel3, train_auc3, cv_val_auc3, params3 = (
+                self.automated_without_rfe()
+            )
+            dtest3 = xgb.DMatrix(X_test3)
+            y_pred3 = model3.predict(dtest3)
+            test_auc3 = roc_auc_score(y_test, y_pred3, multi_class="ovr")
+            self.results["Automated without RFE"] = (
+                test_auc3,
+                train_auc3,
+                model3,
+                X_test3,
+                y_test,
+                sel3,
+                y_pred3,
+                cv_val_auc3,
+                params3,
+            )
+
+            model4, X_test4, y_test, sel4, train_auc4, cv_val_auc4, params4 = (
+                self.automated_with_rfe()
+            )
+            dtest4 = xgb.DMatrix(X_test4)
+            y_pred4 = model4.predict(dtest4)
+            test_auc4 = roc_auc_score(y_test, y_pred4, multi_class="ovr")
+            self.results["Automated with RFE"] = (
+                test_auc4,
+                train_auc4,
+                model4,
+                X_test4,
+                y_test,
+                sel4,
+                y_pred4,
+                cv_val_auc4,
+                params4,
+            )
+
+        def build_comparative(self):
+            comparative_data = {
+                "method": list(self.results.keys()),
+                "train_auc": [self.results[k][1] for k in self.results],
+                "train_cv_val_auc": [self.results[k][7] for k in self.results],
+                "test_auc": [self.results[k][0] for k in self.results],
+            }
+            self.comparative_df = pd.DataFrame(comparative_data)
+            abs_delta = np.abs(
+                self.comparative_df["train_auc"] - self.comparative_df["train_cv_val_auc"]
+            )
+            self.comparative_df["brownie_points"] = (
+                self.comparative_df["train_cv_val_auc"] - abs_delta
+            )
+            self.comparative_df = self.comparative_df.sort_values(
+                by="brownie_points", ascending=False
+            ).reset_index(drop=True)
+
+        def select_best(self):
+            # Updated to directly select the model with the highest brownie points
+            self.best_name = self.comparative_df.iloc[0]["method"]
+
+            (
+                self.best_auc,
+                train_auc,
+                self.model,
+                self.X_test_selected,
+                self.y_test,
+                self.selected_features,
+                self.y_pred_test,
+                _,
+                self.best_params,
+            ) = self.results[self.best_name]
+
+            self.test_base_rate = (
+                self.y_test.value_counts(normalize=True).sort_index().to_dict()
+            )
+
+        def create_metrics_df(self, y_test, y_pred_test, test_base_rate):
+            percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
+            results = []
+            max_probs = np.max(y_pred_test, axis=1)
+            preds_argmax = np.argmax(y_pred_test, axis=1)
+            for p in percentiles:
+                cutoff = np.percentile(max_probs, p)
+                confident_mask = max_probs >= cutoff
+                num_classified = np.sum(confident_mask)
+                percentile_dict = {}
+                percentile_dict["cutoff_prob"] = round(cutoff, 4)
+                if num_classified > 0:
+                    y_test_conf = y_test[confident_mask]
+                    preds_conf = preds_argmax[confident_mask]
+                    cm_conf = confusion_matrix(
+                        y_test_conf, preds_conf, labels=range(self.n_classes)
+                    )
+                    for i in range(self.n_classes):
+                        for j in range(self.n_classes):
+                            percentile_dict[f"a{i}p{j}"] = cm_conf[i, j]
+                    precisions_conf = []
+                    recalls_conf = []
+                    f1s_conf = []
+                    for i in range(self.n_classes):
+                        tp = cm_conf[i, i]
+                        fp = np.sum(cm_conf[:, i]) - tp
+                        fn = np.sum(cm_conf[i, :]) - tp
+                        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+                        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+                        f1 = (
+                            2 * precision * recall / (precision + recall)
+                            if (precision + recall) > 0
+                            else 0.0
+                        )
+                        precisions_conf.append(precision)
+                        recalls_conf.append(recall)
+                        f1s_conf.append(f1)
+                    precision_macro = np.mean(precisions_conf)
+                    recall_macro = np.mean(recalls_conf)
+                    f1_macro = np.mean(f1s_conf)
+                    accuracy = accuracy_score(y_test_conf, preds_conf)
+                else:
+                    for i in range(self.n_classes):
+                        for j in range(self.n_classes):
+                            percentile_dict[f"a{i}p{j}"] = 0
+                    precisions_conf = [0.0] * self.n_classes
+                    recalls_conf = [0.0] * self.n_classes
+                    f1s_conf = [0.0] * self.n_classes
+                    precision_macro = 0.0
+                    recall_macro = 0.0
+                    f1_macro = 0.0
+                    accuracy = 0.0
+                percentile_dict["macro_precision"] = round(precision_macro, 4)
+                percentile_dict["macro_recall"] = round(recall_macro, 4)
+                percentile_dict["macro_f1"] = round(f1_macro, 4)
+                percentile_dict["accuracy"] = round(accuracy, 4)
+                lifts_conf = [
+                    precisions_conf[i] / test_base_rate[i]
+                    if test_base_rate[i] > 0 and precisions_conf[i] > 0
+                    else 0
+                    for i in range(self.n_classes)
+                ]
+                for i in range(self.n_classes):
+                    percentile_dict[f"c{i}_precision"] = round(precisions_conf[i], 4)
+                    percentile_dict[f"c{i}_recall"] = round(recalls_conf[i], 4)
+                    percentile_dict[f"c{i}_f1"] = round(f1s_conf[i], 4)
+                    percentile_dict[f"c{i}_lift"] = round(lifts_conf[i], 2)
+                results.append(percentile_dict)
+
+            metrics_df = pd.DataFrame(results).set_index(
+                pd.Index([f"P{p}" for p in percentiles])
+            )
+
+            return metrics_df
+
+        def optimize(self):
+            self.run_all()
+            self.build_comparative()
+            self.select_best()
+
+            # Compute feature importance for the best model
+            importance_gain = self.model.get_score(importance_type="gain")
+            if importance_gain:
+                total_gain = sum(importance_gain.values())
+                normalized_gain = {
+                    feat: gain / total_gain for feat, gain in importance_gain.items()
+                }
+                self.best_features_df = pd.DataFrame(
+                    {
+                        "feature": list(normalized_gain.keys()),
+                        "importance_gain_normalized": list(normalized_gain.values()),
+                    }
+                ).sort_values(by="importance_gain_normalized", ascending=False)
+                self.best_features_df["importance_rank"] = range(
+                    1, len(self.best_features_df) + 1
+                )
+                self.best_features_df = self.best_features_df.set_index("importance_rank")
+            else:
+                self.best_features_df = pd.DataFrame()
+
+            model_v_baseline_data = {
+                "approach": ["Model", "Baseline"],
+                "auc": [self.best_auc, 0.5],
+            }
+            model_v_baseline_df = pd.DataFrame(model_v_baseline_data).set_index("approach")
+
+            metrics_df = self.create_metrics_df(
+                self.y_test, self.y_pred_test, self.test_base_rate
+            )
+
+            return {
+                "comparative_df": self.comparative_df,
+                "model": self.model,
+                "selected_features": self.selected_features,
+                "test_base_rate": self.test_base_rate,
+                "best_features_df": self.best_features_df,
+                "model_v_baseline_df": model_v_baseline_df,
+                "metrics_df": metrics_df,
+                "best_params": self.best_params,
+            }
+
+
+    print("=== tabular_data_df (first 10 rows) ===")
+    print(tabular_data_df.head(10))
+
+    columns = tabular_data_df.columns.to_list()
+    columns.remove("target")
+    columns.remove("timestamp")
+    features = columns
+    target = "target"
 
     # Example usage
-    maximizer = AUCMaximizer(tabular_data_df, features, 'class')
+    splitter = TrainTestSplitter(
+        tabular_data_df, features, target=target, xgb_objective="multi:softprob"
+    )
+    train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
+
+    maximizer = AUCMaximizer(train_df, test_df, features, target, Config())
     results = maximizer.optimize()
-    maximizer.print_results()
+
+    print("\n=== Comparative Model Results ===")
+    print(results["comparative_df"].to_string(index=False))
+
+    print("\n=== Model vs Baseline ===")
+    print(results["model_v_baseline_df"].to_string(float_format="{:.4f}".format))
+
+    print("\nSelected Features:")
+    print(results["selected_features"])
+
+    print("\nClass base rates on test set:")
+    print(results["test_base_rate"])
 
     print("\n=== best_features_df (Top Features by Gain) ===")
-    print(results['best_features_df'].to_string(float_format="{:.4f}".format))
+    print(results["best_features_df"].to_string(float_format="{:.4f}".format))
 
-    metrics_comp = MetricsComputer(results['y_test'], results['y_pred_test'], results['base_rates'])
-    overall_metrics_df, cm_df, metrics_df = metrics_comp.compute_metrics()
-    print("\n=== Overall Performance Metrics (Best Model) ===")
-    print(overall_metrics_df.to_string())
-    print("\n=== Confusion Matrix (Best Model) ===")
-    print(cm_df.to_string())
     print("\n=== Performance by Percentile Threshold (Best Model) ===")
-    print(metrics_df.to_string())
-    #!              cutoff  avg_pred  avg_actual     mae    rmse    lift
-    #! percentile
-    #! P99         11.7430   13.5616     14.4697  2.1531  2.5311  4.2645
-    #! P95          7.4885   10.0334     10.3819  1.7722  2.3128  3.0598
-    #! P90          6.0153    8.3771      8.5573  1.4777  2.0037  2.5220
-    #! P85          5.0194    7.3983      7.5583  1.2936  1.7732  2.2276
-    #! P80          4.5000    6.7331      6.8971  1.2012  1.6453  2.0327
-    #! P75          4.0965    6.2463      6.3980  1.0782  1.5103  1.8856
-    #! P70          3.7181    5.8545      5.9804  1.0038  1.4160  1.7625
-    #! P65          3.4268    5.5296      5.6495  0.9453  1.3410  1.6650
-    #! P60          3.1664    5.2518      5.3699  0.8964  1.2798  1.5826
-    #! P55          2.9324    5.0068      5.1196  0.8466  1.2219  1.5089
-    #! P50          2.6792    4.7851      4.8913  0.8065  1.1723  1.4416
-    #! P45          2.4735    4.5840      4.6856  0.7720  1.1305  1.3810
-    #! P40          2.2869    4.3997      4.5048  0.7424  1.0924  1.3277
-    #! P35          2.0921    4.2303      4.3323  0.7168  1.0598  1.2768
-    #! P30          1.8960    4.0704      4.1702  0.6900  1.0272  1.2290
-    #! P25          1.7457    3.9202      4.0211  0.6659  0.9982  1.1851
-    #! P20          1.5851    3.7794      3.8745  0.6408  0.9701  1.1419
-    #! P15          1.4365    3.6457      3.7361  0.6178  0.9441  1.1011
-    #! P10          1.2299    3.5174      3.6067  0.5964  0.9208  1.0630
-    #! P5           1.0253    3.3921      3.4766  0.5748  0.8977  1.0246
-    #! P1           0.6922    3.2899      3.3708  0.5572  0.8800  0.9935
+    print(results["metrics_df"].to_string())
+
+    print("\n=== Best Model Parameters ===")
+    print(results["best_params"])
 
     print("\nNOTE:")
     print("- Metrics include macro averages and per-class precision, recall, f1, lift")
     print("- Lift = precision / base_rate for each class")
-    print("- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile")
-    print("- Higher percentile = stricter threshold = higher precision_macro, lower coverage")
+    print(
+        "- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile"
+    )
+    print(
+        "- Higher percentile = stricter threshold = higher precision_macro, lower coverage"
+    )
 
     # Demonstrate making a prediction
-    example_row = tabular_data_df.iloc[0][results['selected_features']]
+    example_row = tabular_data_df.iloc[0][results["selected_features"]]
     dexample = xgb.DMatrix(pd.DataFrame([example_row]))
-    example_pred = results['model'].predict(dexample)[0]
+    example_pred = results["model"].predict(dexample)[0]
 
     print(f"\n=== Example Prediction ===")
     print(f"Input features:\n{results['selected_features']}")
     print(f"Predicted class probabilities: {example_pred}")
     print(f"Predicted class: {np.argmax(example_pred)}")
+
+
 
 

@@ -13,7 +13,18 @@ from xgb_synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 
 
 class ModelBuilder:
-    def __init__(self, train_df, test_df, selected_features, target, params, num_boost_round=200, early_stopping_rounds=20, n_folds=3, random_state=42):
+    def __init__(
+        self,
+        train_df,
+        test_df,
+        selected_features,
+        target,
+        params,
+        num_boost_round=200,
+        early_stopping_rounds=20,
+        n_folds=3,
+        random_state=42,
+    ):
         self.train_df = train_df
         self.test_df = test_df
         self.selected_features = selected_features
@@ -32,7 +43,9 @@ class ModelBuilder:
         self.n_classes = self.train_df[self.target].nunique()
 
     def _compute_cv_auc_best_iter(self, X, y):
-        skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True, random_state=self.random_state)
+        skf = StratifiedKFold(
+            n_splits=self.n_folds, shuffle=True, random_state=self.random_state
+        )
         aucs = []
         best_iters = []
         for train_idx, val_idx in skf.split(X, y):
@@ -44,12 +57,12 @@ class ModelBuilder:
                 self.params,
                 dtr,
                 num_boost_round=self.num_boost_round,
-                evals=[(dv, 'val')],
+                evals=[(dv, "val")],
                 early_stopping_rounds=self.early_stopping_rounds,
                 verbose_eval=False,
             )
             pred_v = model.predict(dv)
-            auc = roc_auc_score(y_v, pred_v, multi_class='ovr')
+            auc = roc_auc_score(y_v, pred_v, multi_class="ovr")
             aucs.append(auc)
             best_iters.append(model.best_iteration)
         return np.mean(aucs), int(np.mean(best_iters))
@@ -72,22 +85,31 @@ class ModelBuilder:
         )
 
         y_pred_train = self.model.predict(dtrain_full)
-        self.train_auc = roc_auc_score(y_train, y_pred_train, multi_class='ovr')
+        self.train_auc = roc_auc_score(y_train, y_pred_train, multi_class="ovr")
 
         dtest = xgb.DMatrix(X_test)
         self.y_pred_test = self.model.predict(dtest)
-        self.test_auc = roc_auc_score(y_test, self.y_pred_test, multi_class='ovr')
+        self.test_auc = roc_auc_score(y_test, self.y_pred_test, multi_class="ovr")
 
         self.test_base_rate = y_test.value_counts(normalize=True).sort_index().to_dict()
 
-        metrics_df = self.create_metrics_df(y_test, self.y_pred_test, self.test_base_rate)
+        metrics_df = self.create_metrics_df(
+            y_test, self.y_pred_test, self.test_base_rate
+        )
 
-        performance_df = pd.DataFrame({
-            'metric': ['Train AUC', 'CV Val AUC', 'Test AUC'],
-            'value': [self.train_auc, self.cv_val_auc, self.test_auc]
-        })
+        performance_df = pd.DataFrame(
+            {
+                "metric": ["Train AUC", "CV Val AUC", "Test AUC"],
+                "value": [self.train_auc, self.cv_val_auc, self.test_auc],
+            }
+        )
 
-        return {'model': self.model, 'metrics_df': metrics_df, 'performance_df': performance_df, 'test_base_rate': self.test_base_rate}
+        return {
+            "model": self.model,
+            "metrics_df": metrics_df,
+            "performance_df": performance_df,
+            "test_base_rate": self.test_base_rate,
+        }
 
     def create_metrics_df(self, y_test, y_pred_test, test_base_rate):
         percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
@@ -99,14 +121,16 @@ class ModelBuilder:
             confident_mask = max_probs >= cutoff
             num_classified = np.sum(confident_mask)
             percentile_dict = {}
-            percentile_dict['cutoff_prob'] = round(cutoff, 4)
+            percentile_dict["cutoff_prob"] = round(cutoff, 4)
             if num_classified > 0:
                 y_test_conf = y_test[confident_mask]
                 preds_conf = preds_argmax[confident_mask]
-                cm_conf = confusion_matrix(y_test_conf, preds_conf, labels=range(self.n_classes))
+                cm_conf = confusion_matrix(
+                    y_test_conf, preds_conf, labels=range(self.n_classes)
+                )
                 for i in range(self.n_classes):
                     for j in range(self.n_classes):
-                        percentile_dict[f'a{i}p{j}'] = cm_conf[i, j]
+                        percentile_dict[f"a{i}p{j}"] = cm_conf[i, j]
                 precisions_conf = []
                 recalls_conf = []
                 f1s_conf = []
@@ -116,7 +140,11 @@ class ModelBuilder:
                     fn = np.sum(cm_conf[i, :]) - tp
                     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
                     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-                    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+                    f1 = (
+                        2 * precision * recall / (precision + recall)
+                        if (precision + recall) > 0
+                        else 0.0
+                    )
                     precisions_conf.append(precision)
                     recalls_conf.append(recall)
                     f1s_conf.append(f1)
@@ -127,7 +155,7 @@ class ModelBuilder:
             else:
                 for i in range(self.n_classes):
                     for j in range(self.n_classes):
-                        percentile_dict[f'a{i}p{j}'] = 0
+                        percentile_dict[f"a{i}p{j}"] = 0
                 precisions_conf = [0.0] * self.n_classes
                 recalls_conf = [0.0] * self.n_classes
                 f1s_conf = [0.0] * self.n_classes
@@ -135,59 +163,61 @@ class ModelBuilder:
                 recall_macro = 0.0
                 f1_macro = 0.0
                 accuracy = 0.0
-            percentile_dict['macro_precision'] = round(precision_macro, 4)
-            percentile_dict['macro_recall'] = round(recall_macro, 4)
-            percentile_dict['macro_f1'] = round(f1_macro, 4)
-            percentile_dict['accuracy'] = round(accuracy, 4)
-            lifts_conf = [precisions_conf[i] / test_base_rate[i] if test_base_rate[i] > 0 and precisions_conf[i] > 0 else 0 for i in range(self.n_classes)]
+            percentile_dict["macro_precision"] = round(precision_macro, 4)
+            percentile_dict["macro_recall"] = round(recall_macro, 4)
+            percentile_dict["macro_f1"] = round(f1_macro, 4)
+            percentile_dict["accuracy"] = round(accuracy, 4)
+            lifts_conf = [
+                precisions_conf[i] / test_base_rate[i]
+                if test_base_rate[i] > 0 and precisions_conf[i] > 0
+                else 0
+                for i in range(self.n_classes)
+            ]
             for i in range(self.n_classes):
-                percentile_dict[f'c{i}_precision'] = round(precisions_conf[i], 4)
-                percentile_dict[f'c{i}_recall'] = round(recalls_conf[i], 4)
-                percentile_dict[f'c{i}_f1'] = round(f1s_conf[i], 4)
-                percentile_dict[f'c{i}_lift'] = round(lifts_conf[i], 2)
+                percentile_dict[f"c{i}_precision"] = round(precisions_conf[i], 4)
+                percentile_dict[f"c{i}_recall"] = round(recalls_conf[i], 4)
+                percentile_dict[f"c{i}_f1"] = round(f1s_conf[i], 4)
+                percentile_dict[f"c{i}_lift"] = round(lifts_conf[i], 2)
             results.append(percentile_dict)
 
-        metrics_df = pd.DataFrame(results, index=[f'P{p}' for p in percentiles])
+        metrics_df = pd.DataFrame(results, index=[f"P{p}" for p in percentiles])
         return metrics_df
 
 
 # Create synthetic dataset using generator
 generator = SyntheticTabularDataDfGenerator()
-tabular_data_df = generator.generate('multi:softprob')
+tabular_data_df = generator.generate("multi:softprob")
 print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
 # Hardcoded configurations (update these based on results from the maximizer script)
-target = 'target'
-selected_features = ['feat_0', 'feat_1','feat_2','feat_3','feat_4']
+target = "target"
+selected_features = ["feat_0", "feat_1", "feat_2", "feat_3", "feat_4"]
 
 params = {
-    'objective': 'multi:softprob',
-    'eval_metric': 'mlogloss',
-    'max_depth': 6,
-    'eta': 0.1,
-    'subsample': 0.8,
-    'colsample_bytree': 0.8,
+    "objective": "multi:softprob",
+    "eval_metric": "mlogloss",
+    "max_depth": 6,
+    "eta": 0.1,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
 }
-params['num_class'] = tabular_data_df[target].nunique()
+params["num_class"] = tabular_data_df[target].nunique()
 
 splitter = TrainTestSplitter(
-    tabular_data_df, 
-    selected_features, 
-    target='target',
-    xgb_objective='multi:softprob'
+    tabular_data_df, selected_features, target="target", xgb_objective="multi:softprob"
 )
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
 
 builder = ModelBuilder(train_df, test_df, selected_features, target, params)
 results = builder.build()
-model = results['model']
-metrics_df = results['metrics_df']
-performance_df = results['performance_df']
-test_base_rate = results['test_base_rate']
+model = results["model"]
+metrics_df = results["metrics_df"]
+performance_df = results["performance_df"]
+test_base_rate = results["test_base_rate"]
 
 # Modify for printing
-performance_df['metric'] = performance_df['metric'] + ':'
+performance_df["metric"] = performance_df["metric"] + ":"
 
 # Outputs
 print("\n=== Model Performance ===")
@@ -213,6 +243,10 @@ print(f"Predicted class probabilities: {example_pred}")
 print(f"Predicted class: {np.argmax(example_pred)}")
 
 print("\nNOTE:")
-print("- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile")
-print("- Higher percentile = stricter threshold = higher macro_precision, lower coverage")
+print(
+    "- 'Pxx' means selecting samples with max predicted probability >= xx-th percentile"
+)
+print(
+    "- Higher percentile = stricter threshold = higher macro_precision, lower coverage"
+)
 print("- Lift = precision / base_rate for each class")

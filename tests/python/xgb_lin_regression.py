@@ -11,8 +11,20 @@ from sklearn.model_selection import KFold
 from xgb_train_test_splitter import TrainTestSplitter
 from xgb_synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 
+
 class ModelBuilder:
-    def __init__(self, train_df, test_df, selected_features, target, params, num_boost_round=200, early_stopping_rounds=20, n_folds=3, random_state=42):
+    def __init__(
+        self,
+        train_df,
+        test_df,
+        selected_features,
+        target,
+        params,
+        num_boost_round=200,
+        early_stopping_rounds=20,
+        n_folds=3,
+        random_state=42,
+    ):
         self.train_df = train_df.copy()
         self.test_df = test_df.copy()
         self.selected_features = selected_features
@@ -42,7 +54,7 @@ class ModelBuilder:
                 self.params,
                 dtr,
                 num_boost_round=self.num_boost_round,
-                evals=[(dv, 'val')],
+                evals=[(dv, "val")],
                 early_stopping_rounds=self.early_stopping_rounds,
                 verbose_eval=False,
             )
@@ -78,14 +90,23 @@ class ModelBuilder:
 
         self.test_base_mean = y_test.mean()
 
-        metrics_df = self.create_metrics_df(y_test, self.y_pred_test, self.test_base_mean)
+        metrics_df = self.create_metrics_df(
+            y_test, self.y_pred_test, self.test_base_mean
+        )
 
-        performance_df = pd.DataFrame({
-            'metric': ['Train R2', 'CV Val R2', 'Test R2'],
-            'value': [self.train_r2, self.cv_val_r2, self.test_r2]
-        })
+        performance_df = pd.DataFrame(
+            {
+                "metric": ["Train R2", "CV Val R2", "Test R2"],
+                "value": [self.train_r2, self.cv_val_r2, self.test_r2],
+            }
+        )
 
-        return {'model': self.model, 'metrics_df': metrics_df, 'performance_df': performance_df, 'test_base_mean': self.test_base_mean}
+        return {
+            "model": self.model,
+            "metrics_df": metrics_df,
+            "performance_df": performance_df,
+            "test_base_mean": self.test_base_mean,
+        }
 
     def create_metrics_df(self, y_test, y_pred, test_base_mean):
         percentiles = [100, 99] + list(range(95, 0, -5)) + [1, 0]
@@ -102,55 +123,58 @@ class ModelBuilder:
             mae_val = mean_absolute_error(sub_actual, sub_pred)
             rmse_val = root_mean_squared_error(sub_actual, sub_pred)
             lift = avg_actual / test_base_mean if test_base_mean > 0 else 0
-            table_rows.append({
-                'percentile': f'P{p}',
-                'cutoff': round(cutoff, 4),
-                'avg_pred': round(avg_pred, 4),
-                'avg_actual': round(avg_actual, 4),
-                'mae': round(mae_val, 4),
-                'rmse': round(rmse_val, 4),
-                'lift': round(lift, 2),
-            })
-        metrics_df = pd.DataFrame(table_rows).set_index('percentile')
+            table_rows.append(
+                {
+                    "percentile": f"P{p}",
+                    "cutoff": round(cutoff, 4),
+                    "avg_pred": round(avg_pred, 4),
+                    "avg_actual": round(avg_actual, 4),
+                    "mae": round(mae_val, 4),
+                    "rmse": round(rmse_val, 4),
+                    "lift": round(lift, 2),
+                }
+            )
+        metrics_df = pd.DataFrame(table_rows).set_index("percentile")
         return metrics_df
+
 
 # Create synthetic dataset using generator
 generator = SyntheticTabularDataDfGenerator()
-tabular_data_df = generator.generate('reg:squarederror')
+tabular_data_df = generator.generate("reg:squarederror")
 
 print("=== tabular_data_df (first 10 rows) ===")
 print(tabular_data_df.head(10))
 
 # Hardcoded configurations (update these based on results from the maximizer script)
-target = 'target'
-selected_features = ['feat_0', 'feat_1','feat_2','feat_3','feat_4']
+target = "target"
+selected_features = ["feat_0", "feat_1", "feat_2", "feat_3", "feat_4"]
 params = {
-    'objective': 'reg:squarederror',
-    'eval_metric': 'rmse',
-    'max_depth': 6,
-    'eta': 0.1,
-    'subsample': 0.8,
-    'colsample_bytree': 0.8,
+    "objective": "reg:squarederror",
+    "eval_metric": "rmse",
+    "max_depth": 6,
+    "eta": 0.1,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
     # Add/update other params as needed, e.g., 'reg_alpha': 0.001, etc.
 }
 
 splitter = TrainTestSplitter(
-    tabular_data_df, 
-    selected_features, 
-    target='target',
-    xgb_objective='reg:squarederror'
+    tabular_data_df,
+    selected_features,
+    target="target",
+    xgb_objective="reg:squarederror",
 )
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
 
 builder = ModelBuilder(train_df, test_df, selected_features, target, params)
 results = builder.build()
-model = results['model']
-metrics_df = results['metrics_df']
-performance_df = results['performance_df']
-test_base_mean = results['test_base_mean']
+model = results["model"]
+metrics_df = results["metrics_df"]
+performance_df = results["performance_df"]
+test_base_mean = results["test_base_mean"]
 
 # Modify for printing
-performance_df['metric'] = performance_df['metric'] + ':'
+performance_df["metric"] = performance_df["metric"] + ":"
 
 # Outputs
 print("\n=== Model Performance ===")
@@ -174,6 +198,8 @@ print(f"Input features:\n{selected_features}")
 print(f"Predicted target: {example_pred:.4f}")
 
 print("\nNOTE:")
-print("- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)")
+print(
+    "- 'Pxx' means selecting samples with predicted value >= xx-th percentile (i.e., top (100-xx)%)"
+)
 print("- Higher percentile = stricter threshold = higher lift, lower count")
 print("- Lift = avg_actual / base_mean")
