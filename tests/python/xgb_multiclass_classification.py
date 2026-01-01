@@ -9,7 +9,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import StratifiedKFold
 from xgb_train_test_splitter import TrainTestSplitter
-from synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
+from xgb_synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 
 
 class ModelBuilder:

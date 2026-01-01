@@ -9,7 +9,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import KFold
 from xgb_train_test_splitter import TrainTestSplitter
-from synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
+from xgb_synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 
 class ModelBuilder:
     def __init__(self, train_df, test_df, selected_features, target, params, num_boost_round=200, early_stopping_rounds=20, n_folds=3, random_state=42):
