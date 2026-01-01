@@ -15,6 +15,7 @@ from sklearn.metrics import (
 )
 from sklearn.feature_selection import RFE
 from xgb_train_test_splitter import TrainTestSplitter
+from xgb_synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 from dataclasses import dataclass, field
 
 @dataclass
@@ -49,37 +50,6 @@ class Config:
         'n_features_to_select': [5, 7, 10, 12, 15]
     })
 
-# Set seed for reproducibility
-np.random.seed(42)
-
-# Create dummy dataset
-n_users = 10000
-n_features = 20
-
-features = [f"feat_{i}" for i in range(n_features)]
-X = pd.DataFrame(
-    np.random.dirichlet(np.ones(n_features), size=n_users),
-    columns=features,
-    index=pd.RangeIndex(n_users, name="user_id"),
-)
-
-# Synthetic target correlated with a few features
-logits = (
-    -3.0
-    + 8 * X["feat_0"]
-    + 5 * X["feat_1"]
-    + np.random.normal(0, 1, n_users)
-)
-probs = 1 / (1 + np.exp(-logits))
-y = pd.Series(np.random.binomial(1, probs), index=X.index, name="converted")
-
-# Combine features and target into one DataFrame before modeling
-tabular_data_df = X.copy()
-tabular_data_df["converted"] = y
-tabular_data_df['timestamp'] = pd.date_range(start='2023-01-01', periods=n_users, freq='min')
-
-print("=== tabular_data_df (first 10 rows) ===")
-print(tabular_data_df.head(10))
 
 class AUCMaximizer:
     def __init__(self, train_df, test_df, features, target, config: Config):
@@ -497,17 +467,31 @@ class AUCMaximizer:
             'best_params': self.best_params
         }
 
+# Create synthetic dataset using generator
+generator = SyntheticTabularDataDfGenerator()
+tabular_data_df = generator.generate('binary:logistic')
+print("=== tabular_data_df (first 10 rows) ===")
+print(tabular_data_df.head(10))
+
+columns = tabular_data_df.columns.to_list()
+columns.remove('target')  
+columns.remove('timestamp')  
+features = columns
+target = 'target'
+
+
+
 splitter = TrainTestSplitter(
     tabular_data_df, 
     features, 
-    target='converted',
+    target,
     xgb_objective='binary:logistic'
 )
 # DO NOT REMOVE THE BELOW COMMENTS
 # train_df, test_df = splitter.time_percentile_split(timestamp_col='timestamp', percentile=0.8)
 # train_df, test_df = splitter.time_split(timestamp_col='timestamp', split_timestamp='2023-01-04 11:20:00')
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
-maximizer = AUCMaximizer(train_df, test_df, features, 'converted', Config())
+maximizer = AUCMaximizer(train_df, test_df, features, target, Config())
 results = maximizer.optimize()
 
 print("\n=== Comparative Model Results ===")

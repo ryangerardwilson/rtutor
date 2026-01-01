@@ -463,12 +463,6 @@ columns = tabular_data_df.columns.to_list()
 columns.remove('target')  
 columns.remove('timestamp')  
 features = columns
-
-print(columns)
-print(features)
-print(tabular_data_df)
-
-# Hardcoded configurations (update these based on results from the maximizer script)
 target = 'target'
 
 # Example usage
