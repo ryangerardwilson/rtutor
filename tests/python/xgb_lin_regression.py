@@ -9,41 +9,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import KFold
 from xgb_train_test_splitter import TrainTestSplitter
-
-# Set seed for reproducibility
-np.random.seed(42)
-
-# Create synthetic dataset
-n_samples = 10000
-n_features = 20
-
-features = [f"feat_{i}" for i in range(n_features)]
-X = pd.DataFrame(
-    np.random.normal(0, 1, size=(n_samples, n_features)),
-    columns=features,
-    index=pd.RangeIndex(n_samples, name="id"),
-)
-
-# True underlying relationship
-true_intercept = 1.0
-true_coeffs = np.zeros(n_features)
-true_coeffs[0] = 0.5    # Strong positive
-true_coeffs[1] = -0.3   # Strong negative
-true_coeffs[2] = 0.2    # Moderate positive
-true_coeffs[3] = 0.15   # Smaller positive
-# Rest are irrelevant (true coeff = 0)
-
-noise = np.random.normal(0, 0.2, n_samples)
-linear = true_intercept + X @ true_coeffs + noise
-y = pd.Series(np.exp(linear), name="target")
-
-# Combine into one DataFrame
-tabular_data_df = X.copy()
-tabular_data_df["target"] = y
-tabular_data_df['timestamp'] = pd.date_range(start='2023-01-01', periods=n_samples, freq='min')
-
-print("=== tabular_data_df (first 10 rows) ===")
-print(tabular_data_df.head(10))
+from synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 
 class ModelBuilder:
     def __init__(self, train_df, test_df, selected_features, target, params, num_boost_round=200, early_stopping_rounds=20, n_folds=3, random_state=42):
@@ -148,9 +114,16 @@ class ModelBuilder:
         metrics_df = pd.DataFrame(table_rows).set_index('percentile')
         return metrics_df
 
+# Create synthetic dataset using generator
+generator = SyntheticTabularDataDfGenerator()
+tabular_data_df = generator.generate('reg:squarederror')
+
+print("=== tabular_data_df (first 10 rows) ===")
+print(tabular_data_df.head(10))
+
 # Hardcoded configurations (update these based on results from the maximizer script)
 target = 'target'
-selected_features = features  # Specify your selected features here, e.g., ['feat_0', 'feat_1', ...]
+selected_features = ['feat_0', 'feat_1','feat_2','feat_3','feat_4']
 params = {
     'objective': 'reg:squarederror',
     'eval_metric': 'rmse',
@@ -163,7 +136,7 @@ params = {
 
 splitter = TrainTestSplitter(
     tabular_data_df, 
-    features, 
+    selected_features, 
     target='target',
     xgb_objective='reg:squarederror'
 )

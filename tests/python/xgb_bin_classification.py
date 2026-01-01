@@ -11,39 +11,8 @@ from sklearn.metrics import (
     accuracy_score,
 )
 from xgb_train_test_splitter import TrainTestSplitter
-import os
+from synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 
-# Set seed for reproducibility
-np.random.seed(42)
-
-# Create dummy dataset
-n_users = 10000
-n_features = 20
-
-features = [f"feat_{i}" for i in range(n_features)]
-X = pd.DataFrame(
-    np.random.dirichlet(np.ones(n_features), size=n_users),
-    columns=features,
-    index=pd.RangeIndex(n_users, name="user_id"),
-)
-
-# Synthetic target correlated with a few features
-logits = (
-    -3.0
-    + 8 * X["feat_0"]
-    + 5 * X["feat_1"]
-    + np.random.normal(0, 1, n_users)
-)
-probs = 1 / (1 + np.exp(-logits))
-y = pd.Series(np.random.binomial(1, probs), index=X.index, name="converted")
-
-# Combine features and target into one DataFrame before modeling
-tabular_data_df = X.copy()
-tabular_data_df["converted"] = y
-tabular_data_df['timestamp'] = pd.date_range(start='2023-01-01', periods=n_users, freq='min')
-
-print("=== tabular_data_df (first 10 rows) ===")
-print(tabular_data_df.head(10))
 
 class ModelBuilder:
     def __init__(self, train_df, test_df, selected_features, target, params, num_boost_round=200, early_stopping_rounds=20, n_folds=3, random_state=42):
@@ -138,9 +107,17 @@ class ModelBuilder:
         metrics_df = pd.DataFrame(table_rows).set_index('percentile')
         return metrics_df
 
+# Create synthetic dataset using generator
+generator = SyntheticTabularDataDfGenerator()
+tabular_data_df = generator.generate('binary:logistic')
+print("=== tabular_data_df (first 10 rows) ===")
+print(tabular_data_df.head(10))
+
 # Hardcoded configurations (update these based on results from the maximizer script)
-target = 'converted'
-selected_features = features  # Specify your selected features here, e.g., ['feat_0', 'feat_1', ...]
+target = 'target'
+selected_features = ['feat_0', 'feat_1','feat_2','feat_3','feat_4']
+
+# Hardcoded configurations (update these based on results from the maximizer script)
 params = {
     'objective': 'binary:logistic',
     'eval_metric': 'auc',
@@ -152,8 +129,8 @@ params = {
 
 splitter = TrainTestSplitter(
     tabular_data_df, 
-    features, 
-    target='converted',
+    selected_features, 
+    target='target',
     xgb_objective='binary:logistic'
 )
 train_df, test_df = splitter.random_split(test_size=0.2, random_state=42)
