@@ -13,6 +13,7 @@ from sklearn.metrics import (
 )
 from sklearn.feature_selection import RFE
 from xgb_train_test_splitter import TrainTestSplitter
+from xgb_synthetic_tabular_data_generator import SyntheticTabularDataDfGenerator
 from dataclasses import dataclass, field
 
 @dataclass
@@ -46,41 +47,6 @@ class Config:
     optuna_rfe_spaces: dict = field(default_factory=lambda: {
         'n_features_to_select': [5, 7, 10, 12, 15]
     })
-
-# Set seed for reproducibility
-np.random.seed(42)
-
-# Create synthetic dataset
-n_samples = 10000
-n_features = 20
-
-features = [f"feat_{i}" for i in range(n_features)]
-X = pd.DataFrame(
-    np.random.normal(0, 1, size=(n_samples, n_features)),
-    columns=features,
-    index=pd.RangeIndex(n_samples, name="id"),
-)
-
-# True underlying relationship
-true_intercept = 1.0
-true_coeffs = np.zeros(n_features)
-true_coeffs[0] = 0.5    # Strong positive
-true_coeffs[1] = -0.3   # Strong negative
-true_coeffs[2] = 0.2    # Moderate positive
-true_coeffs[3] = 0.15   # Smaller positive
-# Rest are irrelevant (true coeff = 0)
-
-noise = np.random.normal(0, 0.2, n_samples)
-linear = true_intercept + X @ true_coeffs + noise
-y = pd.Series(np.exp(linear), name="target")
-
-# Combine into one DataFrame
-tabular_data_df = X.copy()
-tabular_data_df["target"] = y
-tabular_data_df['timestamp'] = pd.date_range(start='2023-01-01', periods=n_samples, freq='min')
-
-print("=== tabular_data_df (first 10 rows) ===")
-print(tabular_data_df.head(10))
 
 class R2Maximizer:
     def __init__(self, train_df, test_df, features, target, config: Config):
@@ -486,6 +452,24 @@ class R2Maximizer:
             'metrics_df': metrics_df,
             'best_params': self.best_params
         }
+
+# Create synthetic dataset using generator
+generator = SyntheticTabularDataDfGenerator()
+tabular_data_df = generator.generate('reg:squarederror')
+print("=== tabular_data_df (first 10 rows) ===")
+print(tabular_data_df.head(10))
+
+columns = tabular_data_df.columns.to_list()
+columns.remove('target')  
+columns.remove('timestamp')  
+features = columns
+
+print(columns)
+print(features)
+print(tabular_data_df)
+
+# Hardcoded configurations (update these based on results from the maximizer script)
+target = 'target'
 
 # Example usage
 splitter = TrainTestSplitter(
