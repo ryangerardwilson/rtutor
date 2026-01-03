@@ -395,11 +395,25 @@
     three unrelated things, you split it into multiple CTEs like you would split a 
     500-line C function.
 
-## Part III: Workflow Patterns
+## Part III: ANSI SQL
 
-### Section 1: Data Science
+### Section 1: Data Science Workflow Patterns
 
-#### Lesson 1: Using Count and Group By for Quick Inspections
+#### Lesson 1: Introduction
+
+    /* ANSI SQL is a standardized language promoting portability across database systems, 
+    allowing queries to run with minimal changes on compliant DBMS. Modern tools like 
+    MySQL, PostgreSQL, Snowflake, and Metabase align with it for interoperability, 
+    maintainability, and ecosystem integration.
+
+    However, for our focus on these tools in analytical workflows, we'll use the LIMIT 
+    clause—a non-ANSI extension supported by all—for concise result limiting, 
+    prioritizing usability over strict standards. Queries can be adapted to ANSI's 
+    FETCH FIRST if needed.
+
+    The following lessons provide practical SQL patterns for data science workflows.*/
+
+#### Lesson 1: Inspections
 
     -- 1. Check if a specific column is a key candidate by itself
     SELECT COUNT(*) FROM your_table;
@@ -413,69 +427,153 @@
     SELECT source, action_type, COUNT(*) AS row_count FROM actions 
     GROUP BY source, action_type ORDER BY row_count DESC LIMIT 20;
 
-#### Lesson 2A: Using Subset Aggregation for Cohort Analysis of Log Tables
+    -- 4. Check for the presence and count of NULL values in a specific column
+    SELECT COUNT(*) AS null_count FROM your_table WHERE your_column IS NULL;
 
-    WITH base_data AS (
-        /* Log tables are huge, so we start with a filter that is a little larger 
-        than the cycle we want to isolate i.e. Oct 16 to Nov 16 */
-        SELECT *
-        FROM your_log_table
-        WHERE added_time > '2025-10-09 00:00:00'
-        AND added_time < '2025-11-23 00:00:00'
-    ),
-    bdo_mobiles AS (
-        /* Identify BDO leads based on prospect_identified events in booking_logs */
-        SELECT DISTINCT mobile
-        FROM your_other_log_table
-        WHERE added_time > '2025-10-09 00:00:00'
-        AND added_time < '2025-11-23 00:00:00'
-        AND event_name = 'prospect_identified'
-    ),
-    cohort_base_identifier AS (
-        /* Identifies cohort as cycles fully completed by November 16th
-        when inner joined with base_data, excluding BDO leads */
-        SELECT
-            account_id,
-            mobile
-        FROM base_data
-        WHERE mobile IN (SELECT mobile FROM bdo_mobiles)
-        GROUP BY account_id, mobile
-        HAVING MAX(added_time) <= '2025-11-16 00:00:00'
-    ),
-    /* ... tbc ... */
+    -- 5. Get basic statistics (min, max, average) for a numeric column
+    SELECT MIN(numeric_column) AS min_value, MAX(numeric_column) AS max_value, AVG(numeric_column) AS avg_value FROM your_table;
 
-#### Lesson 2B: Using Subset Aggregation for Cohort Analysis of Log Tables
+    -- 6. Retrieve a small sample of rows for manual review
+    SELECT * FROM your_table LIMIT 10;
+    -- Note: LIMIT works across MySQL, PostgreSQL, Snowflake, and Metabase-connected databases for this purpose.
 
-    /* ... contd ... */
-    assignments AS (
-        SELECT
-            b.account_id,
-            b.mobile,
-            MIN(b.added_time) AS first_assigned
-        FROM base_data b
-        INNER JOIN cohort_base_identifier c
-        ON b.account_id = c.account_id AND b.mobile = c.mobile
-        WHERE b.event_name = 'ASSIGNED'
-        GROUP BY b.account_id, b.mobile
-        HAVING MIN(b.added_time) > '2025-10-16 00:00:00'
-    ),
-    verifications AS (
-        SELECT
-            b.account_id,
-            b.mobile,
-            MIN(b.added_time) AS otp_verified
-        FROM base_data b
-        INNER JOIN cohort_base_identifier c
-        ON b.account_id = c.account_id AND b.mobile = c.mobile
-        WHERE b.event_name = 'OTP_VERIFIED'
-        GROUP BY b.account_id, b.mobile
+    -- 7. Find the most frequent values in a column (top N)
+    SELECT your_column, COUNT(*) AS frequency FROM your_table
+    GROUP BY your_column ORDER BY frequency DESC LIMIT 5;
+
+    -- 8. Calculate the percentage of rows for each unique value in a column
+    SELECT your_column, COUNT(*) * 100.0 / (SELECT COUNT(*) FROM your_table) AS percentage
+    FROM your_table GROUP BY your_column ORDER BY percentage DESC;
+
+    -- 9. Check for duplicate rows based on multiple columns
+    SELECT column1, column2, COUNT(*) AS dup_count FROM your_table
+    GROUP BY column1, column2 HAVING COUNT(*) > 1 ORDER BY dup_count DESC;
+
+    -- 10. Get the data range for a date column
+    SELECT MIN(date_column) AS earliest_date, MAX(date_column) AS latest_date FROM your_table;
+
+    -- 11. Count rows matching a specific condition
+    SELECT COUNT(*) AS matching_rows FROM your_table WHERE your_column = 'specific_value';
+
+    -- 12. List all unique values in a column (for small sets)
+    SELECT DISTINCT your_column FROM your_table ORDER BY your_column;
+
+#### Lesson 2: Joins
+
+    -- 1. Join two tables to count matching rows based on a key
+    SELECT COUNT(*) FROM table1 t1 JOIN table2 t2 ON t1.key_column = t2.key_column;
+
+    -- 2. Get top N joined records with aggregation
+    SELECT t1.category, SUM(t2.amount) AS total FROM table1 t1 JOIN table2 t2 ON t1.id = t2.table1_id GROUP BY t1.category ORDER BY total DESC LIMIT 5;
+
+    -- 3. Check for unmatched (orphan) records in a left join
+    SELECT COUNT(*) FROM table1 t1 LEFT JOIN table2 t2 ON t1.key = t2.key WHERE t2.key IS NULL;
+
+    -- 4. Join and filter to list unique combinations
+    SELECT DISTINCT t1.name, t2.type FROM table1 t1 JOIN table2 t2 ON t1.id = t2.table1_id WHERE t1.status = 'active' LIMIT 10;
+
+    -- 5. Aggregate across joins for average per group
+    SELECT t1.group_id, AVG(t2.value) AS avg_value FROM table1 t1 JOIN table2 t2 ON t1.id = t2.table1_id GROUP BY t1.group_id ORDER BY avg_value DESC;
+
+    -- 6. Join three tables to count multi-level relations
+    SELECT COUNT(*) FROM table1 t1 JOIN table2 t2 ON t1.id = t2.t1_id JOIN table3 t3 ON t2.id = t3.t2_id WHERE t3.condition = 'true';
+
+#### Lesson 3: Partitions
+
+    -- 1. Assign row numbers within partitions (e.g., per group)
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY category ORDER BY date_column DESC) AS row_num FROM your_table LIMIT 20;
+
+    -- 2. Calculate running total within partitions
+    SELECT *, SUM(amount) OVER (PARTITION BY user_id ORDER BY date_column) AS running_total FROM transactions;
+
+    -- 3. Rank values within partitions
+    SELECT *, RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS rank FROM employees;
+
+    -- 4. Get the first value in each partition
+    SELECT *, FIRST_VALUE(value) OVER (PARTITION BY group_id ORDER BY date_column) AS first_in_group FROM your_table;
+
+    -- 5. Compute average within partitions
+    SELECT *, AVG(metric) OVER (PARTITION BY category) AS avg_per_category FROM your_table;
+
+    -- 6. Lag (previous) value within partitions
+    SELECT *, LAG(value) OVER (PARTITION BY user_id ORDER BY date_column) AS previous_value FROM your_table;
+
+    -- 7. Lead (next) value within partitions
+    SELECT *, LEAD(value) OVER (PARTITION BY user_id ORDER BY date_column) AS next_value FROM your_table;
+
+    -- 8. Percent rank within partitions
+    SELECT *, PERCENT_RANK() OVER (PARTITION BY group ORDER BY score DESC) AS percent_rank FROM scores LIMIT 10;
+
+#### Lesson 4: JSON parsing
+
+    -- 1. Extract a value from JSON using standard functions 
+    SELECT JSON_VALUE(json_column, '$.key_name') AS extracted_value FROM your_table LIMIT 10;
+
+    -- 2. Filter rows based on JSON value 
+    SELECT * FROM your_table WHERE JSON_VALUE(json_column, '$.key_name') = 'desired_value' LIMIT 10;
+
+    -- 3. Group and count by extracted JSON key 
+    SELECT JSON_VALUE(json_column, '$.key_name') AS key_value, COUNT(*) AS count FROM your_table GROUP BY key_value ORDER BY count DESC;
+
+    -- 4. Check if JSON contains a key 
+    SELECT * FROM your_table WHERE JSON_EXISTS(json_column, '$.key_name') LIMIT 10;
+
+    -- 5. Extract from nested JSON 
+    SELECT JSON_VALUE(json_column, '$.nested_object.key_name') AS nested_value FROM your_table LIMIT 10;
+
+    -- 6. Search for text within JSON string 
+    SELECT * FROM your_table WHERE json_column LIKE '%"key_name":"desired_value"%' LIMIT 10;
+    -- Note: This is a fallback for databases without native JSON functions; use with caution as it may match substrings incorrectly.
+
+#### Lesson 5: Subqueries
+
+    -- 1. Use a scalar subquery to compare against an aggregate
+    SELECT name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees);
+
+    -- 2. Subquery in SELECT for derived values
+    SELECT name, (SELECT COUNT(*) FROM orders o WHERE o.employee_id = e.id) AS order_count FROM employees e LIMIT 10;
+
+    -- 3. Correlated subquery for per-row comparisons
+    SELECT e.name, e.department, (SELECT AVG(salary) FROM employees sub WHERE sub.department = e.department) AS dept_avg_salary FROM employees e;
+
+    -- 4. Subquery in FROM clause (derived table)
+    SELECT dept.department, dept.avg_salary FROM (SELECT department, AVG(salary) AS avg_salary FROM employees GROUP BY department) AS dept WHERE dept.avg_salary > 50000;
+
+    -- 5. EXISTS subquery to check for related records
+    SELECT * FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
+
+#### Lesson 6: CTEs
+
+    -- 1. Basic CTE for query reuse
+    WITH dept_averages AS (SELECT department, AVG(salary) AS avg_salary FROM employees GROUP BY department)
+    SELECT e.name, e.salary, da.avg_salary FROM employees e JOIN dept_averages da ON e.department = da.department WHERE e.salary > da.avg_salary LIMIT 10;
+
+    -- 2. Recursive CTE for hierarchical data
+    WITH RECURSIVE hierarchy AS (
+        SELECT id, name, manager_id, 1 AS level FROM employees WHERE manager_id IS NULL
+        UNION ALL
+        SELECT e.id, e.name, e.manager_id, h.level + 1 FROM employees e JOIN hierarchy h ON e.manager_id = h.id
     )
-    /* Now, we simply do subset aggregation */
-    SELECT
-        a.account_id,
-        a.mobile,
-        a.first_assigned,
-        v.otp_verified
-    FROM assignments a
-    LEFT JOIN verifications v
-    ON a.account_id = v.account_id AND a.mobile = v.mobile;
+    SELECT * FROM hierarchy ORDER BY level LIMIT 20;
+
+#### Lesson 7: Pivots
+
+    -- 1. Pivot data using CASE (rows to columns)
+    SELECT product,
+           SUM(CASE WHEN month = 'Jan' THEN sales ELSE 0 END) AS jan_sales,
+           SUM(CASE WHEN month = 'Feb' THEN sales ELSE 0 END) AS feb_sales,
+           SUM(CASE WHEN month = 'Mar' THEN sales ELSE 0 END) AS mar_sales
+    FROM sales GROUP BY product ORDER BY product;
+
+    -- 2. Unpivot data using UNION (columns to rows)
+    SELECT product, 'Jan' AS month, jan_sales AS sales FROM pivoted_sales
+    UNION ALL
+    SELECT product, 'Feb' AS month, feb_sales AS sales FROM pivoted_sales
+    UNION ALL
+    SELECT product, 'Mar' AS month, mar_sales AS sales FROM pivoted_sales
+    ORDER BY product, month;
+
+
+
+
+
