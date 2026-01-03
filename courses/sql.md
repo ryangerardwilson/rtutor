@@ -415,148 +415,252 @@
 
 #### Lesson 1: Inspections
 
-    -- 1. Check if a specific column is a key candidate by itself
+    -- 1. Get dtypes
+    DESCRIBE TABLE your_table;
+
+    -- 2. Check if a specific column is a key candidate by itself
     SELECT COUNT(*) FROM your_table;
     SELECT COUNT(DISTINCT potential_candidate_key) FROM your_table;
 
-    -- 2. Count all rows of each unique value of the source column
+    -- 3. Count all rows of each unique value of the source column
     SELECT source, COUNT(*) AS row_count FROM actions 
     GROUP BY source ORDER BY row_count DESC;
 
-    -- 3. Count all rows of each unique combination of source and action_type
+    -- 4. Count all rows of each unique combination of source and action_type
     SELECT source, action_type, COUNT(*) AS row_count FROM actions 
     GROUP BY source, action_type ORDER BY row_count DESC LIMIT 20;
 
-    -- 4. Check for the presence and count of NULL values in a specific column
+    -- 5. Check for the presence and count of NULL values in a specific column
     SELECT COUNT(*) AS null_count FROM your_table WHERE your_column IS NULL;
 
-    -- 5. Get basic statistics (min, max, average) for a numeric column
-    SELECT MIN(numeric_column) AS min_value, MAX(numeric_column) AS max_value, AVG(numeric_column) AS avg_value FROM your_table;
+    -- 6. Get basic statistics (min, max, average) for a numeric column
+    SELECT MIN(numeric_column) AS min_value, MAX(numeric_column) AS max_value, 
+    AVG(numeric_column) AS avg_value FROM your_table;
 
-    -- 6. Retrieve a small sample of rows for manual review
+    -- 7. Retrieve a small sample of rows for manual review
     SELECT * FROM your_table LIMIT 10;
-    -- Note: LIMIT works across MySQL, PostgreSQL, Snowflake, and Metabase-connected databases for this purpose.
 
-    -- 7. Find the most frequent values in a column (top N)
+    -- 8. Find the most frequent values in a column (top N)
     SELECT your_column, COUNT(*) AS frequency FROM your_table
     GROUP BY your_column ORDER BY frequency DESC LIMIT 5;
 
-    -- 8. Calculate the percentage of rows for each unique value in a column
+    -- 9. Calculate the percentage of rows for each unique value in a column
     SELECT your_column, COUNT(*) * 100.0 / (SELECT COUNT(*) FROM your_table) AS percentage
     FROM your_table GROUP BY your_column ORDER BY percentage DESC;
 
-    -- 9. Check for duplicate rows based on multiple columns
+    -- 10. Check for duplicate rows based on multiple columns
     SELECT column1, column2, COUNT(*) AS dup_count FROM your_table
     GROUP BY column1, column2 HAVING COUNT(*) > 1 ORDER BY dup_count DESC;
 
-    -- 10. Get the data range for a date column
+    -- 11. Get the data range for a date column
     SELECT MIN(date_column) AS earliest_date, MAX(date_column) AS latest_date FROM your_table;
 
-    -- 11. Count rows matching a specific condition
+    -- 12. Count rows matching a specific condition
     SELECT COUNT(*) AS matching_rows FROM your_table WHERE your_column = 'specific_value';
 
-    -- 12. List all unique values in a column (for small sets)
+    -- 13. List all unique values in a column (for small sets)
     SELECT DISTINCT your_column FROM your_table ORDER BY your_column;
 
-#### Lesson 2: Joins
+#### Lesson 2: Group By
+
+    -- 1. Basic grouping to count occurrences per category
+    SELECT category, COUNT(*) AS item_count FROM products 
+    GROUP BY category ORDER BY item_count DESC;
+
+    -- 2. Group by multiple columns to count unique combinations
+    SELECT department, role, COUNT(*) AS employee_count FROM employees 
+    GROUP BY department, role ORDER BY employee_count DESC LIMIT 10;
+
+    -- 3. Aggregate sum per group (e.g., total sales by region)
+    SELECT region, SUM(sales_amount) AS total_sales FROM sales 
+    GROUP BY region ORDER BY total_sales DESC;
+
+    -- 4. Calculate average value per group with filtering
+    SELECT user_id, AVG(score) AS avg_score FROM scores WHERE attempt_date > '2023-01-01' 
+    GROUP BY user_id ORDER BY avg_score DESC LIMIT 5;
+
+    -- 5. Use HAVING to filter groups post-aggregation (e.g., groups with min count)
+    SELECT product_type, COUNT(*) AS order_count FROM orders 
+    GROUP BY product_type HAVING order_count > 100 ORDER BY order_count DESC;
+
+    -- 6. Group by date parts (e.g., monthly totals)
+    SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) AS monthly_total FROM orders 
+    GROUP BY month ORDER BY month DESC LIMIT 12;
+
+    -- 7. Max/Min per group (e.g., highest salary per department)
+    SELECT department, MAX(salary) AS max_salary, MIN(salary) AS min_salary FROM employees 
+    GROUP BY department ORDER BY max_salary DESC;
+
+    -- 8. Group by with rollup for subtotals 
+    SELECT department, role, SUM(salary) AS total_salary FROM employees 
+    GROUP BY department, role WITH ROLLUP;
+
+    -- 9. Count distinct values per group
+    SELECT source, COUNT(DISTINCT user_id) AS unique_users FROM events 
+    GROUP BY source ORDER BY unique_users DESC LIMIT 10;
+
+#### Lesson 3: Adding Helper Columns
+
+    -- 1. Add a simple calculated column (e.g., total from price and quantity)
+    SELECT *, price * quantity AS total_amount FROM orders LIMIT 10;
+
+    -- 2. Add a flag column using CASE for conditional categorization
+    SELECT *, CASE WHEN salary > 100000 THEN 'High' WHEN salary > 50000 THEN 'Medium' 
+    ELSE 'Low' END AS salary_level FROM employees LIMIT 10;
+
+    -- 3. Add a concatenated string column (e.g., full name)
+    SELECT *, CONCAT(first_name, ' ', last_name) AS full_name FROM users LIMIT 10;
+
+    -- 4. Add a date extraction column (e.g., year from a date)
+    SELECT *, YEAR(date_column) AS year_extracted FROM transactions LIMIT 10;
+
+    -- 5. Add a rounded numeric column for approximation
+    SELECT *, ROUND(metric_value, 2) AS rounded_metric FROM measurements LIMIT 10;
+
+    -- 6. Add a boolean helper column based on a condition
+    SELECT *, CASE WHEN status = 'active' THEN 1 ELSE 0 END AS is_active_flag 
+    FROM accounts LIMIT 10;
+
+    -- 7. Add a percentage calculation column relative to a total 
+    SELECT *, (amount / SUM(amount) OVER ()) * 100 AS percentage_of_total 
+    FROM sales LIMIT 10;
+
+    -- 8. Add a bucketed column for grouping continuous values (e.g., age groups)
+    SELECT *, CASE WHEN age < 18 THEN 'Under 18' WHEN age BETWEEN 18 AND 35 THEN '18-35' 
+    WHEN age BETWEEN 36 AND 55 THEN '36-55' ELSE 'Over 55' END AS age_group 
+    FROM customers LIMIT 10;
+
+    -- 9. Add a length or size helper column (e.g., string length)
+    SELECT *, LENGTH(description) AS desc_length 
+    FROM products WHERE desc_length > 100 LIMIT 10;
+
+    -- 10. Add a derived column from JSON extraction as helper
+    SELECT *, JSON_VALUE(json_column, '$.key_name') AS extracted_helper 
+    FROM your_table LIMIT 10;
+
+#### Lesson 4: Joins
 
     -- 1. Join two tables to count matching rows based on a key
-    SELECT COUNT(*) FROM table1 t1 JOIN table2 t2 ON t1.key_column = t2.key_column;
+    SELECT COUNT(*) FROM table1 t1 
+    JOIN table2 t2 ON t1.key_column = t2.key_column;
 
     -- 2. Get top N joined records with aggregation
-    SELECT t1.category, SUM(t2.amount) AS total FROM table1 t1 JOIN table2 t2 ON t1.id = t2.table1_id GROUP BY t1.category ORDER BY total DESC LIMIT 5;
+    SELECT t1.category, SUM(t2.amount) AS total FROM table1 t1 
+    JOIN table2 t2 ON t1.id = t2.table1_id GROUP BY t1.category ORDER BY total DESC LIMIT 5;
 
     -- 3. Check for unmatched (orphan) records in a left join
-    SELECT COUNT(*) FROM table1 t1 LEFT JOIN table2 t2 ON t1.key = t2.key WHERE t2.key IS NULL;
+    SELECT COUNT(*) FROM table1 t1 LEFT 
+    JOIN table2 t2 ON t1.key = t2.key WHERE t2.key IS NULL;
 
     -- 4. Join and filter to list unique combinations
-    SELECT DISTINCT t1.name, t2.type FROM table1 t1 JOIN table2 t2 ON t1.id = t2.table1_id WHERE t1.status = 'active' LIMIT 10;
+    SELECT DISTINCT t1.name, t2.type FROM table1 t1 
+    JOIN table2 t2 ON t1.id = t2.table1_id WHERE t1.status = 'active' LIMIT 10;
 
     -- 5. Aggregate across joins for average per group
-    SELECT t1.group_id, AVG(t2.value) AS avg_value FROM table1 t1 JOIN table2 t2 ON t1.id = t2.table1_id GROUP BY t1.group_id ORDER BY avg_value DESC;
+    SELECT t1.group_id, AVG(t2.value) AS avg_value FROM table1 t1 
+    JOIN table2 t2 ON t1.id = t2.table1_id GROUP BY t1.group_id ORDER BY avg_value DESC;
 
     -- 6. Join three tables to count multi-level relations
-    SELECT COUNT(*) FROM table1 t1 JOIN table2 t2 ON t1.id = t2.t1_id JOIN table3 t3 ON t2.id = t3.t2_id WHERE t3.condition = 'true';
+    SELECT COUNT(*) FROM table1 t1 JOIN table2 t2 ON t1.id = t2.t1_id 
+    JOIN table3 t3 ON t2.id = t3.t2_id WHERE t3.condition = 'true';
 
-#### Lesson 3: Partitions
+#### Lesson 5: Partitions
 
     -- 1. Assign row numbers within partitions (e.g., per group)
-    SELECT *, ROW_NUMBER() OVER (PARTITION BY category ORDER BY date_column DESC) AS row_num FROM your_table LIMIT 20;
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY category ORDER BY date_column DESC) AS row_num 
+    FROM your_table LIMIT 20;
 
     -- 2. Calculate running total within partitions
-    SELECT *, SUM(amount) OVER (PARTITION BY user_id ORDER BY date_column) AS running_total FROM transactions;
+    SELECT *, SUM(amount) OVER (PARTITION BY user_id ORDER BY date_column) AS running_total 
+    FROM transactions;
 
     -- 3. Rank values within partitions
-    SELECT *, RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS rank FROM employees;
+    SELECT *, RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS rank 
+    FROM employees;
 
     -- 4. Get the first value in each partition
-    SELECT *, FIRST_VALUE(value) OVER (PARTITION BY group_id ORDER BY date_column) AS first_in_group FROM your_table;
+    SELECT *, FIRST_VALUE(value) OVER (PARTITION BY group_id ORDER BY date_column) AS first_in_group 
+    FROM your_table;
 
     -- 5. Compute average within partitions
-    SELECT *, AVG(metric) OVER (PARTITION BY category) AS avg_per_category FROM your_table;
+    SELECT *, AVG(metric) OVER (PARTITION BY category) AS avg_per_category 
+    FROM your_table;
 
     -- 6. Lag (previous) value within partitions
-    SELECT *, LAG(value) OVER (PARTITION BY user_id ORDER BY date_column) AS previous_value FROM your_table;
+    SELECT *, LAG(value) OVER (PARTITION BY user_id ORDER BY date_column) AS previous_value 
+    FROM your_table;
 
     -- 7. Lead (next) value within partitions
-    SELECT *, LEAD(value) OVER (PARTITION BY user_id ORDER BY date_column) AS next_value FROM your_table;
+    SELECT *, LEAD(value) OVER (PARTITION BY user_id ORDER BY date_column) AS next_value 
+    FROM your_table;
 
     -- 8. Percent rank within partitions
-    SELECT *, PERCENT_RANK() OVER (PARTITION BY group ORDER BY score DESC) AS percent_rank FROM scores LIMIT 10;
+    SELECT *, PERCENT_RANK() OVER (PARTITION BY group ORDER BY score DESC) AS percent_rank 
+    FROM scores LIMIT 10;
 
-#### Lesson 4: JSON parsing
+#### Lesson 6: JSON parsing
 
     -- 1. Extract a value from JSON using standard functions 
     SELECT JSON_VALUE(json_column, '$.key_name') AS extracted_value FROM your_table LIMIT 10;
 
     -- 2. Filter rows based on JSON value 
-    SELECT * FROM your_table WHERE JSON_VALUE(json_column, '$.key_name') = 'desired_value' LIMIT 10;
+    SELECT * FROM your_table WHERE JSON_VALUE(json_column, '$.key_name') = 'desired_value' 
+    LIMIT 10;
 
     -- 3. Group and count by extracted JSON key 
-    SELECT JSON_VALUE(json_column, '$.key_name') AS key_value, COUNT(*) AS count FROM your_table GROUP BY key_value ORDER BY count DESC;
+    SELECT JSON_VALUE(json_column, '$.key_name') AS key_value, COUNT(*) AS count 
+    FROM your_table GROUP BY key_value ORDER BY count DESC;
 
     -- 4. Check if JSON contains a key 
     SELECT * FROM your_table WHERE JSON_EXISTS(json_column, '$.key_name') LIMIT 10;
 
     -- 5. Extract from nested JSON 
-    SELECT JSON_VALUE(json_column, '$.nested_object.key_name') AS nested_value FROM your_table LIMIT 10;
+    SELECT JSON_VALUE(json_column, '$.nested_object.key_name') AS nested_value 
+    FROM your_table LIMIT 10;
 
     -- 6. Search for text within JSON string 
     SELECT * FROM your_table WHERE json_column LIKE '%"key_name":"desired_value"%' LIMIT 10;
-    -- Note: This is a fallback for databases without native JSON functions; use with caution as it may match substrings incorrectly.
+    -- Note: This is a fallback for databases without native JSON functions; 
+    -- use with caution as it may match substrings incorrectly.
 
-#### Lesson 5: Subqueries
+#### Lesson 7: Subqueries
 
     -- 1. Use a scalar subquery to compare against an aggregate
     SELECT name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees);
 
     -- 2. Subquery in SELECT for derived values
-    SELECT name, (SELECT COUNT(*) FROM orders o WHERE o.employee_id = e.id) AS order_count FROM employees e LIMIT 10;
+    SELECT name, (SELECT COUNT(*) FROM orders o WHERE o.employee_id = e.id) AS order_count 
+    FROM employees e LIMIT 10;
 
     -- 3. Correlated subquery for per-row comparisons
-    SELECT e.name, e.department, (SELECT AVG(salary) FROM employees sub WHERE sub.department = e.department) AS dept_avg_salary FROM employees e;
+    SELECT e.name, e.department, (SELECT AVG(salary) 
+    FROM employees sub WHERE sub.department = e.department) AS dept_avg_salary FROM employees e;
 
     -- 4. Subquery in FROM clause (derived table)
-    SELECT dept.department, dept.avg_salary FROM (SELECT department, AVG(salary) AS avg_salary FROM employees GROUP BY department) AS dept WHERE dept.avg_salary > 50000;
+    SELECT dept.department, dept.avg_salary FROM (SELECT department, AVG(salary) AS avg_salary 
+    FROM employees GROUP BY department) AS dept WHERE dept.avg_salary > 50000;
 
     -- 5. EXISTS subquery to check for related records
     SELECT * FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
 
-#### Lesson 6: CTEs
+#### Lesson 8: CTEs
 
     -- 1. Basic CTE for query reuse
-    WITH dept_averages AS (SELECT department, AVG(salary) AS avg_salary FROM employees GROUP BY department)
-    SELECT e.name, e.salary, da.avg_salary FROM employees e JOIN dept_averages da ON e.department = da.department WHERE e.salary > da.avg_salary LIMIT 10;
+    WITH dept_averages AS (SELECT department, AVG(salary) AS avg_salary 
+    FROM employees GROUP BY department)
+    SELECT e.name, e.salary, da.avg_salary FROM employees e 
+    JOIN dept_averages da ON e.department = da.department WHERE e.salary > da.avg_salary LIMIT 10;
 
     -- 2. Recursive CTE for hierarchical data
     WITH RECURSIVE hierarchy AS (
         SELECT id, name, manager_id, 1 AS level FROM employees WHERE manager_id IS NULL
         UNION ALL
-        SELECT e.id, e.name, e.manager_id, h.level + 1 FROM employees e JOIN hierarchy h ON e.manager_id = h.id
+        SELECT e.id, e.name, e.manager_id, h.level + 1 
+        FROM employees e JOIN hierarchy h ON e.manager_id = h.id
     )
     SELECT * FROM hierarchy ORDER BY level LIMIT 20;
 
-#### Lesson 7: Pivots
+#### Lesson 9: Pivots
 
     -- 1. Pivot data using CASE (rows to columns)
     SELECT product,
@@ -572,8 +676,5 @@
     UNION ALL
     SELECT product, 'Mar' AS month, mar_sales AS sales FROM pivoted_sales
     ORDER BY product, month;
-
-
-
 
 
