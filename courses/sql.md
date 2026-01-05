@@ -413,7 +413,82 @@
 
     The following lessons provide practical SQL patterns for data science workflows.*/
 
-#### Lesson 1: Inspections
+#### Lesson 2: Type Conversions from VARCHAR (MySQL, PostgreSQL, Snowflake)
+
+    -- NOTE:
+    -- - In SQL, we need to CAST at least twice for effective type conversions - once while 
+    --   filtering, and once while making the final select
+    -- - Error handling: Snowflake (TRY_CAST returns NULL on failure); MySQL/PostgreSQL 
+    --   (query fails on invalid data).
+
+    -- 1. Convert VARCHAR to TIMESTAMP (standard ISO format 'YYYY-MM-DD HH:MI:SS')
+    SELECT CAST(ts AS TIMESTAMP) AS converted_ts FROM your_table 
+    WHERE CAST(ts AS TIMESTAMP) > TIMESTAMP '2023-01-01 00:00:00';
+    df.ts = pd.to_datetime(df.ts, errors='coerce')
+    df = pd.read_csv('file.csv', parse_dates=['ts'])
+
+    -- 2. Convert VARCHAR to DATE (standard ISO 'YYYY-MM-DD')
+    SELECT CAST(date_str AS DATE) AS converted_date FROM your_table 
+    WHERE CAST(date_str AS DATE) > DATE '2023-01-01';
+    df.date_str = pd.to_datetime(df.date_str, errors='coerce')
+    df = pd.read_csv('file.csv', parse_dates=['date_str'])
+
+    -- 3. Convert VARCHAR to INTEGER (INT)
+    SELECT CAST(num_str AS INTEGER) AS converted_int FROM your_table 
+    WHERE CAST(num_str AS INTEGER) > 100;
+    -- Notes: Works in PostgreSQL and Snowflake. MySQL uses CAST(num_str AS SIGNED); 
+    df.num_str = pd.to_numeric(df.num_str, errors='coerce').astype('Int64')
+    df = pd.read_csv('file.csv', dtype=str, 
+        converters={'num_str': lambda x: pd.to_numeric(x, errors='coerce')}
+    )
+
+    -- 4. Convert VARCHAR to FLOAT
+    SELECT CAST(float_str AS FLOAT) AS converted_float FROM your_table 
+    WHERE CAST(float_str AS FLOAT) > 10.5;
+    df.float_str = pd.to_numeric(df.float_str, errors='coerce')
+    df = pd.read_csv('file.csv', dtype=str, 
+        converters={'float_str': lambda x: pd.to_numeric(x, errors='coerce')}
+    )
+
+    -- 5. Convert VARCHAR to BOOLEAN 
+    SELECT CAST(bool_str AS BOOLEAN) AS converted_bool FROM your_table 
+    WHERE CAST(bool_str AS BOOLEAN) = TRUE;
+    -- MySQL uses AS SIGNED
+    df.bool_str = df.bool_str.str.lower() == 'true'
+    df = pd.read_csv('file.csv', dtype=str, 
+        converters={'bool_str': lambda x: x.lower() == 'true'}
+    )
+
+    -- 6. Convert VARCHAR to JSON (parse string as JSON; no common CAST across all)
+    -- MySQL 
+    SELECT json_str AS converted_json FROM your_table 
+    WHERE JSON_EXTRACT(json_str, '$.key') = 'value';
+    -- PostgreSQL
+    SELECT CAST(json_str AS JSON) AS converted_json FROM your_table 
+    WHERE CAST(json_str AS JSON) ->> 'key' = 'value';
+    -- Snowflake 
+    SELECT PARSE_JSON(json_str) AS converted_json FROM your_table 
+    WHERE PARSE_JSON(json_str):key = 'value';
+    # While there is no dtype conversion below in python, the conversion is still 
+    # crucial becuase it transforms raw string representations into a usable Python 
+    # data structures, allowing you to access and manipulate the JSON content properly
+    import json
+    def safe_json_loads(x):
+        try:
+            return json.loads(x)
+        except (json.JSONDecodeError, TypeError):
+            return None
+    df.json_str = df.json_str.apply(safe_json_loads)
+    df = pd.read_csv('file.csv', dtype=str, 
+        converters={'json_str': safe_json_loads}
+    )
+
+    -- 7. Convert VARCHAR to enum/ category
+    -- MYSQL/ Postgres and snowflake, have no elegant way to do this. So its pointless
+    df.enum_str = df.enum_str.astype('category')
+    df = pd.read_csv('file.csv', dtype={'enum_str': 'category'})
+
+#### Lesson 3: Inspections
 
     -- 1. Get dtypes
     DESCRIBE TABLE your_table;
@@ -422,27 +497,33 @@
     -- 2. Check if a specific column is a key candidate by itself
     SELECT COUNT(*) FROM your_table;
     SELECT COUNT(DISTINCT potential_candidate_key) FROM your_table;
-    total_rows = len(df)
-    unique_values = len(df['potential_candidate_key'].unique())
+    total_rows = df.shape[0]
+    unique_values = df.potential_candidate_key.nunique()
 
     -- 3. Count all rows of each unique value of the source column
     SELECT source, COUNT(*) AS row_count FROM actions 
     GROUP BY source ORDER BY row_count DESC;
-    df['source'].value_counts().sort_values(ascending=False)
+    df.source.value_counts(ascending=False)
 
     -- 4. Count all rows of each unique combination of source and action_type
     SELECT source, action_type, COUNT(*) AS row_count FROM actions 
     GROUP BY source, action_type ORDER BY row_count DESC LIMIT 20;
+    (
+        df.groupby(['source', 'action_type'])
+        .size()
+        .sort_values(ascending=False)
+        .head(20)
+    )
 
     -- 5. Check for the presence and count of NULL values in a specific column
     SELECT COUNT(*) AS null_count FROM your_table WHERE your_column IS NULL;
-    df['your_column'].isnull().sum()
+    df.your_column.isnull().sum()
 
     -- 6. Get basic statistics (min, max, average) for a numeric column
     SELECT MIN(numeric_column) AS min_value, 
     MAX(numeric_column) AS max_value, 
     AVG(numeric_column) AS avg_value FROM your_table;
-    df['numeric_column'].agg(['min', 'max', 'mean'])
+    df.numeric_column.agg(['min', 'max', 'mean'])
 
     -- 7. Retrieve a small sample of rows for manual review
     SELECT * FROM your_table LIMIT 10;
@@ -451,131 +532,197 @@
     -- 8. Find the most frequent values in a column (top N)
     SELECT your_column, COUNT(*) AS frequency FROM your_table
     GROUP BY your_column ORDER BY frequency DESC LIMIT 5;
-    df['your_column'].value_counts().head(5)
+    df.your_column.value_counts().head(5)
 
     -- 9. Calculate the percentage of rows for each unique value in a column
     SELECT your_column, COUNT(*) * 100.0 / (SELECT COUNT(*) FROM your_table) AS percentage
     FROM your_table GROUP BY your_column ORDER BY percentage DESC;
-    df['your_column'].value_counts(normalize=True) * 100
+    df.your_column.value_counts(normalize=True) * 100
 
     -- 10. Check for duplicate rows based on multiple columns
     SELECT column1, column2, COUNT(*) AS dup_count FROM your_table
     GROUP BY column1, column2 HAVING COUNT(*) > 1 ORDER BY dup_count DESC;
-    duplicates = df.groupby(['column1', 'column2']).size().reset_index(name='dup_count')
-    duplicates[duplicates['dup_count'] > 1].sort_values('dup_count', ascending=False)
+    (
+        df.groupby(['column1', 'column2'])
+        .size()
+        .reset_index(name='dup_count')
+        .query('dup_count > 1')
+        .sort_values('dup_count', ascending=False)
+    )
 
     -- 11. Get the data range for a date column
     SELECT MIN(date_column) AS earliest_date, MAX(date_column) AS latest_date FROM your_table;
-    min_date = df['date_column'].min()
-    max_date = df['date_column'].max()
+    min_date = df.date_column.min()
+    max_date = df.date_column.max()
 
-    -- 12. Count rows matching a specific condition
-    SELECT COUNT(*) AS matching_rows FROM your_table WHERE your_column = 'specific_value';
-    len(df[df['your_column'] == 'specific_value'])
+    -- 12. Count rows matching multiple conditions with AND and OR logic
+    SELECT COUNT(*) AS matching_rows FROM your_table 
+    WHERE (column1 = 'value1' AND column2 > 5) OR column3 = 'value3';
+    df.query("(column1 == 'value1' and column2 > 5) or column3 == 'value3'").shape[0]
 
-    -- 13. List all unique values in a column (for small sets)
-    SELECT DISTINCT your_column FROM your_table ORDER BY your_column;
-    sorted(df['your_column'].unique())
+    -- 13. Count rows after a specific timestamp (ensure date_column is pd.to_datetime parsed)
+    SELECT COUNT(*) AS recent_rows FROM your_table WHERE date_column > '2023-01-01';
+    threshold = pd.Timestamp('2023-01-01')
+    df.query('date_column > @threshold').shape[0]
 
-#### Lesson 2: Group By
+    -- 14. Count rows between two timestamps (ensure date_column is pd.to_datetime parsed)
+    SELECT COUNT(*) AS rows_in_range FROM your_table 
+    WHERE date_column >= '2023-01-01' AND date_column < '2023-12-31';
+    start = pd.Timestamp('2023-01-01')
+    end = pd.Timestamp('2023-12-31')
+    df.query('@start <= date_column < @end').shape[0]
+
+#### Lesson 4: Group By
 
     -- 1. Basic grouping to count occurrences per category
     SELECT category, COUNT(*) AS item_count FROM products 
     GROUP BY category ORDER BY item_count DESC;
-    df.groupby('category').size().reset_index(name='item_count').sort_values('item_count', ascending=False)
+    (
+        df.groupby('category')
+        .size()
+        .reset_index(name='item_count')
+        .sort_values('item_count', ascending=False)
+    )
 
     -- 2. Group by multiple columns to count unique combinations
     SELECT department, role, COUNT(*) AS employee_count FROM employees 
     GROUP BY department, role ORDER BY employee_count DESC LIMIT 10;
-df.groupby(['department', 'role']).size().reset_index(name='employee_count').sort_values('employee_count', ascending=False).head(10)
+    (
+        df.groupby(['department', 'role'])
+        .size()
+        .reset_index(name='employee_count')
+        .sort_values('employee_count', ascending=False)
+        .head(10)
+    )
 
     -- 3. Aggregate sum per group (e.g., total sales by region)
     SELECT region, SUM(sales_amount) AS total_sales FROM sales 
     GROUP BY region ORDER BY total_sales DESC;
-    df.groupby('region')['sales_amount'].sum().reset_index(name='total_sales').sort_values('total_sales', ascending=False)
+    (
+        df.groupby('region')
+        .sales_amount.sum()
+        .reset_index(name='total_sales')
+        .sort_values('total_sales', ascending=False)
+    )
 
     -- 4. Calculate average value per group with filtering
     SELECT user_id, AVG(score) AS avg_score FROM scores WHERE attempt_date > '2023-01-01' 
     GROUP BY user_id ORDER BY avg_score DESC LIMIT 5;
-    filtered_df = df[df['attempt_date'] > '2023-01-01']
-    filtered_df.groupby('user_id')['score'].mean().reset_index(name='avg_score').sort_values('avg_score', ascending=False).head(5)
+    (
+        df.query("attempt_date > '2023-01-01'")
+        .groupby('user_id')
+        .score.mean()
+        .reset_index(name='avg_score')
+        .sort_values('avg_score', ascending=False)
+        .head(5)
+    )
 
     -- 5. Use HAVING to filter groups post-aggregation (e.g., groups with min count)
     SELECT product_type, COUNT(*) AS order_count FROM orders 
     GROUP BY product_type HAVING order_count > 100 ORDER BY order_count DESC;
-    grouped = df.groupby('product_type').size().reset_index(name='order_count')
-    grouped[grouped['order_count'] > 100].sort_values('order_count', ascending=False)
+    (
+        df.groupby('product_type')
+        .size()
+        .reset_index(name='order_count')
+        .query('order_count > 100')
+        .sort_values('order_count', ascending=False)
+    )
 
     -- 6. Group by date parts (e.g., monthly totals)
     SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) AS monthly_total FROM orders 
     GROUP BY month ORDER BY month DESC LIMIT 12;
-    df.groupby(df['order_date'].dt.to_period('M'))['amount'].sum().reset_index(name='monthly_total').sort_values('order_date', ascending=False).head(12)
+    (
+        df.groupby(df.order_date.dt.to_period('M'))
+        .amount.sum()
+        .reset_index(name='monthly_total')
+        .sort_values('order_date', ascending=False)
+        .head(12)
+    )
 
     -- 7. Max/Min per group (e.g., highest salary per department)
     SELECT department, MAX(salary) AS max_salary, MIN(salary) AS min_salary FROM employees 
     GROUP BY department ORDER BY max_salary DESC;
-    df.groupby('department')['salary'].agg(max_salary='max', min_salary='min').reset_index().sort_values('max_salary', ascending=False)
+    (
+        df.groupby('department')
+        .salary.agg(max_salary='max', min_salary='min')
+        .reset_index()
+        .sort_values('max_salary', ascending=False)
+    )
 
     -- 8. Group by with rollup for subtotals 
     SELECT department, role, SUM(salary) AS total_salary FROM employees 
     GROUP BY department, role WITH ROLLUP;
     # Pandas doesn't have a direct 'WITH ROLLUP' equivalent, but you can mimic it by computing group sums and appending subtotals
-    group_sums = df.groupby(['department', 'role'])['salary'].sum().reset_index(name='total_salary')
-    dept_totals = df.groupby('department')['salary'].sum().reset_index(name='total_salary')
+    group_sums = (
+        df.groupby(['department', 'role'])
+        .salary.sum()
+        .reset_index(name='total_salary')
+    )
+    dept_totals = (
+        df.groupby('department')
+        .salary.sum()
+        .reset_index(name='total_salary')
+    )
     dept_totals['role'] = None  # Subtotal marker
-    grand_total = pd.DataFrame({'department': [None], 'role': [None], 'total_salary': [df['salary'].sum()]})
+    grand_total = pd.DataFrame({'department': [None], 'role': [None], 'total_salary': [df.salary.sum()]})
     pd.concat([group_sums, dept_totals, grand_total], ignore_index=True)
 
     -- 9. Count distinct values per group
     SELECT source, COUNT(DISTINCT user_id) AS unique_users FROM events 
     GROUP BY source ORDER BY unique_users DESC LIMIT 10;
-    df.groupby('source')['user_id'].nunique().reset_index(name='unique_users').sort_values('unique_users', ascending=False).head(10)
+    (
+        df.groupby('source')
+        .user_id.nunique()
+        .reset_index(name='unique_users')
+        .sort_values('unique_users', ascending=False)
+        .head(10)
+    )
 
-#### Lesson 3: Adding Helper Columns
+#### Lesson 5: Adding Helper Columns
 
     -- 1. Add a simple calculated column (e.g., total from price and quantity)
     SELECT *, price * quantity AS total_amount FROM orders LIMIT 10;
-    df.assign(total_amount=df['price'] * df['quantity']).head(10)
+    df.assign(total_amount=df.price * df.quantity).head(10)
 
     -- 2. Add a flag column using CASE for conditional categorization
     SELECT *, CASE WHEN salary > 100000 THEN 'High' 
     WHEN salary > 50000 THEN 'Medium' 
     ELSE 'Low' END AS salary_level FROM employees LIMIT 10;
     df.assign(salary_level=np.select(
-        [df['salary'] > 100000, df['salary'] > 50000],
+        [df.salary > 100000, df.salary > 50000],
         ['High', 'Medium'],
         default='Low'
     )).head(10)
 
     -- 3. Add a concatenated string column (e.g., full name)
     SELECT *, CONCAT(first_name, ' ', last_name) AS full_name FROM users LIMIT 10;
-    df.assign(full_name=df['first_name'] + ' ' + df['last_name']).head(10)
+    df.assign(full_name=df.first_name + ' ' + df.last_name).head(10)
 
     -- 4. Add a date extraction column (e.g., year from a date)
     SELECT *, YEAR(date_column) AS year_extracted FROM transactions LIMIT 10;
-    df.assign(year_extracted=df['date_column'].dt.year).head(10)
+    df.assign(year_extracted=df.date_column.dt.year).head(10)
 
     -- 5. Add a rounded numeric column for approximation
     SELECT *, ROUND(metric_value, 2) AS rounded_metric FROM measurements LIMIT 10;
-    df.assign(rounded_metric=df['metric_value'].round(2)).head(10)
+    df.assign(rounded_metric=df.metric_value.round(2)).head(10)
 
     -- 6. Add a boolean helper column based on a condition
     SELECT *, CASE WHEN status = 'active' THEN 1 ELSE 0 END AS is_active_flag 
     FROM accounts LIMIT 10;
-    df.assign(is_active_flag=(df['status'] == 'active').astype(int)).head(10)
+    df.assign(is_active_flag=(df.status == 'active').astype(int)).head(10)
 
     -- 7. Add a percentage calculation column relative to a total 
     SELECT *, (amount / SUM(amount) OVER ()) * 100 AS percentage_of_total 
     FROM sales LIMIT 10;
-    total_amount = df['amount'].sum()
-    df.assign(percentage_of_total=(df['amount'] / total_amount) * 100).head(10)
+    total_amount = df.amount.sum()
+    df.assign(percentage_of_total=(df.amount / total_amount) * 100).head(10)
 
     -- 8. Add a bucketed column for grouping continuous values (e.g., age groups)
     SELECT *, CASE WHEN age < 18 THEN 'Under 18' WHEN age BETWEEN 18 AND 35 THEN '18-35' 
     WHEN age BETWEEN 36 AND 55 THEN '36-55' ELSE 'Over 55' END AS age_group 
     FROM customers LIMIT 10;
     df.assign(age_group=np.select(
-        [df['age'] < 18, (df['age'] >= 18) & (df['age'] <= 35), (df['age'] >= 36) & (df['age'] <= 55)],
+        [df.age < 18, (df.age >= 18) & (df.age <= 35), (df.age >= 36) & (df.age <= 55)],
         ['Under 18', '18-35', '36-55'],
         default='Over 55'
     )).head(10)
@@ -583,15 +730,19 @@ df.groupby(['department', 'role']).size().reset_index(name='employee_count').sor
     -- 9. Add a length or size helper column (e.g., string length)
     SELECT *, LENGTH(description) AS desc_length 
     FROM products WHERE desc_length > 100 LIMIT 10;
-    df.assign(desc_length=df['description'].str.len()).query('desc_length > 100').head(10)
+    (
+        df.assign(desc_length=df.description.str.len())
+        .query('desc_length > 100')
+        .head(10)
+    )
 
     -- 10. Add a derived column from JSON extraction as helper
     SELECT *, JSON_VALUE(json_column, '$.key_name') AS extracted_helper 
     FROM your_table LIMIT 10;
     import json
-    df.assign(extracted_helper=df['json_column'].apply(lambda x: json.loads(x)['key_name'] if isinstance(x, str) else None)).head(10)
+    df.assign(extracted_helper=df.json_column.apply(lambda x: json.loads(x)['key_name'] if isinstance(x, str) else None)).head(10)
 
-#### Lesson 4: Joins
+#### Lesson 6: Joins
 
     -- 1. Join two tables to count matching rows based on a key
     SELECT COUNT(*) FROM table1 t1 
@@ -617,7 +768,7 @@ df.groupby(['department', 'role']).size().reset_index(name='employee_count').sor
     SELECT COUNT(*) FROM table1 t1 JOIN table2 t2 ON t1.id = t2.t1_id 
     JOIN table3 t3 ON t2.id = t3.t2_id WHERE t3.condition = 'true';
 
-#### Lesson 5: Partitions
+#### Lesson 7: Partitions
 
     -- 1. Assign row numbers within partitions (e.g., per group)
     SELECT *, ROW_NUMBER() OVER (PARTITION BY category ORDER BY date_column DESC) AS row_num 
@@ -651,7 +802,7 @@ df.groupby(['department', 'role']).size().reset_index(name='employee_count').sor
     SELECT *, PERCENT_RANK() OVER (PARTITION BY group ORDER BY score DESC) AS percent_rank 
     FROM scores LIMIT 10;
 
-#### Lesson 6: JSON parsing
+#### Lesson 8: JSON parsing
 
     -- 1. Extract a value from JSON using standard functions 
     SELECT JSON_VALUE(json_column, '$.key_name') AS extracted_value FROM your_table LIMIT 10;
@@ -676,7 +827,7 @@ df.groupby(['department', 'role']).size().reset_index(name='employee_count').sor
     -- Note: This is a fallback for databases without native JSON functions; 
     -- use with caution as it may match substrings incorrectly.
 
-#### Lesson 7: Subqueries
+#### Lesson 9: Subqueries
 
     -- 1. Use a scalar subquery to compare against an aggregate
     SELECT name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees);
@@ -696,7 +847,7 @@ df.groupby(['department', 'role']).size().reset_index(name='employee_count').sor
     -- 5. EXISTS subquery to check for related records
     SELECT * FROM customers c WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
 
-#### Lesson 8: CTEs
+#### Lesson 10: CTEs
 
     -- 1. Basic CTE for query reuse
     WITH dept_averages AS (SELECT department, AVG(salary) AS avg_salary 
@@ -713,7 +864,7 @@ df.groupby(['department', 'role']).size().reset_index(name='employee_count').sor
     )
     SELECT * FROM hierarchy ORDER BY level LIMIT 20;
 
-#### Lesson 9: Pivots
+#### Lesson 11: Pivots
 
     -- 1. Pivot data using CASE (rows to columns)
     SELECT product,
