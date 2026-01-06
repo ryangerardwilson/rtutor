@@ -40,6 +40,7 @@ class ModelBuilder:
         self.test_r2 = None
         self.test_base_mean = None
         self.y_pred_test = None
+        self.best_features_df = None
 
     def _compute_cv_r2_best_iter(self, X, y):
         kf = KFold(n_splits=self.n_folds, shuffle=True, random_state=self.random_state)
@@ -101,11 +102,32 @@ class ModelBuilder:
             }
         )
 
+        # Compute feature importance
+        importance_gain = self.model.get_score(importance_type="gain")
+        if importance_gain:
+            total_gain = sum(importance_gain.values())
+            normalized_gain = {
+                feat: gain / total_gain for feat, gain in importance_gain.items()
+            }
+            self.best_features_df = pd.DataFrame(
+                {
+                    "feature": list(normalized_gain.keys()),
+                    "importance_gain_normalized": list(normalized_gain.values()),
+                }
+            ).sort_values(by="importance_gain_normalized", ascending=False)
+            self.best_features_df["importance_rank"] = range(
+                1, len(self.best_features_df) + 1
+            )
+            self.best_features_df = self.best_features_df.set_index("importance_rank")
+        else:
+            self.best_features_df = pd.DataFrame()
+
         return {
             "model": self.model,
             "metrics_df": metrics_df,
             "performance_df": performance_df,
             "test_base_mean": self.test_base_mean,
+            "best_features_df": self.best_features_df,
         }
 
     def create_metrics_df(self, y_test, y_pred, test_base_mean):
@@ -172,6 +194,7 @@ model = results["model"]
 metrics_df = results["metrics_df"]
 performance_df = results["performance_df"]
 test_base_mean = results["test_base_mean"]
+best_features_df = results["best_features_df"]
 
 # Modify for printing
 performance_df["metric"] = performance_df["metric"] + ":"
@@ -181,6 +204,9 @@ print("\n=== Model Performance ===")
 print(performance_df.to_string(index=False))
 
 print(f"\nBase mean on test set: {test_base_mean:.4f}")
+
+print("\n=== best_features_df (Top Features by Gain) ===")
+print(best_features_df.to_string(float_format="{:.4f}".format))
 
 print("\n=== Performance by Percentile Threshold ===")
 print(metrics_df.to_string())

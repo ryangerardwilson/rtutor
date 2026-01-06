@@ -41,6 +41,7 @@ class ModelBuilder:
         self.test_base_rate = None
         self.y_pred_test = None
         self.n_classes = self.train_df[self.target].nunique()
+        self.best_features_df = None
 
     def _compute_cv_auc_best_iter(self, X, y):
         skf = StratifiedKFold(
@@ -104,11 +105,32 @@ class ModelBuilder:
             }
         )
 
+        # Compute feature importance
+        importance_gain = self.model.get_score(importance_type="gain")
+        if importance_gain:
+            total_gain = sum(importance_gain.values())
+            normalized_gain = {
+                feat: gain / total_gain for feat, gain in importance_gain.items()
+            }
+            self.best_features_df = pd.DataFrame(
+                {
+                    "feature": list(normalized_gain.keys()),
+                    "importance_gain_normalized": list(normalized_gain.values()),
+                }
+            ).sort_values(by="importance_gain_normalized", ascending=False)
+            self.best_features_df["importance_rank"] = range(
+                1, len(self.best_features_df) + 1
+            )
+            self.best_features_df = self.best_features_df.set_index("importance_rank")
+        else:
+            self.best_features_df = pd.DataFrame()
+
         return {
             "model": self.model,
             "metrics_df": metrics_df,
             "performance_df": performance_df,
             "test_base_rate": self.test_base_rate,
+            "best_features_df": self.best_features_df,
         }
 
     def create_metrics_df(self, y_test, y_pred_test, test_base_rate):
@@ -215,6 +237,7 @@ model = results["model"]
 metrics_df = results["metrics_df"]
 performance_df = results["performance_df"]
 test_base_rate = results["test_base_rate"]
+best_features_df = results["best_features_df"]
 
 # Modify for printing
 performance_df["metric"] = performance_df["metric"] + ":"
@@ -225,6 +248,9 @@ print(performance_df.to_string(index=False))
 
 print("\nClass base rates on test set:")
 print(test_base_rate)
+
+print("\n=== best_features_df (Top Features by Gain) ===")
+print(best_features_df.to_string(float_format="{:.4f}".format))
 
 print("\n=== Performance by Percentile Threshold ===")
 print(metrics_df.to_string())
