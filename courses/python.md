@@ -1556,23 +1556,41 @@
 
 #### Lesson 2: Feature Engineering Checklist
 
-    # 1. prediction_time, num_features, cat_features, and target should be defined 
+    # 1. Column names should have consistent lower case formatting
+    # df.columns = df.columns.str.lower()
+
+    # 2. num_features, cat_features, and target should be defined, along with
+    # their _ts columns (i.e. the earliest timestamp when the associated 
+    # attribute for row was recorded in the real world 
     from datetime import datetime
     prediction_time = datetime(2025, 12, 29, 14, 30, 0)  
     print(prediction_time)  
     #! 2025-12-29 14:30:00
     event_timestamp = 'date' # This is the name of the col used to do a
                              # test-train split qua the prediction_time
-    num_features = []
-    cat_features = []
-    event_timestamp = []
+    num_features = ['feat1', 'feat2']
+    num_features_ts = ['feat1_ts', 'feat2_ts']
+    cat_features = ['feat3', 'feat4']
+    cat_features_ts = ['feat3_ts', 'feat4_ts']
     target = 'target_col'
-    
-    # 2. The set of rows should have no duplicates and constitue a 'monte carlo' sample
+    target_ts = 'target_col_ts'
+
+    # 3. The set of rows should have no duplicates and constitute a 'monte carlo' 
+    # sample, meaning that the target variable must be associated with an event 
+    # that is >= the events associated with each of the features
     df = df.drop_duplicates()
-    
-    # 3. Column names should have consistent lower case formatting
-    # df.columns = df.columns.str.lower()
+    all_features_ts = num_features_ts + cat_features_ts
+    def is_monte_carlo(row):
+        target_time = row[target_ts]
+        for ts_col in all_features_ts:
+            feature_time = row[ts_col]
+            if feature_time > target_time:
+                return False
+        return True
+    monte_carlo_checks = df.apply(is_monte_carlo, axis=1)
+    if not monte_carlo_checks.all():
+        problematic_df = df[~monte_carlo_checks]
+        raise ValueError('Data contains invalid Monte carlo samples!')
 
     # 4. The target column must have a numeric dtype - either 0/1 for binary
     # classification, or a number like price, category code, etc. 
