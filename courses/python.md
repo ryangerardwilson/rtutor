@@ -5003,13 +5003,18 @@
     print(f"Predicted class probabilities: {example_pred}")
     print(f"Predicted class: {np.argmax(example_pred)}")
 
-## Part IV: Calculus
+## Part IV: Calculus for Data Science
 
 ### Section 1: Calculus I (Single Variable)
 
 #### Lesson 1: Introduction
 
-    # 1. What is calculus?
+    # 1. Boundaries
+
+    - Since our objective is calculus for Data Science, we will focus only on
+      real numbers.
+
+    # 2. What is calculus?
 
     Imagine, you are driving your car. One question, you may ask is what is
     your average speed during your drive. 
@@ -5023,22 +5028,51 @@
     Calculus is a framework that gives us the tools to help us define a precise
     notion for that 'instantaneous rate of change'.
 
-    # 2. What does calculus have to do with data science?
+    # 3. What does calculus have to do with data science?
 
-    While speed may seem related to 'physics', in mathematics it is just a
-    slope in a 'distance v. time' chart. And calculus is all about finding such
-    slopes. This is Calculus 1.
+    - Calculus 1 (Derivatives): While speed may seem related to 'physics', in 
+      mathematics it is just a slope in a 'distance v. time' chart. And calculus 
+      is all about finding such slopes. This is Calculus 1.
 
-    But, what do slopes have to do with machine learning? In order to
-    understand that, we need to go to the multi-dimensional paradigm introduced
-    by Calculus 3. In multiple dimensions, the slope is analogous to the
-    gradient, which tells us more about the steepest ascent and the steepest
-    descent. Gradient descents are key to how machine learning algorithms like
-    neural networks actually learn. The machine learning technique of back
-    propagation is nothing but the calculus concept of gradient descent.
+    - Calculus 2 (Integerals): Calculates totals or areas under curves, like 
+      summing up probabilities in stats or total errors in models. It's used for 
+      things like predicting averages or evaluating ML accuracy.
 
-    [At 3:11,
-    https://www.udemy.com/course/calculus-data-science/learn/lecture/36561540#content]
+    - Calculus 3 (Multivariable): In multiple dimensions, the slope is analogous 
+      to the gradient, which tells us more about the steepest ascent and the 
+      steepest descent. Gradient descents are key to how machine learning 
+      algorithms like neural networks actually learn. 
+
+#### Lesson 2: Functions
+
+    # 1. What are functions?
+
+    Essentially, functions are 'mappings'/'rules' that assign each input x in a 
+    domain to exactly one output f(x) in a co-domain. 
+
+    The easiest way to represent a function is a two column table, of input and
+    output.
+
+    #! | input_domain | output_co_domain |
+    #! -----------------------------------
+    #! |            1 |                1 |
+    #! |            2 |                4 |
+    #! |            3 |                9 |
+    #! -----------------------------------
+
+    But, the problem with the above representation is that it is not very
+    useful for calculus. For this reason, we represent the same function above
+    as below, as it gives us
+    - better abstraction
+    - a better way to visualize them while coding
+
+        f(x) = x^2
+        g(x) = pi*x
+
+    # 1. What types of functions are there?
+
+    [At 7:00,
+    https://www.udemy.com/course/calculus-data-science/learn/lecture/35814616#content]
 
 
 
@@ -5048,7 +5082,7 @@
 
 #### Lesson 1: 
 
-### Section 3: Calculus II (Vector/ Multivariable)
+### Section 3: Calculus III (Vector/ Multivariable)
 
 #### Lesson 1: 
 
