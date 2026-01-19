@@ -5003,6 +5003,66 @@
     print(f"Predicted class probabilities: {example_pred}")
     print(f"Predicted class: {np.argmax(example_pred)}")
 
+## Part IV: Calculus
+
+### Section 1: Calculus I (Single Variable)
+
+#### Lesson 1: Introduction
+
+    # 1. What is calculus?
+
+    Imagine, you are driving your car. One question, you may ask is what is
+    your average speed during your drive. 
+
+        v_avg = d / t
+
+    But during that drive you had different speeds - you were fast on highways,
+    slow at traffic signals. So, there is this experiential notion of
+    'instantaneous' speed i.e. what is your speed at any given moment? 
+
+    Calculus is a framework that gives us the tools to help us define a precise
+    notion for that 'instantaneous rate of change'.
+
+    # 2. What does calculus have to do with data science?
+
+    While speed may seem related to 'physics', in mathematics it is just a
+    slope in a 'distance v. time' chart. And calculus is all about finding such
+    slopes. This is Calculus 1.
+
+    But, what do slopes have to do with machine learning? In order to
+    understand that, we need to go to the multi-dimensional paradigm introduced
+    by Calculus 3. In multiple dimensions, the slope is analogous to the
+    gradient, which tells us more about the steepest ascent and the steepest
+    descent. Gradient descents are key to how machine learning algorithms like
+    neural networks actually learn. The machine learning technique of back
+    propagation is nothing but the calculus concept of gradient descent.
+
+    [At 3:11,
+    https://www.udemy.com/course/calculus-data-science/learn/lecture/36561540#content]
+
+
+
+#### Lesson 1: What is calculus?
+
+### Section 2: Calculus II (Integration)
+
+#### Lesson 1: 
+
+### Section 3: Calculus II (Vector/ Multivariable)
+
+#### Lesson 1: 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
