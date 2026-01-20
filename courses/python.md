@@ -5069,9 +5069,55 @@
         f(x) = x^2
         g(x) = pi*x
 
-    # 1. What types of functions are there?
+    - the above functions may also be represented as below,
 
-    [At 7:00,
+        y = x^2
+        y = pi*x
+
+
+    # 2. What types of functions are there?
+
+    ## 2.1 Straight Lines
+
+        f(x) = y = m*x + b
+
+    ## 2.2 Polynomials (Curvy lines)
+
+        f(x) = y = a*x^3 + b*x^2 + c*x + d  
+        # The below root functions are also polynomials
+        f(x) = y = a*x^(1/3) + b*x^(1/2) + c
+
+    ## 2.3 Exponential Functions
+
+    Here, x appears in the exponent. Such functions grow very 'steeply' when
+    plotted, as their growth is 'exponential'.
+
+        f(x) = y = 2^x
+
+    In calculus we will learn of a very special number called e, and it is very
+    common to see functions like this:
+
+        f(x) = y = e^x
+
+    ## 2.4 Logarithmic Functions
+
+    When you take a log, it is with respect to a base. So, if we simply say
+    log(x) without any base qualifier, we mean base 10.
+
+        f(x) = y = log(x) = log_{10}(x)
+
+    Likewise, when we take a ln (pronounced lawn), without specifying a base,
+    we mean the log of x with base e.
+
+        f(x) = y = ln(x) = log_{e}(x)
+
+    But, generally speaking, we can have any base b of x.
+
+        f(x) = y = log_{b}(x)
+
+
+
+    [At 13:40,
     https://www.udemy.com/course/calculus-data-science/learn/lecture/35814616#content]
 
 
