@@ -19,15 +19,11 @@ ${APP} Installer
 Usage: install.sh [options]
 
 Options:
-  -h, --help              Display this help message
-  -v, --version <version> Install a specific version (e.g., 0.1.0 or v0.1.0)
-  -b, --binary <path>     Install from a local binary instead of downloading
-      --no-modify-path    Don't modify shell config files (.zshrc, .bashrc, etc.)
+  -h,               Display this help message
+  -v <version>      Install a specific version (e.g., 0.1.0 or v0.1.0)
+  -b <path>         Install from a local binary instead of downloading
+  -n                Do not modify shell config to add to PATH
 
-Examples:
-  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash
-  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash -s -- --version 0.1.0
-  ./install.sh --binary /path/to/rt
 EOF
 }
 
@@ -37,18 +33,18 @@ binary_path=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h|--help) usage; exit 0 ;;
-    -v|--version)
-      [[ -n "${2:-}" ]] || { echo -e "${RED}Error: --version requires an argument${NC}"; exit 1; }
+    -h) usage; exit 0 ;;
+    -v)
+      [[ -n "${2:-}" ]] || { echo -e "${RED}Error: -v requires an argument${NC}"; exit 1; }
       requested_version="$2"
       shift 2
       ;;
-    -b|--binary)
-      [[ -n "${2:-}" ]] || { echo -e "${RED}Error: --binary requires a path${NC}"; exit 1; }
+    -b)
+      [[ -n "${2:-}" ]] || { echo -e "${RED}Error: -b requires a path${NC}"; exit 1; }
       binary_path="$2"
       shift 2
       ;;
-    --no-modify-path)
+    -n)
       no_modify_path=true
       shift
       ;;
@@ -199,5 +195,5 @@ fi
 
 echo ""
 print_message info "${MUTED}Installed ${NC}${APP}${MUTED} to ${NC}${INSTALL_DIR}/${APP}"
-print_message info "${MUTED}Run:${NC} ${APP} --help"
+print_message info "${MUTED}Run:${NC} ${APP} -h"
 echo ""
