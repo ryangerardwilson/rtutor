@@ -282,12 +282,12 @@ class Orchestrator:
                 file_id = _extract_file_id(doc)
                 if not file_id:
                     continue
-                fields = doc.get("fields") or {}
+                fields = _extract_fields(doc)
                 remote_path = fields.get("local_path")
                 if remote_path:
-                    existing_docs[remote_path] = {
+                    existing_docs[str(remote_path)] = {
                         "file_id": file_id,
-                        "fields": fields,
+                        "last_modified": fields.get("last_modified"),
                     }
                 else:
                     orphan_file_ids.append(file_id)
@@ -296,11 +296,11 @@ class Orchestrator:
                 break
 
         for file_id in orphan_file_ids:
-                try:
-                    management_client.delete_document(collection_id, file_id)
-                    purge_deleted.append(file_id)
-                except XAIClientError as exc:
-                    purge_failed.append((file_id, str(exc)))
+            try:
+                management_client.delete_document(collection_id, file_id)
+                purge_deleted.append(file_id)
+            except XAIClientError as exc:
+                purge_failed.append((file_id, str(exc)))
 
         course_entries: List[Tuple[Dict[str, Any], str, str]] = []
         desired_paths: set[str] = set()
@@ -313,13 +313,13 @@ class Orchestrator:
             desired_paths.add(canonical_path)
 
         for remote_path, doc_info in list(existing_docs.items()):
-                if remote_path not in desired_paths:
-                    file_id = doc_info["file_id"]
-                    try:
-                        management_client.delete_document(collection_id, file_id)
-                        purge_deleted.append(file_id)
-                    except XAIClientError as exc:
-                        purge_failed.append((file_id, str(exc)))
+            if remote_path not in desired_paths:
+                file_id = doc_info["file_id"]
+                try:
+                    management_client.delete_document(collection_id, file_id)
+                    purge_deleted.append(file_id)
+                except XAIClientError as exc:
+                    purge_failed.append((file_id, str(exc)))
                 existing_docs.pop(remote_path, None)
 
         unchanged: List[str] = []
@@ -423,23 +423,18 @@ class Orchestrator:
 
         _print_block("unchanged", unchanged)
 
-        uploaded_display = [
-            f"{name} -> {fid} ({path})" for name, path, fid in uploaded
-        ]
+        uploaded_display = [f"{name} -> {fid}" for name, _, fid in uploaded]
         _print_block("uploaded", uploaded_display)
 
         _print_block("missing", missing_files)
 
         failed_display = [f"{name}: {err}" for name, err in upload_failed]
-        if failed_display:
-            _print_block("upload_failed", failed_display)
+        _print_block("upload_failed", failed_display)
 
-        if purge_deleted:
-            _print_block("removed remote files", purge_deleted)
+        _print_block("removed remote files", purge_deleted)
 
-        if purge_failed:
-            failed_removals = [f"{fid}: {err}" for fid, err in purge_failed]
-            _print_block("failed removals", failed_removals)
+        failed_removals = [f"{fid}: {err}" for fid, err in purge_failed]
+        _print_block("failed removals", failed_removals)
 
         return [collection_id]
 
@@ -752,3 +747,31 @@ def _extract_file_id(doc: Dict[str, Any]) -> Optional[str]:
         or doc.get("document_id")
         or (doc.get("file_metadata") or {}).get("file_id")
     )
+
+
+def _extract_fields(doc: Dict[str, Any]) -> Dict[str, Any]:
+    parsed: Dict[str, Any] = {}
+    raw_fields = doc.get("fields")
+    if isinstance(raw_fields, dict):
+        for key, value in raw_fields.items():
+            if isinstance(value, dict):
+                for candidate in ("string_value", "number_value", "bool_value"):
+                    if candidate in value:
+                        parsed[key] = value[candidate]
+                        break
+            else:
+                parsed[key] = value
+    elif isinstance(raw_fields, list):
+        for entry in raw_fields:
+            key = entry.get("key")
+            value = entry.get("value")
+            if not key or value is None:
+                continue
+            if isinstance(value, dict):
+                for candidate in ("string_value", "number_value", "bool_value"):
+                    if candidate in value:
+                        parsed[key] = value[candidate]
+                        break
+            else:
+                parsed[key] = value
+    return parsed

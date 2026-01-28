@@ -55,7 +55,16 @@ class XAIManagementClient:
         *,
         fields: Optional[Dict[str, Any]] = None,
     ) -> dict:
-        payload = {"fields": fields} if fields else None
+        payload = None
+        if fields:
+            entries = []
+            for key, value in fields.items():
+                if value is None:
+                    continue
+                entry_value: Dict[str, Any] = {"string_value": str(value)}
+                entries.append({"key": key, "value": entry_value})
+            if entries:
+                payload = {"fields": entries}
         return self._request(
             "POST",
             f"/collections/{collection_id}/documents/{file_id}",
