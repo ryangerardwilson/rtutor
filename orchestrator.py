@@ -269,18 +269,8 @@ class Orchestrator:
                 print(f"[sync] Skipping missing file for '{name}'")
                 continue
 
-            previous_file_id = course.get("xai_file_id")
-            if previous_file_id:
-                try:
-                    management_client.delete_document(collection_id, previous_file_id)
-                    print(
-                        f"[sync] Deleted previous file {previous_file_id} for '{name}'"
-                    )
-                except XAIClientError as exc:
-                    print(f"[sync] Failed to delete previous file: {exc}")
-                finally:
-                    course["xai_file_id"] = None
-                    updated = True
+            course["xai_file_id"] = None
+            updated = True
 
             try:
                 upload = file_client.upload_file(str(course_path))
