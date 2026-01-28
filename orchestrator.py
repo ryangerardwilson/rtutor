@@ -392,20 +392,30 @@ class Orchestrator:
             f"[status] Collection {collection_id} (documents={collection.get('documents_count')})"
         )
 
+        rows = []
         for course in self.config.get("courses", []):
-            name = course.get("name") or "<unnamed>"
+            name = (course.get("name") or "<unnamed>").strip()
             file_id = course.get("xai_file_id")
             if not file_id:
-                print(f"[status] Course '{name}': no uploaded file (run -t)")
+                rows.append((name, "not uploaded"))
                 continue
             try:
                 info = management_client.get_document(collection_id, file_id)
                 status_value = _extract_status(info)
-                print(f"[status] Course '{name}': {status_value} (file_id={file_id})")
+                rows.append((name, status_value))
             except XAIClientError as exc:
-                print(
-                    f"[status] Course '{name}': unable to fetch status for file {file_id}: {exc}"
-                )
+                rows.append((name, f"error: {exc}"))
+
+        if rows:
+            name_width = max(len("course"), *(len(row[0]) for row in rows))
+            status_width = max(len("status"), *(len(row[1]) for row in rows))
+
+            header = f"{'course'.ljust(name_width)}  {'status'.ljust(status_width)}"
+            separator = f"{'-' * name_width}  {'-' * status_width}"
+            print(header)
+            print(separator)
+            for name, status in rows:
+                print(f"{name.ljust(name_width)}  {status.ljust(status_width)}")
 
     def _ask_question(self, question: str, collection_ids: List[str]) -> str:
         api_key, _ = self._resolve_api_keys()
