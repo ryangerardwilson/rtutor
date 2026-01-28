@@ -131,12 +131,14 @@ compatibility; use it with tokens to do direct fuzzy searches.
 ```
 rtutor                 # launches doc-mode menus (default)
 rtutor -d "token ..."  # runs a direct search and opens the matches in doc-mode viewer
+rtutor -t                  # upload (train) all registered courses to Grok Collections
 rtutor -q "How do I inspect a df?"  # sync courses to Grok and answer a question
 ```
 
 - `rtutor` alone → menu-driven doc-mode.
 - `rtutor -d` with no tokens is redundant (same as running rtutor).
 - `rtutor -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
+- `rtutor -t` → force a full re-upload (training) of every course to Grok Collections.
 - `rtutor -q "question"` → non-interactive Q&A powered by Grok Collections (requires API keys).
 - Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
 
@@ -155,6 +157,7 @@ Examples:
 ```
 rtutor -d "repl"
 rtutor -d "python" "repl"
+rtutor -t
 rtutor -q "show me python repl basics"
 ```
 
@@ -175,7 +178,6 @@ file to point at your own Markdown courses. Each course entry tracks:
 
 - `name`: friendly label shown in menus
 - `local_path`: absolute path to the Markdown file
-- `source`: `seed` or `user`
 - `xai_file_id`: last uploaded document ID (populated after syncing with Grok)
 
 Global Grok integration settings live under the top-level `xai` key:

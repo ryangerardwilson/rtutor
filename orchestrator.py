@@ -28,7 +28,7 @@ from xai_client import (
 class Orchestrator:
     def __init__(self, argv: Optional[List[str]] = None):
         self.argv = argv if argv is not None else list(sys.argv[1:])
-        self.args = SimpleNamespace(question=None)
+        self.args = SimpleNamespace(question=None, train=False)
         self.config: Dict[str, Any] = {}
         self.courses = []
         self.missing_courses: List[str] = []
@@ -43,6 +43,15 @@ class Orchestrator:
 
         self.args = self._parse_args()
         self.config = self._load_and_prepare_config()
+        self.courses, self.missing_courses = self._load_courses()
+
+        if self.args.train:
+            collection_ids = self._sync_courses()
+            if collection_ids:
+                print(f"Training complete. Collection ID: {collection_ids[0]}")
+            else:
+                print("No courses were uploaded; check course paths.")
+            return
 
         if self.args.question:
             collection_ids = self._sync_courses()
@@ -52,8 +61,6 @@ class Orchestrator:
             answer = self._ask_question(self.args.question, collection_ids)
             print(answer or "No answer returned from Grok.")
             return
-
-        self.courses, self.missing_courses = self._load_courses()
 
         self._handle_missing_courses()
         self._handle_flags()
@@ -74,6 +81,7 @@ class Orchestrator:
     # ------------------------------------------------------------------
     def _parse_args(self) -> SimpleNamespace:
         question: Optional[str] = None
+        train = False
         remaining: List[str] = []
         tokens = list(self.argv)
         i = 0
@@ -85,10 +93,14 @@ class Orchestrator:
                 question = tokens[i + 1]
                 i += 2
                 continue
+            if token in {"-t", "--train"}:
+                train = True
+                i += 1
+                continue
             remaining.append(token)
             i += 1
         self.argv = remaining
-        return SimpleNamespace(question=question)
+        return SimpleNamespace(question=question, train=train)
 
     def _load_and_prepare_config(self) -> Dict[str, Any]:
         ensure_config_dirs()
