@@ -216,7 +216,11 @@ class Orchestrator:
             self.sync_messages.append(f"Failed to ensure collection: {exc}")
             return []
 
-        collection_id = collection.get("id") or collection_id
+        collection_id = (
+            collection.get("id")
+            or collection.get("collection_id")
+            or collection_id
+        )
         if not collection_id:
             self.sync_messages.append("No collection id returned from xAI management API.")
             return []
@@ -248,7 +252,7 @@ class Orchestrator:
 
             try:
                 upload = file_client.upload_file(str(course_path))
-                file_id = upload.get("id")
+                file_id = upload.get("id") or upload.get("file_id")
                 if not file_id:
                     raise XAIClientError("Upload response missing file id")
                 management_client.add_document(collection_id, file_id)
