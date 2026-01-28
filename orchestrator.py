@@ -267,8 +267,13 @@ class Orchestrator:
                 )
                 try:
                     wait_for_document_processing(
-                        management_client, collection_id, file_id
+                        management_client,
+                        collection_id,
+                        file_id,
+                        timeout_seconds=300,
+                        poll_interval=5,
                     )
+                    print(f"[sync] Document {file_id} processed")
                 except XAIClientError as exc:
                     print(f"[sync] Document processing warning: {exc}")
                 course["xai_file_id"] = file_id
@@ -339,6 +344,24 @@ class Orchestrator:
             )
             return None
 
+        for course in self.config.get("courses", []):
+            file_id = course.get("xai_file_id")
+            if not file_id:
+                continue
+            try:
+                wait_for_document_processing(
+                    management_client,
+                    collection_id,
+                    file_id,
+                    timeout_seconds=120,
+                    poll_interval=5,
+                )
+            except XAIClientError as exc:
+                print(
+                    f"[sync] Document {file_id} not yet processed ({exc}). Re-run -t if needed."
+                )
+                return None
+
         return collection_id
 
     def _ask_question(self, question: str, collection_ids: List[str]) -> str:
@@ -350,8 +373,9 @@ class Orchestrator:
             question,
             collection_ids,
             system_prompt=(
-                "You are an instructor assistant. Answer based on the user's course materials. "
-                "Cite the course and lesson when possible."
+                "You are an instructor assistant. Answer ONLY using the user's course materials "
+                "accessible via the file_search tool. Always call file_search, include relevant "
+                "quotes or bullet points from the retrieved lessons, and cite file IDs in parentheses."
             ),
         )
         return responses_client.extract_text(payload)
