@@ -687,7 +687,7 @@ class Orchestrator:
         handle_bookmark_flags(self.courses)
 
     def _print_help(self) -> None:
-        print("Usage: rtutor [options]")
+        print("Usage: rt [options]")
         print()
         print("Options:")
         print("  -t             upload (train) registered courses")

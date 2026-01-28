@@ -47,19 +47,38 @@ sudo pacman -S python
 git clone <this-repo> ~/Apps/rtutor
 ```
 
-3. Make a proper launcher. Symlink the executable main.py into your PATH as `rtutor`:
+3. Make a proper launcher. Symlink the executable main.py into your PATH as `rt`:
 ```
 chmod +x ~/Apps/rtutor/main.py
 mkdir -p ~/.local/bin
-ln -sf ~/Apps/rtutor/main.py ~/.local/bin/rtutor
+ln -sf ~/Apps/rtutor/main.py ~/.local/bin/rt
 ```
 
 4. Ensure `~/.local/bin` is on PATH (fix your shell if it isn’t):
 ```
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
-command -v rtutor || echo "PATH not set right"
+command -v rt || echo "PATH not set right"
 ```
+
+### One-line installer (Linux x86_64)
+
+Prefer the binary bundle? Use the install script, which mirrors the release workflow:
+
+```
+curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/rt/main/install.sh | bash
+```
+
+Select a specific version or skip shell config updates:
+
+```
+curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/rt/main/install.sh | \
+  bash -s -- --version 0.3.0 --no-modify-path
+```
+
+The installer downloads the `rt-linux-x64.tar.gz` artifact for the chosen release,
+installs it to `~/.rt/app/rt`, and writes a lightweight shim to `~/.rt/bin/rt`.
+It will add the directory to your PATH unless you pass `--no-modify-path`.
 
 ## Usage
 
@@ -67,7 +86,7 @@ You made the symlink — use it.
 
 Start the app (doc mode is the default):
 ```
-rtutor
+rt
 ```
 
 Menus:
@@ -85,7 +104,7 @@ You can run directly (not recommended for daily use):
 ```
 ~/Apps/rtutor/main.py
 ```
-But symlink to `~/.local/bin/rtutor` like above.
+But symlink to `~/.local/bin/rt` like above.
 
 Markdown format for courses:
 ```
@@ -99,14 +118,14 @@ Markdown format for courses:
 
 ## Doc Mode Features
 
-Doc mode is the default now. Just run rtutor — you'll be in the read-only doc
+Doc mode is the default now. Just run `rt` — you'll be in the read-only doc
 viewer with full navigation and editing tools. The old -d flag still works but
 is redundant unless you're using it with search tokens (see Doc Mode CLI
 Flags).
 
 Quick keys while viewing:
 - b — bookmark current lesson
-- i — edit the lesson in your $EDITOR (vim by default); rtutor will reload the course and try to keep your place
+- i — edit the lesson in your $EDITOR (vim by default); rt will reload the course and try to keep your place
 - h / l — previous / next lesson
 - r — rote mode (10 reps)
 - j — jump mode (type through entire sequence)
@@ -115,35 +134,39 @@ Quick keys while viewing:
 - esc — back to menu
 
 Bookmarks:
-- Persisted to `~/.config/rtutor/bookmarks.conf` in a plain hierarchical format.
+- Persisted to `~/.config/rt/bookmarks.conf` in a plain hierarchical format.
 - From the main menu in doc mode press `b` to open and jump.
 - In the bookmark list: j/k navigate, Enter or l to jump, dd (double-press d) to delete.
 
 In-place editing:
 - Press `i` on a lesson (if the source .md file is present).
-- rtutor opens your editor at the lesson heading, you edit and save, and rtutor reloads and attempts to keep your location.
+- `rt` opens your editor at the lesson heading, you edit and save, and `rt` reloads and attempts to keep your location.
 
 ## Doc Mode CLI Flags
 
 Short and brutal: doc-mode is default. `-d/--doc` is still accepted for
 compatibility; use it with tokens to do direct fuzzy searches.
 
-```
-rtutor                 # launches doc-mode menus (default)
-rtutor -d "token ..."  # runs a direct search and opens the matches in doc-mode viewer
-rtutor -t                  # upload (train) all registered courses to Grok Collections
-rtutor -s                  # show indexing status for every registered course
-rtutor -p                  # purge all documents from the Grok collection
-rtutor -q "How do I inspect a df?"  # answer a question using the collection
+- ```
+rt                     # launches doc-mode menus (default)
+rt -d "token ..."      # runs a direct search and opens the matches in doc-mode viewer
+rt -t                  # upload (train) all registered courses to Grok Collections
+rt -s                  # show indexing status for every registered course
+rt -p                  # purge all documents from the Grok collection
+rt -q "How do I inspect a df?"  # answer a question using the collection
+rt -v                  # print the installed version
+rt -u                  # upgrade to the latest release
 ```
 
-- `rtutor` alone → menu-driven doc-mode.
-- `rtutor -d` with no tokens is redundant (same as running rtutor).
-- `rtutor -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
-- `rtutor -t` → upload (or re-upload) registered courses. Removes stray documents and skips unchanged files.
-- `rtutor -s` → display indexing/processing status for each course file.
-- `rtutor -p` → purge every document currently stored in the Grok collection.
-- `rtutor -q "question"` → non-interactive Q&A powered by the collection (requires API keys).
+- `rt` alone → menu-driven doc-mode.
+- `rt -d` with no tokens is redundant (same as running `rt`).
+- `rt -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
+- `rt -t` → upload (or re-upload) registered courses. Removes stray documents and skips unchanged files.
+- `rt -s` → display indexing/processing status for each course file.
+- `rt -p` → purge every document currently stored in the Grok collection.
+- `rt -q "question"` → non-interactive Q&A powered by the collection (requires API keys).
+- `rt -v` → show the current version.
+- `rt -u` → curl the installer and upgrade in-place.
 - Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
 
 Token mapping (fuzzy, case-insensitive):
@@ -159,11 +182,11 @@ Fuzzy rules:
 
 Examples:
 ```
-rtutor -d "repl"
-rtutor -d "python" "repl"
-rtutor -t
-rtutor -s
-rtutor -q "show me python repl basics"
+rt -d "repl"
+rt -d "python" "repl"
+rt -t
+rt -s
+rt -q "show me python repl basics"
 ```
 
 The former `-c/--cat` command has been retired.
@@ -174,7 +197,7 @@ rtutor stores user configuration under `${XDG_CONFIG_HOME:-~/.config}/rt/`.
 You register courses yourself by editing `config.json`. Each course entry tracks:
 
 - `name`: friendly label shown in menus
-- `local_path`: absolute path to the Markdown file (rtutor never relocates it)
+- `local_path`: absolute path to the Markdown file (`rt` never relocates it)
 - `xai_file_id`: last uploaded document ID (populated after running `-t`)
 
 Global Grok integration settings live under the top-level `xai` key:
@@ -206,11 +229,11 @@ The runtime Python modules live directly in the repository root (no nested
 
 ## Adding Courses
 
-You control the course catalog. Point rtutor at any Markdown lesson file by
+You control the course catalog. Point `rt` at any Markdown lesson file by
 registering it:
 
 ```
-rtutor -t                  # upload (train) all registered courses to Grok Collections
+rt -t                  # upload (train) all registered courses to Grok Collections
 ```
 
 Each file should follow the same structure the app expects:
@@ -225,6 +248,6 @@ To remove a course, edit `config.json` directly (located at
 
 After registering courses:
 
-1. Run `rtutor -t` to upload them to the Grok collection (only changed files are re-uploaded; stale remote files are removed).
-2. Use `rtutor -s` to verify indexing status.
-3. Ask questions with `rtutor -q "your question"` once files show `processed`.
+1. Run `rt -t` to upload them to the Grok collection (only changed files are re-uploaded; stale remote files are removed).
+2. Use `rt -s` to verify indexing status.
+3. Ask questions with `rt -q "your question"` once files show `processed`.
