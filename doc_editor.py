@@ -4,6 +4,7 @@ import subprocess
 import curses
 from course_parser import CourseParser
 
+
 class DocEditor:
     """
     Encapsulates logic to edit a lesson in the source markdown using Vim.
@@ -43,15 +44,19 @@ class DocEditor:
             self._show_msg(stdscr, "Error: Cannot read source file", max_y, max_x)
             return None
 
-        heading_rx = re.compile(rf"^####[ \t]*{re.escape(lesson_name)}[ \t]*$", re.MULTILINE)
+        heading_rx = re.compile(
+            rf"^####[ \t]*{re.escape(lesson_name)}[ \t]*$", re.MULTILINE
+        )
         if not heading_rx.search(body):
             max_y, max_x = stdscr.getmaxyx()
-            self._show_msg(stdscr, "Error: Heading not found in source file", max_y, max_x)
+            self._show_msg(
+                stdscr, "Error: Heading not found in source file", max_y, max_x
+            )
             return None
 
         # Build a Vim literal search: use \V (very nomagic), only escape backslashes and slashes
         # (slashes are the search delimiter). This avoids using Python's re.escape for Vim.
-        vim_literal = r'\V' + lesson_name.replace('\\', r'\\').replace('/', r'\/')
+        vim_literal = r"\V" + lesson_name.replace("\\", r"\\").replace("/", r"\/")
 
         # Exit curses mode, run vim, then return
         try:
@@ -61,7 +66,7 @@ class DocEditor:
 
         try:
             # Run vim without a shell to avoid quoting issues
-            subprocess.run(['vim', self.source_file, f'+/{vim_literal}'])
+            subprocess.run(["vim", self.source_file, f"+/{vim_literal}"])
         except Exception:
             # If launching vim fails, try to restore curses and show message
             try:
@@ -88,7 +93,9 @@ class DocEditor:
                     return reloaded_lessons, new_course.name, new_idx
 
             # not found: clamp index
-            new_idx = min(current_idx, len(reloaded_lessons) - 1) if reloaded_lessons else 0
+            new_idx = (
+                min(current_idx, len(reloaded_lessons) - 1) if reloaded_lessons else 0
+            )
             return reloaded_lessons, new_course.name, new_idx
 
         except Exception:

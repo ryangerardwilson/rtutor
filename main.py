@@ -21,13 +21,15 @@ def _course_id_from_path(path: str) -> str:
         return ""
     return Path(path).stem.lower().replace(" ", "-")
 
+
 # Set TERM explicitly for consistent color support
-os.environ['TERM'] = 'xterm-256color'
+os.environ["TERM"] = "xterm-256color"
+
 
 def main():
     # Set ESCDELAY early, before any curses initialization
     # 25ms gives very snappy Esc response while still allowing most Alt+key and escape sequences to work reliably
-    os.environ.setdefault('ESCDELAY', '25')
+    os.environ.setdefault("ESCDELAY", "25")
 
     # Determine repo seed directory and ensure seed courses are registered
     script_path = os.path.realpath(__file__)
@@ -87,6 +89,7 @@ def main():
         curses.wrapper(menu.run)
     except KeyboardInterrupt:
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

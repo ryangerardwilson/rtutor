@@ -880,5 +880,3 @@
     UNION ALL
     SELECT product, 'Mar' AS month, mar_sales AS sales FROM pivoted_sales
     ORDER BY product, month;
-
-

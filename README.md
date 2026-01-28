@@ -1,10 +1,10 @@
 # RTutor
 
 
-AI slop is a problem. Inculcating great programming taste is the antidote. rtutor is an attempt to disseminate that antidote.
+AI slop is a problem. Inculcating great programming taste is the antidote.
+rtutor is an attempt to disseminate that antidote.
 
 ## Table of Contents
-
 - [Preface](#preface)
 - [Featured Courses](#featured-courses)
 - [Installation](#installation)
@@ -17,7 +17,11 @@ AI slop is a problem. Inculcating great programming taste is the antidote. rtuto
 
 ## Preface
 
-rtutor parses intentionally curated Markdown files registered through its XDG config (`${XDG_CONFIG_HOME:-~/.config}/rt/courses/`), turning them into interactive typing lessons. Each course has parts and optional sections. Lessons are code blocks you must type accurately—with the objective of embedding taste through repetition. Start from the basics. Yes, even you.
+rtutor parses intentionally curated Markdown files registered through its XDG
+config (`${XDG_CONFIG_HOME:-~/.config}/rt/courses/`), turning them into
+interactive typing lessons. Each course has parts and optional sections.
+Lessons are code blocks you must type accurately—with the objective of
+embedding taste through repetition. Start from the basics. Yes, even you.
 
 ## Featured Courses
 
@@ -74,13 +78,14 @@ Menus:
 - Accuracy < 90%? You restart. Cope.
 - Finish a sequence? You get ASCII art. Press any key to exit.
 
-If no courses are found, it tells you and exits. Put `.md` files (named `course_<id>.md`) in `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`.
+If no courses are found, it tells you and exits. Put `.md` files (named
+`course_<id>.md`) in `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`.
 
 You can run directly (not recommended for daily use):
 ```
 ~/Apps/rtutor/main.py
 ```
-But symlink to `~/.local/bin/rtutor` like above. 
+But symlink to `~/.local/bin/rtutor` like above.
 
 Markdown format for courses:
 ```
@@ -94,7 +99,10 @@ Markdown format for courses:
 
 ## Doc Mode Features
 
-Doc mode is the default now. Just run rtutor — you'll be in the read-only doc viewer with full navigation and editing tools. The old -d flag still works but is redundant unless you're using it with search tokens (see Doc Mode CLI Flags).
+Doc mode is the default now. Just run rtutor — you'll be in the read-only doc
+viewer with full navigation and editing tools. The old -d flag still works but
+is redundant unless you're using it with search tokens (see Doc Mode CLI
+Flags).
 
 Quick keys while viewing:
 - b — bookmark current lesson
@@ -117,7 +125,8 @@ In-place editing:
 
 ## Doc Mode CLI Flags
 
-Short and brutal: doc-mode is default. `-d/--doc` is still accepted for compatibility; use it with tokens to do direct fuzzy searches.
+Short and brutal: doc-mode is default. `-d/--doc` is still accepted for
+compatibility; use it with tokens to do direct fuzzy searches.
 
 ```
 rtutor                 # launches doc-mode menus (default)
@@ -146,7 +155,8 @@ rtutor -d "repl"
 rtutor -d "python" "repl"
 ```
 
-The former `-c/--cat` command has been retired. A new `-q` flag that queries Grok Collections is in progress.
+The former `-c/--cat` command has been retired. A new `-q` flag that queries
+Grok Collections is in progress.
 
 ## Configuration
 
@@ -157,7 +167,9 @@ rtutor now follows the XDG base directory spec:
 - Managed course directory: `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`
 - Course files are flattened and stored as `course_<id>.md`
 
-On first launch, rtutor copies the bundled seed courses into the managed course directory and registers them in `config.json`. You can inspect and edit that file to point at your own Markdown courses. Each course entry tracks:
+On first launch, rtutor copies the bundled seed courses into the managed course
+directory and registers them in `config.json`. You can inspect and edit that
+file to point at your own Markdown courses. Each course entry tracks:
 
 - `id`: stable identifier (defaults to the filename stem)
 - `display_name` / `name`: used in menus
@@ -170,11 +182,13 @@ Environment variables:
 - `XAI_API_KEY` — standard Grok API key for retrieval requests
 - `XAI_MANAGEMENT_API_KEY` — Management API key with `AddFileToCollection` permission (uploading files)
 
-Both keys are optional today, but will be required for the upcoming `-q` Grok Collections integration.
+Both keys are optional today, but will be required for the upcoming `-q` Grok
+Collections integration.
 
 ## Project Layout
 
-The runtime Python modules live directly in the repository root (no nested `modules/` package). Key files:
+The runtime Python modules live directly in the repository root (no nested
+`modules/` package). Key files:
 
 - `main.py` — CLI entry point
 - `menu.py`, `lesson_sequencer.py`, `doc_mode.py`, `rote_mode.py`, `touch_type_mode.py` — interactive UI flows
@@ -184,7 +198,8 @@ The runtime Python modules live directly in the repository root (no nested `modu
 
 ## Adding Courses
 
-Drop Markdown files named `course_<id>.md` into `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`. Keep it simple:
+Drop Markdown files named `course_<id>.md` into
+`${XDG_CONFIG_HOME:-~/.config}/rt/courses/`. Keep it simple:
 
 - Top-level: `# Course`
 - Parts: `## Part`

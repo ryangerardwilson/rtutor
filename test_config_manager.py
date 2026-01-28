@@ -66,7 +66,9 @@ def test_normalize_flattens_nested_courses(temp_config_home):
     nested_dir.mkdir(parents=True, exist_ok=True)
 
     nested_file = nested_dir / "custom.md"
-    nested_file.write_text("""# Custom\n## Part\n### Section\n#### Lesson\n    pass\n""", encoding="utf-8")
+    nested_file.write_text(
+        """# Custom\n## Part\n### Section\n#### Lesson\n    pass\n""", encoding="utf-8"
+    )
 
     config.setdefault("courses", []).append(
         {

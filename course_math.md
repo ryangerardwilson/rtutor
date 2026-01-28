@@ -213,10 +213,4 @@
 
 ### Section 3: Calculus III (Vector/ Multivariable)
 
-#### Lesson 1: 
-
-
-
-
-
-
+#### Lesson 1:

@@ -1,7 +1,6 @@
 # ~/Apps/rtutor/modules/menu.py
 import curses
 from ascii import title_ascii_art
-from bookmarks import Bookmarks
 from lesson_sequencer import LessonSequencer
 
 
@@ -70,7 +69,9 @@ class Menu:
                             menu_start_y + i,
                             menu_x_pos,
                             text,
-                            curses.color_pair(1) if i == selected else curses.color_pair(2),
+                            curses.color_pair(1)
+                            if i == selected
+                            else curses.color_pair(2),
                         )
                         stdscr.clrtoeol()
                     except curses.error:
@@ -122,7 +123,12 @@ class Menu:
                     bookmarks = Bookmarks()
                     result = bookmarks.show_menu_and_jump(stdscr, self.courses)
                     if result:
-                        target_course_name, target_part, target_section, target_lesson = result
+                        (
+                            target_course_name,
+                            target_part,
+                            target_section,
+                            target_lesson,
+                        ) = result
 
                         found = False
                         for course in self.courses:
@@ -156,8 +162,10 @@ class Menu:
                                     if part.name != target_part:
                                         continue
 
-                                    if len(part.sections) == 1 and part.sections[0].name == "Main":
-
+                                    if (
+                                        len(part.sections) == 1
+                                        and part.sections[0].name == "Main"
+                                    ):
                                         sequencer = LessonSequencer(
                                             f"{course.name}: {part.name}",
                                             part.sections[0].lessons,
@@ -173,10 +181,15 @@ class Menu:
                                 if found:
                                     break
                             else:
-                                if len(course.parts) == 1 and course.parts[0].name == "Main":
+                                if (
+                                    len(course.parts) == 1
+                                    and course.parts[0].name == "Main"
+                                ):
                                     part = course.parts[0]
-                                    if len(part.sections) == 1 and part.sections[0].name == "Main":
-
+                                    if (
+                                        len(part.sections) == 1
+                                        and part.sections[0].name == "Main"
+                                    ):
                                         sequencer = LessonSequencer(
                                             course.name,
                                             part.sections[0].lessons,
@@ -197,8 +210,8 @@ class Menu:
                     else:
                         need_redraw = True
 
-                elif key in (ord('q'), ord('Q')): 
-                    stdscr.nodelay(False) if hasattr(stdscr, 'nodelay') else None
+                elif key in (ord("q"), ord("Q")):
+                    stdscr.nodelay(False) if hasattr(stdscr, "nodelay") else None
                     return
             if changed:
                 need_redraw = True
@@ -241,7 +254,9 @@ class Menu:
                             menu_start_y + i,
                             menu_x_pos,
                             text,
-                            curses.color_pair(1) if i == selected else curses.color_pair(2),
+                            curses.color_pair(1)
+                            if i == selected
+                            else curses.color_pair(2),
                         )
                         stdscr.clrtoeol()
                     except curses.error:
@@ -267,12 +282,11 @@ class Menu:
                     part = course.parts[selected]
 
                     if len(part.sections) == 1 and part.sections[0].name == "Main":
-
                         sequencer = LessonSequencer(
                             f"{course.name}: {part.name}",
                             part.sections[0].lessons,
                             doc_mode=self.doc_mode,
-                            source_file=course.source_file
+                            source_file=course.source_file,
                         )
                         sequencer.run(stdscr)
                     else:
@@ -323,7 +337,9 @@ class Menu:
                             menu_start_y + i,
                             menu_x_pos,
                             text,
-                            curses.color_pair(1) if i == selected else curses.color_pair(2),
+                            curses.color_pair(1)
+                            if i == selected
+                            else curses.color_pair(2),
                         )
                         stdscr.clrtoeol()
                     except curses.error:

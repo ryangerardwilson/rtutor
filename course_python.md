@@ -5002,8 +5002,3 @@
     print(f"Input features:\n{results['selected_features']}")
     print(f"Predicted class probabilities: {example_pred}")
     print(f"Predicted class: {np.argmax(example_pred)}")
-
-
-
-
-

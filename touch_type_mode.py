@@ -2,7 +2,6 @@
 # ~/Apps/rtutor/modules/jump_mode.py
 import curses
 import sys
-from structs import Lesson
 from boom import Boom
 
 
@@ -66,7 +65,9 @@ class TouchTypeMode:
 
                     lines_below = total_lines - 1 - current_line
                     if lines_below <= 20:
-                        desired_offset = max(0, current_line - int(available_height * 0.3))
+                        desired_offset = max(
+                            0, current_line - int(available_height * 0.3)
+                        )
                         offset = max(offset, desired_offset)
 
                     offset = max(0, min(offset, total_lines - available_height))
@@ -82,8 +83,12 @@ class TouchTypeMode:
                     line1 = self.sequencer_name
                     line2 = f"TOUCH_TYPE_MODE: {lesson.name}"
                     try:
-                        stdscr.addstr(0, 0, line1[:max_x], curses.color_pair(1) | curses.A_BOLD)
-                        stdscr.addstr(1, 0, line2[:max_x], curses.color_pair(1) | curses.A_BOLD)
+                        stdscr.addstr(
+                            0, 0, line1[:max_x], curses.color_pair(1) | curses.A_BOLD
+                        )
+                        stdscr.addstr(
+                            1, 0, line2[:max_x], curses.color_pair(1) | curses.A_BOLD
+                        )
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
@@ -107,15 +112,20 @@ class TouchTypeMode:
                             if char == "\t":
                                 for _ in range(4):
                                     try:
-                                        stdscr.addch(row, display_pos, " ", curses.color_pair(1))
+                                        stdscr.addch(
+                                            row, display_pos, " ", curses.color_pair(1)
+                                        )
                                     except:
                                         pass
                                     display_pos += 1
                             else:
                                 ch = char
                                 if input_pos < len(user_input):
-                                    if (input_pos < len(processed_lines[global_i]) and
-                                        user_input[input_pos] == processed_lines[global_i][input_pos]):
+                                    if (
+                                        input_pos < len(processed_lines[global_i])
+                                        and user_input[input_pos]
+                                        == processed_lines[global_i][input_pos]
+                                    ):
                                         ch = user_input[input_pos]
                                     else:
                                         ch = "█"
@@ -123,14 +133,18 @@ class TouchTypeMode:
                                 if ch == "\n":
                                     ch = "↵"
                                 try:
-                                    stdscr.addch(row, display_pos, ch, curses.color_pair(1))
+                                    stdscr.addch(
+                                        row, display_pos, ch, curses.color_pair(1)
+                                    )
                                 except:
                                     pass
                                 display_pos += 1
 
                         while input_pos < len(user_input):
                             try:
-                                stdscr.addch(row, display_pos, "█", curses.color_pair(1))
+                                stdscr.addch(
+                                    row, display_pos, "█", curses.color_pair(1)
+                                )
                             except:
                                 pass
                             display_pos += 1
@@ -155,8 +169,12 @@ class TouchTypeMode:
                             pass
 
                     # Stats
-                    typed = sum(len(ui) for i, ui in enumerate(user_inputs) if not is_skip[i])
-                    total = sum(len(p) for i, p in enumerate(processed_lines) if not is_skip[i])
+                    typed = sum(
+                        len(ui) for i, ui in enumerate(user_inputs) if not is_skip[i]
+                    )
+                    total = sum(
+                        len(p) for i, p in enumerate(processed_lines) if not is_skip[i]
+                    )
                     stats = f"Typed {typed}/{total} chars"
 
                     scroll_info = ""
@@ -222,7 +240,7 @@ class TouchTypeMode:
                         sys.exit(0)
 
                     # === NEW: Proper ESC handling ===
-                    if key == 27:  # ESC 
+                    if key == 27:  # ESC
                         next_key = stdscr.getch()
                         if next_key == -1:
                             return self.current_idx
@@ -247,24 +265,36 @@ class TouchTypeMode:
                                 if user_inputs[current_line]:
                                     user_inputs[current_line].pop()
                             elif key in (curses.KEY_ENTER, 10, 13):
-                                if user_inputs[current_line] == processed_lines[current_line]:
+                                if (
+                                    user_inputs[current_line]
+                                    == processed_lines[current_line]
+                                ):
                                     if current_line < total_lines - 1:
                                         current_line += 1
                             elif key == 9:  # Tab
                                 cur_len = len(user_inputs[current_line])
                                 req_len = len(processed_lines[current_line])
                                 if cur_len < req_len:
-                                    remaining = "".join(processed_lines[current_line][cur_len:])
+                                    remaining = "".join(
+                                        processed_lines[current_line][cur_len:]
+                                    )
                                     if remaining.startswith("    "):
-                                        user_inputs[current_line].extend([" ", " ", " ", " "])
+                                        user_inputs[current_line].extend(
+                                            [" ", " ", " ", " "]
+                                        )
                             else:
                                 if 32 <= key <= 126:
                                     ch = chr(key)
-                                    if len(user_inputs[current_line]) < len(processed_lines[current_line]):
+                                    if len(user_inputs[current_line]) < len(
+                                        processed_lines[current_line]
+                                    ):
                                         user_inputs[current_line].append(ch)
 
                 # Check completion
-                if all(is_skip[i] or user_inputs[i] == processed_lines[i] for i in range(total_lines)):
+                if all(
+                    is_skip[i] or user_inputs[i] == processed_lines[i]
+                    for i in range(total_lines)
+                ):
                     lesson_finished = True
                     changed = True
 

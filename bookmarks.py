@@ -1,6 +1,4 @@
 # ~/Apps/rtutor/modules/bookmarks.py
-import os
-from pathlib import Path
 import curses
 from config_manager import get_config_root
 
@@ -19,7 +17,9 @@ class Bookmarks:
         course_name = part_name = section_name = ""
 
         for course in courses:
-            if display_name == course.name or display_name.startswith(course.name + ":"):
+            if display_name == course.name or display_name.startswith(
+                course.name + ":"
+            ):
                 for part in course.parts:
                     for section in part.sections:
                         for lesson in section.lessons:
@@ -28,12 +28,17 @@ class Bookmarks:
                                 part_name = part.name
                                 section_name = section.name
                                 break
-                        if course_name: break
-                    if course_name: break
-                if course_name: break
+                        if course_name:
+                            break
+                    if course_name:
+                        break
+                if course_name:
+                    break
 
         if not course_name:
-            course_name = display_name.split(":")[0] if ":" in display_name else display_name
+            course_name = (
+                display_name.split(":")[0] if ":" in display_name else display_name
+            )
 
         block = (
             f"Course: {course_name}\n"
@@ -69,7 +74,15 @@ class Bookmarks:
                     parts.append(data["Section"])
                 parts.append(data["Lesson"])
                 display = " > ".join(parts)
-                items.append((display, data["Course"], data.get("Part", ""), data.get("Section", ""), data["Lesson"]))
+                items.append(
+                    (
+                        display,
+                        data["Course"],
+                        data.get("Part", ""),
+                        data.get("Section", ""),
+                        data["Lesson"],
+                    )
+                )
 
         items.sort(key=lambda x: x[0].lower())
         return items
@@ -103,7 +116,9 @@ class Bookmarks:
                     new_blocks.append(block)
 
         if new_blocks:
-            self.BOOKMARKS_FILE.write_text("\n\n".join(new_blocks) + "\n\n", encoding="utf-8")
+            self.BOOKMARKS_FILE.write_text(
+                "\n\n".join(new_blocks) + "\n\n", encoding="utf-8"
+            )
         else:
             self.BOOKMARKS_FILE.unlink(missing_ok=True)
 
@@ -168,22 +183,26 @@ class Bookmarks:
             if key == -1:
                 continue
 
-            current_time = curses.getsyx()[1]  # Rough timestamp via curses internal counter
+            current_time = curses.getsyx()[
+                1
+            ]  # Rough timestamp via curses internal counter
 
-            if key in (ord('j'), curses.KEY_DOWN):
+            if key in (ord("j"), curses.KEY_DOWN):
                 selected = (selected + 1) % len(items)
                 need_redraw = True
-            elif key in (ord('k'), curses.KEY_UP):
+            elif key in (ord("k"), curses.KEY_UP):
                 selected = (selected - 1) % len(items)
                 need_redraw = True
-            elif key in (curses.KEY_ENTER, ord('\n'), ord('\r'), ord('l')):
+            elif key in (curses.KEY_ENTER, ord("\n"), ord("\r"), ord("l")):
                 _, course_name, part_name, section_name, lesson_name = items[selected]
                 return (course_name, part_name, section_name, lesson_name)
             elif key == 27:  # ESC
                 return None
-            elif key == ord('d'):
+            elif key == ord("d"):
                 # Only accept second 'd' if within ~500ms
-                if last_d_time and (current_time - last_d_time < 50):  # adjust sensitivity if needed
+                if last_d_time and (
+                    current_time - last_d_time < 50
+                ):  # adjust sensitivity if needed
                     display, _, _, _, _ = items[selected]
                     self.remove(display)
                     items = self._parse_bookmarks()

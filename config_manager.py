@@ -61,7 +61,9 @@ def sanitize_config(data: Dict[str, Any]) -> Dict[str, Any]:
     sanitized = dict(data)
 
     sanitized.setdefault("version", DEFAULT_VERSION)
-    sanitized.setdefault("created_at", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+    sanitized.setdefault(
+        "created_at", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
     sanitized.setdefault("courses", [])
     sanitized.setdefault(
         "xai",
@@ -81,7 +83,9 @@ def sanitize_config(data: Dict[str, Any]) -> Dict[str, Any]:
     xai_section.setdefault("management_key_env", "XAI_MANAGEMENT_API_KEY")
     sanitized["xai"] = xai_section
 
-    sanitized["courses"] = [_sanitize_course_entry(entry) for entry in sanitized["courses"]]
+    sanitized["courses"] = [
+        _sanitize_course_entry(entry) for entry in sanitized["courses"]
+    ]
 
     return sanitized
 
@@ -160,7 +164,9 @@ def save_config(config: Dict[str, Any]) -> None:
         json.dump(config, fh, indent=2, ensure_ascii=False)
 
 
-def upsert_course_entry(config: Dict[str, Any], entry: Dict[str, Any]) -> Dict[str, Any]:
+def upsert_course_entry(
+    config: Dict[str, Any], entry: Dict[str, Any]
+) -> Dict[str, Any]:
     courses: List[Dict[str, Any]] = config.setdefault("courses", [])
     target_id = entry.get("id")
 
@@ -198,10 +204,16 @@ def ensure_seed_courses(config: Dict[str, Any], seeds_dir: Path) -> Dict[str, An
         return normalize_course_entries(updated_config)
 
     changed = False
-    existing_ids = {course.get("id") for course in updated_config.get("courses", []) if course.get("id")}
+    existing_ids = {
+        course.get("id")
+        for course in updated_config.get("courses", [])
+        if course.get("id")
+    }
 
     for seed_file in seed_files:
-        identifier = _normalize_identifier(_strip_course_prefix(seed_file.stem)) or "untitled"
+        identifier = (
+            _normalize_identifier(_strip_course_prefix(seed_file.stem)) or "untitled"
+        )
         dest_path = courses_dir / _course_filename(identifier)
         legacy_path = courses_dir / seed_file.name
 
@@ -274,7 +286,9 @@ def normalize_course_entries(config: Dict[str, Any]) -> Dict[str, Any]:
         slug_candidates: List[Optional[str]] = []
         if path_obj:
             slug_candidates.append(path_obj.stem)
-        slug_candidates.extend([entry.get("id"), entry.get("display_name"), entry.get("name")])
+        slug_candidates.extend(
+            [entry.get("id"), entry.get("display_name"), entry.get("name")]
+        )
 
         for candidate in slug_candidates:
             slug_candidate = _normalize_identifier(_strip_course_prefix(candidate))
@@ -302,27 +316,37 @@ def normalize_course_entries(config: Dict[str, Any]) -> Dict[str, Any]:
             target_path.parent.mkdir(parents=True, exist_ok=True)
             path_obj = target_path
 
-        normalized_entry = _sanitize_course_entry({
-            "id": slug,
-            "name": entry.get("name") or entry.get("display_name") or slug.title(),
-            "display_name": entry.get("display_name") or entry.get("name") or slug,
-            "local_path": str(path_obj),
-            "source": entry.get("source") or "user",
-            "xai": entry.get("xai") or {},
-        })
+        normalized_entry = _sanitize_course_entry(
+            {
+                "id": slug,
+                "name": entry.get("name") or entry.get("display_name") or slug.title(),
+                "display_name": entry.get("display_name") or entry.get("name") or slug,
+                "local_path": str(path_obj),
+                "source": entry.get("source") or "user",
+                "xai": entry.get("xai") or {},
+            }
+        )
 
         existing = dedup.get(slug)
         if existing:
-            if existing.get("source") != "seed" and normalized_entry.get("source") == "seed":
+            if (
+                existing.get("source") != "seed"
+                and normalized_entry.get("source") == "seed"
+            ):
                 dedup[slug] = normalized_entry
             else:
-                if normalized_entry.get("source") == "seed" and existing.get("source") != "seed":
+                if (
+                    normalized_entry.get("source") == "seed"
+                    and existing.get("source") != "seed"
+                ):
                     existing["source"] = "seed"
                 if normalized_entry.get("local_path"):
                     existing["local_path"] = normalized_entry["local_path"]
                 if not existing.get("name") and normalized_entry.get("name"):
                     existing["name"] = normalized_entry["name"]
-                if not existing.get("display_name") and normalized_entry.get("display_name"):
+                if not existing.get("display_name") and normalized_entry.get(
+                    "display_name"
+                ):
                     existing["display_name"] = normalized_entry["display_name"]
             continue
 
@@ -330,7 +354,9 @@ def normalize_course_entries(config: Dict[str, Any]) -> Dict[str, Any]:
 
     config["courses"] = sorted(
         dedup.values(),
-        key=lambda item: (item.get("display_name") or item.get("name") or item.get("id", "")).lower(),
+        key=lambda item: (
+            item.get("display_name") or item.get("name") or item.get("id", "")
+        ).lower(),
     )
     return config
 
@@ -340,7 +366,7 @@ def _strip_course_prefix(value: Optional[str]) -> str:
         return ""
     text = str(value)
     if text.startswith(COURSE_FILENAME_PREFIX):
-        return text[len(COURSE_FILENAME_PREFIX):]
+        return text[len(COURSE_FILENAME_PREFIX) :]
     return text
 
 
