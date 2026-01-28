@@ -1,5 +1,4 @@
 *.swp
 *.png
+**/__pycache__/*
 modules/.ruff_cache
-modules/__pycache__
-tests/python/__pycache__
