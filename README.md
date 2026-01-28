@@ -211,8 +211,8 @@ You control the course catalog. Point rtutor at any Markdown lesson file by
 registering it:
 
 ```
-rtutor --add-course "Python Basics" ~/courses/python.md
-rtutor --add-course "SQL" ~/docs/sql.md
+rtutor -c "Python Basics" ~/courses/python.md
+rtutor -c "SQL" ~/docs/sql.md
 ```
 
 Each file should follow the same structure the app expects:

@@ -140,10 +140,10 @@ class Orchestrator:
                 show_help = True
                 i += 1
                 continue
-            if token == "--add-course":
+            if token == "-c":
                 if i + 2 >= len(tokens):
                     raise SystemExit(
-                        "Error: --add-course requires a name and a path"
+                        "Error: -c requires a name and a path"
                     )
                 name = tokens[i + 1]
                 path = tokens[i + 2]
@@ -715,16 +715,11 @@ class Orchestrator:
         print("Usage: rtutor [options]")
         print()
         print("Options:")
-        print("  -t, --train        upload (train) registered courses")
-        print("  -s, --status       show indexing status for courses")
-        print("  -p, --purge        remove all documents from the collection")
-        print("  -q, --question     ask a question using the collection")
-        print("  --add-course NAME PATH  register a course")
-        print()
-        print("Examples:")
-        print("  rtutor -t")
-        print("  rtutor -s")
-        print("  rtutor -q \"How do I inspect a df?\"")
+        print("  -t             upload (train) registered courses")
+        print("  -s             show indexing status for courses")
+        print("  -p             remove all documents from the collection")
+        print("  -q QUESTION    ask a question using the collection")
+        print("  -c NAME PATH   register a course")
 
 
 def _extract_identifier(
