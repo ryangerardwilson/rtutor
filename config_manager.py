@@ -91,6 +91,7 @@ def _sanitize_course_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     sanitized.setdefault("name", None)
     sanitized.setdefault("local_path", None)
     sanitized.setdefault("xai_file_id", None)
+    sanitized.setdefault("xai_file_mtime", None)
 
     return sanitized
 
@@ -100,6 +101,7 @@ def _empty_course_entry() -> Dict[str, Any]:
         "name": None,
         "local_path": None,
         "xai_file_id": None,
+        "xai_file_mtime": None,
     }
 
 
@@ -153,6 +155,8 @@ def upsert_course_entry(
             merged_entry = {**course, **sanitized_entry}
             if sanitized_entry.get("xai_file_id") is None:
                 merged_entry["xai_file_id"] = course.get("xai_file_id")
+            if sanitized_entry.get("xai_file_mtime") is None:
+                merged_entry["xai_file_mtime"] = course.get("xai_file_mtime")
             courses[idx] = _sanitize_course_entry(merged_entry)
             updated["courses"] = courses
             return updated

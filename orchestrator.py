@@ -1,6 +1,7 @@
 import curses
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -257,11 +258,25 @@ class Orchestrator:
             xai_section["collection_id"] = collection_id
             updated = True
 
-        self._purge_collection(
-            collection_id=collection_id, management_client=management_client
-        )
-
         any_uploaded = False
+        configured_ids = {
+            course.get("xai_file_id")
+            for course in self.config.get("courses", [])
+            if course.get("xai_file_id")
+        }
+
+        if configured_ids:
+            self._purge_collection(
+                collection_id=collection_id,
+                management_client=management_client,
+                keep_file_ids=configured_ids,
+            )
+        else:
+            self._purge_collection(
+                collection_id=collection_id,
+                management_client=management_client,
+            )
+
         for course in self.config.get("courses", []):
             name = course.get("name") or "Course"
             local_path = course.get("local_path")
@@ -273,8 +288,34 @@ class Orchestrator:
                 print(f"[sync] Skipping missing file for '{name}'")
                 continue
 
-            course["xai_file_id"] = None
-            updated = True
+            current_mtime = None
+            try:
+                current_mtime = os.path.getmtime(course_path)
+            except OSError:
+                print(f"[sync] Unable to read mtime for '{name}', skipping")
+                continue
+
+            stored_id = course.get("xai_file_id")
+            stored_mtime = course.get("xai_file_mtime")
+
+            if stored_id and stored_mtime and abs(stored_mtime - current_mtime) < 1e-6:
+                print(
+                    f"[sync] '{name}' unchanged (mtime={current_mtime}); skipping upload"
+                )
+                course["xai_file_mtime"] = current_mtime
+                updated = True
+                continue
+
+            if stored_id:
+                try:
+                    management_client.delete_document(collection_id, stored_id)
+                    print(
+                        f"[sync] Deleted outdated file {stored_id} for '{name}'"
+                    )
+                except XAIClientError as exc:
+                    print(
+                        f"[sync] Failed to delete previous file {stored_id} for '{name}': {exc}"
+                    )
 
             try:
                 upload = file_client.upload_file(str(course_path))
@@ -284,11 +325,23 @@ class Orchestrator:
                 )
                 if not file_id:
                     raise XAIClientError("Upload response missing file id")
-                management_client.add_document(collection_id, file_id)
+
+                iso_mtime = (
+                    datetime.fromtimestamp(current_mtime, timezone.utc)
+                    .isoformat()
+                    .replace("+00:00", "Z")
+                )
+
+                management_client.add_document(
+                    collection_id,
+                    file_id,
+                    fields={"last_modified": iso_mtime},
+                )
                 print(
                     f"[sync] Added document {file_id} to collection {collection_id}"
                 )
                 course["xai_file_id"] = file_id
+                course["xai_file_mtime"] = current_mtime
                 updated = True
                 any_uploaded = True
             except XAIClientError as exc:
@@ -372,6 +425,7 @@ class Orchestrator:
         *,
         collection_id: Optional[str] = None,
         management_client: Optional[XAIManagementClient] = None,
+        keep_file_ids: Optional[Iterable[str]] = None,
     ) -> None:
         if management_client is None or collection_id is None:
             api_key, management_key = self._resolve_api_keys()
@@ -415,6 +469,8 @@ class Orchestrator:
                 for doc in docs:
                     file_id = _extract_file_id(doc)
                     if not file_id:
+                        continue
+                    if keep_file_ids and file_id in keep_file_ids:
                         continue
                     try:
                         management_client.delete_document(collection_id, file_id)

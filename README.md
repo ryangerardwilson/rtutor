@@ -133,14 +133,16 @@ rtutor                 # launches doc-mode menus (default)
 rtutor -d "token ..."  # runs a direct search and opens the matches in doc-mode viewer
 rtutor -t                  # upload (train) all registered courses to Grok Collections
 rtutor -s                  # show indexing status for every registered course
+rtutor -p                  # purge all documents from the Grok collection
 rtutor -q "How do I inspect a df?"  # answer a question using the collection
 ```
 
 - `rtutor` alone → menu-driven doc-mode.
 - `rtutor -d` with no tokens is redundant (same as running rtutor).
 - `rtutor -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
-- `rtutor -t` → upload (or re-upload) every registered course to the Grok collection.
+- `rtutor -t` → upload (or re-upload) registered courses. Removes stray documents and skips unchanged files.
 - `rtutor -s` → display indexing/processing status for each course file.
+- `rtutor -p` → purge every document currently stored in the Grok collection.
 - `rtutor -q "question"` → non-interactive Q&A powered by the collection (requires API keys).
 - Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
 
@@ -175,6 +177,7 @@ You register courses yourself—either by editing `config.json` or with the
 - `name`: friendly label shown in menus
 - `local_path`: absolute path to the Markdown file (rtutor never relocates it)
 - `xai_file_id`: last uploaded document ID (populated after running `-t`)
+- `xai_file_mtime`: last known modification timestamp (seconds since epoch)
 
 Global Grok integration settings live under the top-level `xai` key:
 
@@ -225,6 +228,6 @@ To remove a course, edit `config.json` directly (located at
 
 After registering courses:
 
-1. Run `rtutor -t` to upload them to the Grok collection.
+1. Run `rtutor -t` to upload them to the Grok collection (only changed files are re-uploaded; stale remote files are removed).
 2. Use `rtutor -s` to verify indexing status.
 3. Ask questions with `rtutor -q "your question"` once files show `processed`.

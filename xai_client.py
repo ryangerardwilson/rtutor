@@ -48,10 +48,18 @@ class XAIManagementClient:
         return self._request("GET", f"/collections/{collection_id}")
 
     # Documents ------------------------------------------------------
-    def add_document(self, collection_id: str, file_id: str) -> dict:
+    def add_document(
+        self,
+        collection_id: str,
+        file_id: str,
+        *,
+        fields: Optional[Dict[str, Any]] = None,
+    ) -> dict:
+        payload = {"fields": fields} if fields else None
         return self._request(
             "POST",
             f"/collections/{collection_id}/documents/{file_id}",
+            json=payload,
         )
 
     def list_documents(

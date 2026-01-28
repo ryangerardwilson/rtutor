@@ -50,6 +50,7 @@ def test_upsert_course_entry_adds_course(temp_config_home):
         "name": "Demo",
         "local_path": "/tmp/demo.md",
         "xai_file_id": None,
+        "xai_file_mtime": None,
     }
 
 
@@ -60,6 +61,7 @@ def test_upsert_course_entry_preserves_existing_file_id(temp_config_home):
                 "name": "Demo",
                 "local_path": "/tmp/demo.md",
                 "xai_file_id": "file-123",
+                "xai_file_mtime": 123.45,
             }
         ],
         "xai": {
@@ -76,6 +78,7 @@ def test_upsert_course_entry_preserves_existing_file_id(temp_config_home):
 
     course = updated["courses"][0]
     assert course["xai_file_id"] == "file-123"
+    assert course["xai_file_mtime"] == 123.45
 
 
 def test_normalize_flattens_nested_courses(temp_config_home):
@@ -100,6 +103,7 @@ def test_normalize_flattens_nested_courses(temp_config_home):
 
     assert entries["custom"]["local_path"] == nested_path
     assert entries["custom"]["xai_file_id"] is None
+    assert entries["custom"].get("xai_file_mtime") is None
 
 
 def test_normalize_strips_display_name(temp_config_home):
