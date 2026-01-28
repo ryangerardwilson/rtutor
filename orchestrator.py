@@ -254,7 +254,7 @@ class Orchestrator:
                     if not existing_file_id:
                         continue
                     try:
-                        management_client.delete_document(
+                        management_client.remove_document(
                             collection_id, existing_file_id
                         )
                         print(
