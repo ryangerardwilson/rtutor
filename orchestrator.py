@@ -33,6 +33,7 @@ class Orchestrator:
             train=False,
             status=False,
             purge=False,
+            help=False,
             add_courses=[],
         )
         self.config: Dict[str, Any] = {}
@@ -61,6 +62,10 @@ class Orchestrator:
                 print(f"Training complete. Collection ID: {collection_ids[0]}")
             else:
                 print("No courses were uploaded; check course paths.")
+            return
+
+        if self.args.help:
+            self._print_help()
             return
 
         if self.args.status:
@@ -106,6 +111,7 @@ class Orchestrator:
         train = False
         status = False
         purge = False
+        show_help = False
         add_courses: List[Tuple[str, str]] = []
         remaining: List[str] = []
         tokens = list(self.argv)
@@ -130,6 +136,10 @@ class Orchestrator:
                 purge = True
                 i += 1
                 continue
+            if token in {"-h", "--help"}:
+                show_help = True
+                i += 1
+                continue
             if token == "--add-course":
                 if i + 2 >= len(tokens):
                     raise SystemExit(
@@ -148,6 +158,7 @@ class Orchestrator:
             train=train,
             status=status,
             purge=purge,
+            help=show_help,
             add_courses=add_courses,
         )
 
@@ -700,6 +711,21 @@ class Orchestrator:
         sys.argv = [sys.argv[0]] + self.argv
         handle_bookmark_flags(self.courses)
 
+    def _print_help(self) -> None:
+        print("Usage: rtutor [options]")
+        print()
+        print("Options:")
+        print("  -t, --train        upload (train) registered courses")
+        print("  -s, --status       show indexing status for courses")
+        print("  -p, --purge        remove all documents from the collection")
+        print("  -q, --question     ask a question using the collection")
+        print("  --add-course NAME PATH  register a course")
+        print()
+        print("Examples:")
+        print("  rtutor -t")
+        print("  rtutor -s")
+        print("  rtutor -q \"How do I inspect a df?\"")
+
 
 def _extract_identifier(
     data: Any,
@@ -773,3 +799,7 @@ def _extract_fields(doc: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 parsed[key] = value
     return parsed
+
+
+def _print_help(self):
+    pass
