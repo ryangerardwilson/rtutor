@@ -58,11 +58,11 @@ class Orchestrator:
             return
 
         if self.args.question:
-            collection_ids = self._sync_courses()
-            if not collection_ids:
-                print("No collections available to answer the question.")
+            collection_id = self._ensure_collection_available()
+            if not collection_id:
+                print("No collection available to answer the question. Run with -t first.")
                 return
-            answer = self._ask_question(self.args.question, collection_ids)
+            answer = self._ask_question(self.args.question, [collection_id])
             print(answer or "No answer returned from Grok.")
             return
 
@@ -288,6 +288,58 @@ class Orchestrator:
             return []
 
         return [collection_id]
+
+    def _ensure_collection_available(self) -> Optional[str]:
+        api_key, management_key = self._resolve_api_keys()
+        if not api_key or not management_key:
+            missing = []
+            if not api_key:
+                missing.append("xai.api_key")
+            if not management_key:
+                missing.append("xai.management_key")
+            raise SystemExit(
+                "Missing required xAI credentials (" + ", ".join(missing) + ")"
+            )
+
+        management_client = XAIManagementClient(management_key)
+
+        xai_section = self.config.setdefault("xai", {})
+        collection_name = "rtutor-course-library"
+        collection_id = xai_section.get("collection_id")
+
+        try:
+            collection = management_client.ensure_collection(
+                collection_name, collection_id
+            )
+        except XAIClientError as exc:
+            print(f"[sync] Failed to ensure collection: {exc}")
+            return None
+
+        print(f"[sync] ensure_collection response: {collection}")
+        collection_id = _extract_identifier(collection, fallback=collection_id)
+        if not collection_id:
+            print(
+                "[sync] No collection id returned from management API; run with -t first."
+            )
+            return None
+
+        xai_section["collection_id"] = collection_id
+        save_config(self.config)
+
+        missing = [
+            course
+            for course in self.config.get("courses", [])
+            if not course.get("xai_file_id")
+        ]
+        if missing:
+            print(
+                "[sync] Skipping Q&A because some courses lack uploaded files: "
+                + ", ".join(course.get("name") or "<unnamed>" for course in missing)
+                + ". Run with -t first."
+            )
+            return None
+
+        return collection_id
 
     def _ask_question(self, question: str, collection_ids: List[str]) -> str:
         api_key, _ = self._resolve_api_keys()
