@@ -40,7 +40,7 @@ class XAIManagementClient:
             except XAIClientError:
                 pass
 
-        payload = {"name": name}
+        payload = {"collection_name": name, "name": name}
         response = self._request("POST", "/collections", json=payload)
         return response
 

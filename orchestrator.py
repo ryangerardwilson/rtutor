@@ -213,13 +213,15 @@ class Orchestrator:
                 collection_name, collection_id
             )
         except XAIClientError as exc:
-            self.sync_messages.append(f"Failed to ensure collection: {exc}")
+            print(f"[sync] Failed to ensure collection: {exc}")
             return []
 
-        self.sync_messages.append(f"ensure_collection response: {collection}")
+        print(f"[sync] ensure_collection response: {collection}")
         collection_id = _extract_identifier(collection, fallback=collection_id)
         if not collection_id:
-            self.sync_messages.append("No collection id returned from xAI management API.")
+            print(
+                "[sync] No collection id returned from management API; please verify your management key permissions."
+            )
             return []
 
         if xai_section.get("collection_id") != collection_id:
@@ -232,17 +234,21 @@ class Orchestrator:
             local_path = course.get("local_path")
             if not local_path:
                 continue
+            print(f"[sync] processing course '{name}' at {local_path}")
             course_path = Path(local_path).expanduser()
             if not course_path.is_file():
-                self.sync_messages.append(f"Skipping missing file for '{name}'")
+                print(f"[sync] Skipping missing file for '{name}'")
                 continue
 
             previous_file_id = course.get("xai_file_id")
             if previous_file_id:
                 try:
                     management_client.delete_document(collection_id, previous_file_id)
-                except XAIClientError:
-                    pass
+                    print(
+                        f"[sync] Deleted previous file {previous_file_id} for '{name}'"
+                    )
+                except XAIClientError as exc:
+                    print(f"[sync] Failed to delete previous file: {exc}")
                 finally:
                     course["xai_file_id"] = None
                     updated = True
@@ -250,35 +256,30 @@ class Orchestrator:
             try:
                 upload = file_client.upload_file(str(course_path))
                 file_id = _extract_identifier(upload)
-                self.sync_messages.append(
-                    f"Uploaded {local_path}: response={upload}, file_id={file_id}"
+                print(
+                    f"[sync] Uploaded {local_path}: response={upload}, file_id={file_id}"
                 )
                 if not file_id:
                     raise XAIClientError("Upload response missing file id")
                 management_client.add_document(collection_id, file_id)
-                self.sync_messages.append(
-                    f"Added document {file_id} to collection {collection_id}"
+                print(
+                    f"[sync] Added document {file_id} to collection {collection_id}"
                 )
                 try:
                     wait_for_document_processing(
                         management_client, collection_id, file_id
                     )
                 except XAIClientError as exc:
-                    self.sync_messages.append(str(exc))
+                    print(f"[sync] Document processing warning: {exc}")
                 course["xai_file_id"] = file_id
                 updated = True
                 any_uploaded = True
             except XAIClientError as exc:
-                self.sync_messages.append(
-                    f"Failed to upload {course_path.name}: {exc}"
-                )
+                print(f"[sync] Failed to upload {course_path.name}: {exc}")
                 continue
 
         if updated:
             save_config(self.config)
-
-        for message in self.sync_messages:
-            print(f"[sync] {message}")
 
         has_any_file = any(
             course.get("xai_file_id") for course in self.config.get("courses", [])
