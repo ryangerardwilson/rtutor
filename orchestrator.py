@@ -407,9 +407,13 @@ class Orchestrator:
                 documents = management_client.list_documents(
                     collection_id, page_token=next_page
                 )
-                docs = documents.get("documents", [])
+                docs = (
+                    documents.get("documents")
+                    or documents.get("document_entries")
+                    or []
+                )
                 for doc in docs:
-                    file_id = doc.get("file_id") or doc.get("id")
+                    file_id = _extract_file_id(doc)
                     if not file_id:
                         continue
                     try:
@@ -557,6 +561,15 @@ def _extract_status(payload: Dict[str, Any]) -> str:
         elif isinstance(value, str) and value:
             return value
     return "unknown"
+
+
+def _extract_file_id(doc: Dict[str, Any]) -> Optional[str]:
+    return (
+        doc.get("file_id")
+        or doc.get("id")
+        or doc.get("document_id")
+        or (doc.get("file_metadata") or {}).get("file_id")
+    )
 
 
 def _report_status(self):
