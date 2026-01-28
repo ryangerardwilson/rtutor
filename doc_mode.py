@@ -9,7 +9,7 @@ from rote_mode import RoteMode
 from touch_type_mode import TouchTypeMode
 from doc_editor import DocEditor
 from bookmarks import Bookmarks
-from config_manager import ensure_seed_courses, load_config
+from config_manager import load_config, normalize_course_entries
 
 
 class DocMode:
@@ -640,10 +640,8 @@ class DocMode:
                 elif key == ord("b"):
                     from course_parser import CourseParser
 
-                    script_dir = Path(__file__).resolve().parent
-                    seeds_dir = script_dir
                     config = load_config()
-                    config = ensure_seed_courses(config, seeds_dir)
+                    config = normalize_course_entries(config)
 
                     course_files = []
                     for course in config.get("courses", []):
