@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import requests
 
@@ -54,10 +54,20 @@ class XAIManagementClient:
             f"/collections/{collection_id}/documents/{file_id}",
         )
 
-    def list_documents(self, collection_id: str) -> dict:
+    def list_documents(
+        self,
+        collection_id: str,
+        *,
+        page_token: Optional[str] = None,
+        page_size: int = 200,
+    ) -> dict:
+        params: Dict[str, Any] = {"page_size": page_size}
+        if page_token:
+            params["page_token"] = page_token
         return self._request(
             "GET",
             f"/collections/{collection_id}/documents",
+            params=params,
         )
 
     def get_document(self, collection_id: str, file_id: str) -> dict:

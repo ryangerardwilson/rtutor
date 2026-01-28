@@ -244,16 +244,29 @@ class Orchestrator:
             updated = True
 
         try:
-            documents = management_client.list_documents(collection_id)
-            for doc in documents.get("documents", []):
-                existing_file_id = doc.get("file_id") or doc.get("id")
-                if not existing_file_id:
-                    continue
-                try:
-                    management_client.delete_document(collection_id, existing_file_id)
-                    print(f"[sync] Deleted existing file {existing_file_id} from collection")
-                except XAIClientError as exc:
-                    print(f"[sync] Failed to delete existing file {existing_file_id}: {exc}")
+            next_page: Optional[str] = None
+            while True:
+                documents = management_client.list_documents(
+                    collection_id, page_token=next_page
+                )
+                for doc in documents.get("documents", []):
+                    existing_file_id = doc.get("file_id") or doc.get("id")
+                    if not existing_file_id:
+                        continue
+                    try:
+                        management_client.delete_document(
+                            collection_id, existing_file_id
+                        )
+                        print(
+                            f"[sync] Deleted existing file {existing_file_id} from collection"
+                        )
+                    except XAIClientError as exc:
+                        print(
+                            f"[sync] Failed to delete existing file {existing_file_id}: {exc}"
+                        )
+                next_page = documents.get("next_page_token")
+                if not next_page:
+                    break
         except XAIClientError as exc:
             print(f"[sync] Warning: unable to list existing documents: {exc}")
 
