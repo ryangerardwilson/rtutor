@@ -21,14 +21,15 @@ from xai_client import (
     XAIFileClient,
     XAIManagementClient,
     XAIResponsesClient,
-    wait_for_document_processing,
 )
 
 
 class Orchestrator:
     def __init__(self, argv: Optional[List[str]] = None):
         self.argv = argv if argv is not None else list(sys.argv[1:])
-        self.args = SimpleNamespace(question=None, train=False, add_courses=[])
+        self.args = SimpleNamespace(
+            question=None, train=False, status=False, add_courses=[]
+        )
         self.config: Dict[str, Any] = {}
         self.courses = []
         self.missing_courses: List[str] = []
@@ -55,6 +56,10 @@ class Orchestrator:
                 print(f"Training complete. Collection ID: {collection_ids[0]}")
             else:
                 print("No courses were uploaded; check course paths.")
+            return
+
+        if self.args.status:
+            self._report_status()
             return
 
         if self.args.question:
@@ -90,6 +95,7 @@ class Orchestrator:
     def _parse_args(self) -> SimpleNamespace:
         question: Optional[str] = None
         train = False
+        status = False
         add_courses: List[Tuple[str, str]] = []
         remaining: List[str] = []
         tokens = list(self.argv)
@@ -106,6 +112,10 @@ class Orchestrator:
                 train = True
                 i += 1
                 continue
+            if token in {"-s", "--status"}:
+                status = True
+                i += 1
+                continue
             if token == "--add-course":
                 if i + 2 >= len(tokens):
                     raise SystemExit(
@@ -119,7 +129,12 @@ class Orchestrator:
             remaining.append(token)
             i += 1
         self.argv = remaining
-        return SimpleNamespace(question=question, train=train, add_courses=add_courses)
+        return SimpleNamespace(
+            question=question,
+            train=train,
+            status=status,
+            add_courses=add_courses,
+        )
 
     def _load_and_prepare_config(self) -> Dict[str, Any]:
         ensure_config_dirs()
@@ -265,17 +280,6 @@ class Orchestrator:
                 print(
                     f"[sync] Added document {file_id} to collection {collection_id}"
                 )
-                try:
-                    wait_for_document_processing(
-                        management_client,
-                        collection_id,
-                        file_id,
-                        timeout_seconds=300,
-                        poll_interval=5,
-                    )
-                    print(f"[sync] Document {file_id} processed")
-                except XAIClientError as exc:
-                    print(f"[sync] Document processing warning: {exc}")
                 course["xai_file_id"] = file_id
                 updated = True
                 any_uploaded = True
@@ -331,38 +335,77 @@ class Orchestrator:
         xai_section["collection_id"] = collection_id
         save_config(self.config)
 
-        missing = [
-            course
-            for course in self.config.get("courses", [])
-            if not course.get("xai_file_id")
-        ]
-        if missing:
-            print(
-                "[sync] Skipping Q&A because some courses lack uploaded files: "
-                + ", ".join(course.get("name") or "<unnamed>" for course in missing)
-                + ". Run with -t first."
-            )
-            return None
-
+        any_ready = False
         for course in self.config.get("courses", []):
             file_id = course.get("xai_file_id")
             if not file_id:
+                print(
+                    f"[sync] Course '{course.get('name')}' has no uploaded file id. Run -t first."
+                )
                 continue
+            any_ready = True
             try:
-                wait_for_document_processing(
-                    management_client,
-                    collection_id,
-                    file_id,
-                    timeout_seconds=120,
-                    poll_interval=5,
+                status = management_client.get_document(collection_id, file_id)
+                status_value = _extract_status(status)
+                print(
+                    f"[sync] Course '{course.get('name')}' file status: {status_value}"
                 )
             except XAIClientError as exc:
                 print(
-                    f"[sync] Document {file_id} not yet processed ({exc}). Re-run -t if needed."
+                    f"[sync] Unable to fetch status for file {file_id}: {exc}"
                 )
-                return None
+        if not any_ready:
+            return None
 
         return collection_id
+
+    def _report_status(self) -> None:
+        api_key, management_key = self._resolve_api_keys()
+        if not management_key:
+            print(
+                "[status] Missing management key; set xai.management_key or $XAI_MANAGEMENT_API_KEY."
+            )
+            return
+
+        management_client = XAIManagementClient(management_key)
+        xai_section = self.config.setdefault("xai", {})
+        collection_name = "rtutor-course-library"
+        collection_id = xai_section.get("collection_id")
+
+        try:
+            collection = management_client.ensure_collection(
+                collection_name, collection_id
+            )
+        except XAIClientError as exc:
+            print(f"[status] Failed to ensure collection: {exc}")
+            return
+
+        collection_id = _extract_identifier(collection, fallback=collection_id)
+        if not collection_id:
+            print("[status] No collection id available. Run -t to upload files.")
+            return
+
+        xai_section["collection_id"] = collection_id
+        save_config(self.config)
+
+        print(
+            f"[status] Collection {collection_id} (documents={collection.get('documents_count')})"
+        )
+
+        for course in self.config.get("courses", []):
+            name = course.get("name") or "<unnamed>"
+            file_id = course.get("xai_file_id")
+            if not file_id:
+                print(f"[status] Course '{name}': no uploaded file (run -t)")
+                continue
+            try:
+                info = management_client.get_document(collection_id, file_id)
+                status_value = _extract_status(info)
+                print(f"[status] Course '{name}': {status_value} (file_id={file_id})")
+            except XAIClientError as exc:
+                print(
+                    f"[status] Course '{name}': unable to fetch status for file {file_id}: {exc}"
+                )
 
     def _ask_question(self, question: str, collection_ids: List[str]) -> str:
         api_key, _ = self._resolve_api_keys()
@@ -425,3 +468,19 @@ def _extract_identifier(
             stack.extend(current)
 
     return fallback
+
+
+def _extract_status(payload: Dict[str, Any]) -> str:
+    for key in ("status", "document_status", "state"):
+        value = payload.get(key)
+        if isinstance(value, dict):
+            nested = _extract_status(value)
+            if nested:
+                return nested
+        elif isinstance(value, str) and value:
+            return value
+    return "unknown"
+
+
+def _report_status(self):
+    pass
