@@ -246,7 +246,10 @@ class Orchestrator:
             print(f"[sync] Failed to ensure collection: {exc}")
             return []
 
-        print(f"[sync] ensure_collection response: {collection}")
+        print(
+            "[sync] Collection: "
+            f"{collection_id} (existing_docs={collection.get('documents_count')})"
+        )
         collection_id = _extract_identifier(collection, fallback=collection_id)
         if not collection_id:
             print(
@@ -262,6 +265,8 @@ class Orchestrator:
 
         existing_docs: Dict[str, Dict[str, Any]] = {}
         orphan_file_ids: List[str] = []
+        purge_deleted: List[str] = []
+        purge_failed: List[Tuple[str, str]] = []
 
         next_page: Optional[str] = None
         while True:
@@ -291,11 +296,11 @@ class Orchestrator:
                 break
 
         for file_id in orphan_file_ids:
-            try:
-                management_client.delete_document(collection_id, file_id)
-                print(f"[sync] Deleted orphan file {file_id} from collection")
-            except XAIClientError as exc:
-                print(f"[sync] Failed to delete orphan file {file_id}: {exc}")
+                try:
+                    management_client.delete_document(collection_id, file_id)
+                    purge_deleted.append(file_id)
+                except XAIClientError as exc:
+                    purge_failed.append((file_id, str(exc)))
 
         course_entries: List[Tuple[Dict[str, Any], str, str]] = []
         desired_paths: set[str] = set()
@@ -308,24 +313,25 @@ class Orchestrator:
             desired_paths.add(canonical_path)
 
         for remote_path, doc_info in list(existing_docs.items()):
-            if remote_path not in desired_paths:
-                file_id = doc_info["file_id"]
-                try:
-                    management_client.delete_document(collection_id, file_id)
-                    print(
-                        f"[sync] Deleted remote file {file_id} not present in config"
-                    )
-                except XAIClientError as exc:
-                    print(
-                        f"[sync] Failed to delete remote file {file_id}: {exc}"
-                    )
+                if remote_path not in desired_paths:
+                    file_id = doc_info["file_id"]
+                    try:
+                        management_client.delete_document(collection_id, file_id)
+                        purge_deleted.append(file_id)
+                    except XAIClientError as exc:
+                        purge_failed.append((file_id, str(exc)))
                 existing_docs.pop(remote_path, None)
+
+        unchanged: List[str] = []
+        uploaded: List[Tuple[str, str, str]] = []
+        upload_failed: List[Tuple[str, str]] = []
+        missing_files: List[str] = []
 
         for course, original_path, canonical_path in course_entries:
             name = course.get("name") or "Course"
             course_path = Path(original_path).expanduser()
             if not course_path.is_file():
-                print(f"[sync] Skipping missing file for '{name}'")
+                missing_files.append(name)
                 continue
 
             try:
@@ -350,19 +356,13 @@ class Orchestrator:
                     if course.get("xai_file_id") != remote_id:
                         course["xai_file_id"] = remote_id
                         updated = True
-                    print(
-                        f"[sync] '{name}' unchanged (mtime={current_mtime}); skipping upload"
-                    )
+                    unchanged.append(name)
                     continue
                 try:
                     management_client.delete_document(collection_id, remote_id)
-                    print(
-                        f"[sync] Deleted outdated file {remote_id} for '{name}'"
-                    )
+                    purge_deleted.append(remote_id)
                 except XAIClientError as exc:
-                    print(
-                        f"[sync] Failed to delete outdated file {remote_id} for '{name}': {exc}"
-                    )
+                    purge_failed.append((remote_id, str(exc)))
                 if course.get("xai_file_id"):
                     course["xai_file_id"] = None
                     updated = True
@@ -370,9 +370,6 @@ class Orchestrator:
             try:
                 upload = file_client.upload_file(str(course_path))
                 file_id = _extract_identifier(upload)
-                print(
-                    f"[sync] Uploaded {original_path}: response={upload}, file_id={file_id}"
-                )
                 if not file_id:
                     raise XAIClientError("Upload response missing file id")
 
@@ -385,29 +382,24 @@ class Orchestrator:
                         "last_modified": iso_mtime,
                     },
                 )
-                print(
-                    f"[sync] Added document {file_id} to collection {collection_id}"
-                )
                 if course.get("xai_file_id") != file_id:
                     course["xai_file_id"] = file_id
                     updated = True
                 any_uploaded = True
+                uploaded.append((name, canonical_path, file_id))
             except XAIClientError as exc:
-                print(f"[sync] Failed to upload {course_path.name}: {exc}")
+                upload_failed.append((name, str(exc)))
                 continue
 
-        # Delete any remaining remote documents that were not matched to courses
         for doc_info in existing_docs.values():
             file_id = doc_info.get("file_id")
             if not file_id:
                 continue
             try:
                 management_client.delete_document(collection_id, file_id)
-                print(
-                    f"[sync] Deleted unmatched file {file_id} from collection"
-                )
+                purge_deleted.append(file_id)
             except XAIClientError as exc:
-                print(f"[sync] Failed to delete unmatched file {file_id}: {exc}")
+                purge_failed.append((file_id, str(exc)))
 
         if updated:
             save_config(self.config)
@@ -417,6 +409,37 @@ class Orchestrator:
         )
         if not has_any_file and not any_uploaded:
             return []
+
+        print("[sync] summary:")
+
+        def _print_block(title: str, items: Iterable[str]) -> None:
+            items = list(items)
+            print(f"  {title}:")
+            if items:
+                for item in items:
+                    print(f"    • {item}")
+            else:
+                print("    • (none)")
+
+        _print_block("unchanged", unchanged)
+
+        uploaded_display = [
+            f"{name} -> {fid} ({path})" for name, path, fid in uploaded
+        ]
+        _print_block("uploaded", uploaded_display)
+
+        _print_block("missing", missing_files)
+
+        failed_display = [f"{name}: {err}" for name, err in upload_failed]
+        if failed_display:
+            _print_block("upload_failed", failed_display)
+
+        if purge_deleted:
+            _print_block("removed remote files", purge_deleted)
+
+        if purge_failed:
+            failed_removals = [f"{fid}: {err}" for fid, err in purge_failed]
+            _print_block("failed removals", failed_removals)
 
         return [collection_id]
 
@@ -514,7 +537,8 @@ class Orchestrator:
             xai_section["collection_id"] = collection_id
             save_config(self.config)
 
-        print(f"[purge] Purging collection {collection_id}")
+        print(f"[purge] collection: {collection_id}")
+        summary_lines: List[str] = []
         try:
             total = 0
             next_page: Optional[str] = None
@@ -535,19 +559,28 @@ class Orchestrator:
                         continue
                     try:
                         management_client.delete_document(collection_id, file_id)
-                        print(f"[purge] Deleted file {file_id} from collection")
+                        summary_lines.append(f"    • removed {file_id}")
                         total += 1
                     except XAIClientError as exc:
-                        print(f"[purge] Failed to delete file {file_id}: {exc}")
+                        summary_lines.append(
+                            f"    • failed to remove {file_id}: {exc}"
+                        )
                 next_page = documents.get("next_page_token")
                 if not next_page:
                     break
             if total == 0:
-                print("[purge] Collection already empty")
+                summary_lines.append("    • collection already empty")
             else:
-                print(f"[purge] Deleted {total} file(s)")
+                summary_lines.append(f"    • purged {total} file(s)")
         except XAIClientError as exc:
-            print(f"[purge] Unable to list documents: {exc}")
+            summary_lines.append(f"    • unable to list documents: {exc}")
+
+        if summary_lines:
+            print("[purge] summary:")
+            for line in summary_lines:
+                print(line)
+        else:
+            print("[purge] summary: (no actions)")
 
     def _report_status(self) -> None:
         api_key, management_key = self._resolve_api_keys()
