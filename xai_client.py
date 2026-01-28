@@ -121,7 +121,9 @@ class XAIResponsesClient:
             tools.append(
                 {
                     "type": "file_search",
-                    "vector_store_ids": list(collection_ids),
+                    "collections": [
+                        {"collection_id": cid} for cid in collection_ids
+                    ],
                     "max_num_results": max_num_results,
                 }
             )
