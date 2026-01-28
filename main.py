@@ -140,8 +140,10 @@ def _handle_global_flags(argv: Iterable[str]) -> List[str]:
                 )
                 raise SystemExit(_run_upgrade())
 
-            if __version__ and __version__ != "0.0.0" and not _is_version_newer(
-                latest, __version__
+            if (
+                __version__
+                and __version__ != "0.0.0"
+                and not _is_version_newer(latest, __version__)
             ):
                 print(f"Already running the latest version ({__version__}).")
                 raise SystemExit(0)

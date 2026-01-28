@@ -4,6 +4,7 @@ AI slop is a problem. Inculcating great programming taste is the antidote.
 rtutor is an attempt to disseminate that antidote.
 
 ## Table of Contents
+
 - [Preface](#preface)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -13,6 +14,9 @@ rtutor is an attempt to disseminate that antidote.
   - [Lesson Code Block Requirements](#lesson-code-block-requirements)
   - [Optional Skip Directives](#optional-skip-directives)
   - [Annotated Examples](#annotated-examples)
+    - [Full hierarchy](#full-hierarchy)
+    - [Part-only hierarchy](#part-only-hierarchy)
+    - [Flat hierarchy](#flat-hierarchy)
   - [Validation and Troubleshooting](#validation-and-troubleshooting)
 - [Doc Mode Features](#doc-mode-features)
 - [Doc Mode CLI Flags](#doc-mode-cli-flags)
@@ -43,9 +47,9 @@ curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/rt/main/install.sh
   bash -s -- --version 0.3.0 --no-modify-path
 ```
 
-The script downloads `rt-linux-x64.tar.gz`, installs to `~/.rt/app/rt`, and drops a
-shim in `~/.rt/bin/rt`. It adds that directory to your PATH unless you pass
-`--no-modify-path`.
+The script downloads `rt-linux-x64.tar.gz`, installs to `~/.rt/app/rt`, and
+drops a shim in `~/.rt/bin/rt`. It adds that directory to your PATH unless you
+pass `--no-modify-path`.
 
 ## Usage
 
@@ -83,12 +87,14 @@ Markdown format for courses:
     multiline ok
 ```
 
-Need more? See [Creating Course Markdown Files](#creating-course-markdown-files).
+Need more? See [Creating Course Markdown Files](#creating-course-markdown-
+files).
 
 ## Creating Course Markdown Files
 
-rtutor only ingests Markdown that follows a strict structure. This section explains
-exactly what the parser expects so your custom lessons load without surprises.
+rtutor only ingests Markdown that follows a strict structure. This section
+explains exactly what the parser expects so your custom lessons load without
+surprises.
 
 ### File Location and Naming
 
@@ -102,8 +108,8 @@ exactly what the parser expects so your custom lessons load without surprises.
 
 ### Supported Heading Hierarchies
 
-The parser recognises three layouts. Only the first `#` heading is treated as the
-course title, so include it once at the top.
+The parser recognises three layouts. Only the first `#` heading is treated as
+the course title, so include it once at the top.
 
 1. **Full hierarchy — course → part → section → lesson**
    ```
@@ -133,7 +139,8 @@ course title, so include it once at the top.
    Both parts and sections collapse into a single implicit `Main` grouping.
 
 Mixing styles in the same file is unsupported. Every lesson must sit under the
-appropriate parent heading (e.g., a `#### Lesson` cannot appear before a `### Section`).
+appropriate parent heading (e.g., a `#### Lesson` cannot appear before a `###
+Section`).
 
 ### Lesson Code Block Requirements
 
@@ -146,9 +153,10 @@ appropriate parent heading (e.g., a `#### Lesson` cannot appear before a `### Se
 
 ### Optional Skip Directives
 
-Lines that start with `#!`, `//!`, or `--!` are marked as **skip lines**. They still
-appear in doc mode but are excluded from accuracy scoring in typing modes. Use them for
-comments, instructions, or assertions users do not need to replicate.
+Lines that start with `#!`, `//!`, or `--!` are marked as **skip lines**. They
+still appear in doc mode but are excluded from accuracy scoring in typing
+modes. Use them for comments, instructions, or assertions users do not need to
+replicate.
 
 Example:
 
@@ -269,8 +277,8 @@ rt -u                  # upgrade to the latest release
 
 ## Configuration
 
-rt stores user configuration under `${XDG_CONFIG_HOME:-~/.config}/rt/`.
-You register courses yourself by editing `config.json`. Each course entry tracks:
+rt stores user configuration under `${XDG_CONFIG_HOME:-~/.config}/rt/`. You
+register courses yourself by editing `config.json`. Each course entry tracks:
 
 - `name`: friendly label shown in menus
 - `local_path`: absolute path to the Markdown file (`rt` never relocates it)
@@ -286,7 +294,8 @@ Global Grok integration settings live under the top-level `xai` key:
 }
 ```
 
-Environment variables (optional, used as fallbacks if the config fields are empty):
+Environment variables (optional, used as fallbacks if the config fields are
+empty):
 
 - `XAI_API_KEY` — standard Grok API key for Responses API requests
 - `XAI_MANAGEMENT_API_KEY` — Management API key with `AddFileToCollection` permission (uploading documents)

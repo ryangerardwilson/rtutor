@@ -143,9 +143,7 @@ def upsert_course_entry(
     courses: List[Dict[str, Any]] = updated.setdefault("courses", [])
 
     sanitized_entry = _sanitize_course_entry(entry)
-    slug = course_slug(
-        sanitized_entry.get("name"), sanitized_entry.get("local_path")
-    )
+    slug = course_slug(sanitized_entry.get("name"), sanitized_entry.get("local_path"))
 
     for idx, course in enumerate(courses):
         if course_slug(course.get("name"), course.get("local_path")) == slug:
@@ -164,9 +162,7 @@ def upsert_course_entry(
 def remove_course_entry(config: Dict[str, Any], slug: str) -> Dict[str, Any]:
     courses: List[Dict[str, Any]] = config.get("courses", [])
     updated_courses = [
-        c
-        for c in courses
-        if course_slug(c.get("name"), c.get("local_path")) != slug
+        c for c in courses if course_slug(c.get("name"), c.get("local_path")) != slug
     ]
     config["courses"] = updated_courses
     return config

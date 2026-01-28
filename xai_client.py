@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
 
 import requests
@@ -103,7 +102,9 @@ class XAIManagementClient:
         url = f"{MANAGEMENT_BASE_URL}{path}"
         headers = kwargs.pop("headers", {})
         headers.update(_prepare_headers(self.api_key))
-        response = self.session.request(method, url, headers=headers, timeout=60, **kwargs)
+        response = self.session.request(
+            method, url, headers=headers, timeout=60, **kwargs
+        )
         if response.status_code >= 400:
             raise XAIClientError(
                 f"Management API error {response.status_code}: {response.text}"
@@ -130,7 +131,9 @@ class XAIFileClient:
                 timeout=60,
             )
         if response.status_code >= 400:
-            raise XAIClientError(f"Files API error {response.status_code}: {response.text}")
+            raise XAIClientError(
+                f"Files API error {response.status_code}: {response.text}"
+            )
         return response.json()
 
 
@@ -154,9 +157,7 @@ class XAIResponsesClient:
                 {
                     "type": "file_search",
                     "vector_store_ids": list(collection_ids),
-                    "collections": [
-                        {"collection_id": cid} for cid in collection_ids
-                    ],
+                    "collections": [{"collection_id": cid} for cid in collection_ids],
                     "max_num_results": max_num_results,
                 }
             )
@@ -180,7 +181,9 @@ class XAIResponsesClient:
             timeout=60,
         )
         if response.status_code >= 400:
-            raise XAIClientError(f"Responses API error {response.status_code}: {response.text}")
+            raise XAIClientError(
+                f"Responses API error {response.status_code}: {response.text}"
+            )
         return response.json()
 
     @staticmethod

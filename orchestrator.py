@@ -13,7 +13,6 @@ from config_manager import (
     load_config,
     normalize_course_entries,
     save_config,
-    upsert_course_entry,
 )
 from course_parser import CourseParser
 from flag_handler import handle_bookmark_flags
@@ -76,7 +75,9 @@ class Orchestrator:
         if self.args.question:
             collection_id = self._ensure_collection_available()
             if not collection_id:
-                print("No collection available to answer the question. Run with -t first.")
+                print(
+                    "No collection available to answer the question. Run with -t first."
+                )
                 return
             answer = self._ask_question(self.args.question, [collection_id])
             print(answer or "No answer returned from Grok.")
@@ -162,6 +163,7 @@ class Orchestrator:
         save_config(config)
 
         return config
+
     # ------------------------------------------------------------------
     # Course loading
     # ------------------------------------------------------------------
@@ -267,11 +269,7 @@ class Orchestrator:
             documents = management_client.list_documents(
                 collection_id, page_token=next_page
             )
-            docs = (
-                documents.get("documents")
-                or documents.get("document_entries")
-                or []
-            )
+            docs = documents.get("documents") or documents.get("document_entries") or []
             for doc in docs:
                 file_id = _extract_file_id(doc)
                 if not file_id:
@@ -483,9 +481,7 @@ class Orchestrator:
                     f"[sync] Course '{course.get('name')}' file status: {status_value}"
                 )
             except XAIClientError as exc:
-                print(
-                    f"[sync] Unable to fetch status for file {file_id}: {exc}"
-                )
+                print(f"[sync] Unable to fetch status for file {file_id}: {exc}")
         if not any_ready:
             return None
 
@@ -549,9 +545,7 @@ class Orchestrator:
                         summary_lines.append(f"    • removed {file_id}")
                         total += 1
                     except XAIClientError as exc:
-                        summary_lines.append(
-                            f"    • failed to remove {file_id}: {exc}"
-                        )
+                        summary_lines.append(f"    • failed to remove {file_id}: {exc}")
                 next_page = documents.get("next_page_token")
                 if not next_page:
                     break
@@ -608,7 +602,7 @@ class Orchestrator:
             file_id = course.get("xai_file_id")
             local_path = course.get("local_path")
             if not file_id:
-                rows.append((name, "not uploaded", "-") )
+                rows.append((name, "not uploaded", "-"))
                 continue
             try:
                 info = management_client.get_document(collection_id, file_id)
