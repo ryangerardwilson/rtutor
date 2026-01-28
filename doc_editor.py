@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import curses
+from course_parser import CourseParser
 
 class DocEditor:
     """
@@ -71,7 +72,6 @@ class DocEditor:
 
         # === RELOAD COURSE AFTER EDITING ===
         try:
-            from modules.course_parser import CourseParser
             parser = CourseParser(os.path.dirname(self.source_file))
             new_course = parser._parse_md_file(self.source_file)
             if not new_course:
@@ -100,4 +100,3 @@ class DocEditor:
                 stdscr.refresh()
             except Exception:
                 pass
-

@@ -12,11 +12,12 @@ AI slop is a problem. Inculcating great programming taste is the antidote. rtuto
 - [Doc Mode Features](#doc-mode-features)
 - [Doc Mode CLI Flags](#doc-mode-cli-flags)
 - [Configuration](#configuration)
+- [Project Layout](#project-layout)
 - [Adding Courses](#adding-courses)
 
 ## Preface
 
-rtutor parses intentionally curated Markdown files in a `courses/` directory, turning them into interactive typing lessons. Each course has parts and optional sections. Lessons are code blocks you must type accurately—with the objective of embedding taste through repetition. Start from the basics. Yes, even you.
+rtutor parses intentionally curated Markdown files registered through its XDG config (`${XDG_CONFIG_HOME:-~/.config}/rt/courses/`), turning them into interactive typing lessons. Each course has parts and optional sections. Lessons are code blocks you must type accurately—with the objective of embedding taste through repetition. Start from the basics. Yes, even you.
 
 ## Featured Courses
 
@@ -66,14 +67,14 @@ rtutor
 ```
 
 Menus:
-- Scans `courses/` for `.md` files.
+- Scans `${XDG_CONFIG_HOME:-~/.config}/rt/courses/` for `.md` files named `course_<id>.md`.
 - Navigate with arrows; Enter selects.
 - Type exactly. Backspace works. Tab inserts spaces if it matches indentation.
 - Enter submits lines or skips blanks.
 - Accuracy < 90%? You restart. Cope.
 - Finish a sequence? You get ASCII art. Press any key to exit.
 
-If no courses are found, it tells you and exits. Put `.md` files in `courses/`.
+If no courses are found, it tells you and exits. Put `.md` files (named `course_<id>.md`) in `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`.
 
 You can run directly (not recommended for daily use):
 ```
@@ -154,6 +155,7 @@ rtutor now follows the XDG base directory spec:
 - Configuration root: `${XDG_CONFIG_HOME:-~/.config}/rt/`
 - Primary config file: `config.json`
 - Managed course directory: `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`
+- Course files are flattened and stored as `course_<id>.md`
 
 On first launch, rtutor copies the bundled seed courses into the managed course directory and registers them in `config.json`. You can inspect and edit that file to point at your own Markdown courses. Each course entry tracks:
 
@@ -170,9 +172,19 @@ Environment variables:
 
 Both keys are optional today, but will be required for the upcoming `-q` Grok Collections integration.
 
+## Project Layout
+
+The runtime Python modules live directly in the repository root (no nested `modules/` package). Key files:
+
+- `main.py` — CLI entry point
+- `menu.py`, `lesson_sequencer.py`, `doc_mode.py`, `rote_mode.py`, `touch_type_mode.py` — interactive UI flows
+- `config_manager.py`, `course_parser.py`, `bookmarks.py`, `boom.py`, `structs.py` — shared utilities and data structures
+- `course_*.md` — bundled seed Markdown files in the repo root
+- `tests/` — lightweight regression coverage
+
 ## Adding Courses
 
-Drop Markdown files into `courses/`. Keep it simple:
+Drop Markdown files named `course_<id>.md` into `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`. Keep it simple:
 
 - Top-level: `# Course`
 - Parts: `## Part`

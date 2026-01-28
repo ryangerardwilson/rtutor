@@ -1,33 +1,43 @@
-# ~/Apps/worship/modules/touch_type_mode.py
-# ~/Apps/rtutor/modules/jump_mode.py
+# ~/Apps/rtutor/modules/lesson_sequencer.py
 import curses
 import sys
-from .structs import Lesson
-from .boom import Boom
+from structs import Lesson
+from doc_mode import DocMode
+from boom import Boom
 
 
-class TouchTypeMode:
-    def __init__(self, sequencer_name, lessons, start_idx):
-        self.sequencer_name = sequencer_name
+class LessonSequencer:
+    def __init__(self, name, lessons, doc_mode=False, source_file=None):
+        self.name = name
         self.lessons = lessons
-        self.current_idx = start_idx
+        self.doc_mode = doc_mode
+        self.source_file = source_file
 
     def run(self, stdscr):
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_WHITE, -1)
+
+        stdscr.bkgd(" ", curses.color_pair(1))
+
+        if self.doc_mode:
+            doc = DocMode(self)
+            doc_result = doc.run(stdscr)
+            if doc_result == "ordinary":
+                return self._run_ordinary(stdscr)
+            else:
+                return doc_result
+
+        return self._run_ordinary(stdscr)
+
+    def _run_ordinary(self, stdscr):
         stdscr.nodelay(True)
 
-        def safe_curs_set(val):
-            try:
-                curses.curs_set(val)
-            except curses.error:
-                pass
-
-        safe_curs_set(2)
-
-        while self.current_idx < len(self.lessons):
-            lesson = self.lessons[self.current_idx]
+        for lesson in self.lessons:
             stdscr.clear()
             stdscr.refresh()
-            safe_curs_set(2)
+            curses.curs_set(2)
+
             lines = lesson.content.splitlines() or [""]
             total_lines = len(lines)
 
@@ -43,16 +53,13 @@ class TouchTypeMode:
             user_inputs = [[] for _ in lines]
             lesson_finished = False
             need_redraw = True
-            completed = False
 
-            while not completed:
+            while True:
                 max_y, max_x = stdscr.getmaxyx()
-                header_rows = 3
-                footer_rows = 2
-                available_height = max(0, max_y - header_rows - footer_rows)
-                content_start_y = header_rows
+                available_height = max(0, max_y - 4)
+                content_start_y = 3
 
-                # === Smooth, early scrolling + extra lookahead near end ===
+                # === Smooth scrolling logic ===
                 if total_lines > available_height:
                     visible_top = offset
                     visible_bottom = offset + available_height - 1
@@ -78,9 +85,10 @@ class TouchTypeMode:
                 visible_range = range(start_idx, end_idx)
 
                 if need_redraw:
+
                     # Title on two lines
-                    line1 = self.sequencer_name
-                    line2 = f"TOUCH_TYPE_MODE: {lesson.name}"
+                    line1 = self.name
+                    line2 = f"TYPE_MODE: {lesson.name}"
                     try:
                         stdscr.addstr(0, 0, line1[:max_x], curses.color_pair(1) | curses.A_BOLD)
                         stdscr.addstr(1, 0, line2[:max_x], curses.color_pair(1) | curses.A_BOLD)
@@ -88,14 +96,12 @@ class TouchTypeMode:
                     except curses.error:
                         pass
 
-                    # Empty line
                     try:
                         stdscr.move(2, 0)
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
 
-                    # Render visible lines
                     for local_i, global_i in enumerate(visible_range):
                         row = content_start_y + local_i
                         line = lines[global_i]
@@ -142,10 +148,10 @@ class TouchTypeMode:
                         except:
                             pass
 
-                    # Clear remaining lines below content to footer
+                    # Clear remaining lines
                     content_end_row = content_start_y + (end_idx - start_idx)
                     clear_start = content_end_row
-                    clear_end = max_y - footer_rows
+                    clear_end = max_y - 2 if total_lines - end_idx > 7 else content_end_row
 
                     for r in range(clear_start, clear_end):
                         try:
@@ -154,7 +160,7 @@ class TouchTypeMode:
                         except curses.error:
                             pass
 
-                    # Stats
+                    # Stats + scroll indicator
                     typed = sum(len(ui) for i, ui in enumerate(user_inputs) if not is_skip[i])
                     total = sum(len(p) for i, p in enumerate(processed_lines) if not is_skip[i])
                     stats = f"Typed {typed}/{total} chars"
@@ -165,26 +171,20 @@ class TouchTypeMode:
                         bottom = offset + (end_idx - start_idx)
                         scroll_info = f"  [{top}-{bottom}/{total_lines}]"
 
-                    footer_line = (stats + scroll_info)[:max_x]
                     try:
-                        stdscr.addstr(max_y - 2, 0, footer_line, curses.color_pair(1))
+                        stdscr.addstr(max_y - 2, 0, stats + scroll_info, curses.color_pair(1))
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
 
-                    # Updated instructions
-                    if lesson_finished:
-                        instr = "Lesson complete! Hit n for next | ESC to return to doc mode"
-                    else:
-                        instr = "Ctrl+R → restart | ESC → return to doc mode"
-
+                    instr = ("Lesson complete! Hit n for next or esc to exit"
+                             if lesson_finished else "Ctrl+R → restart | Esc → quit")
                     try:
-                        stdscr.addstr(max_y - 1, 0, instr[:max_x], curses.color_pair(1))
+                        stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                         stdscr.clrtoeol()
                     except curses.error:
                         pass
 
-                    # Cursor
                     if not lesson_finished:
                         cursor_row = content_start_y + (current_line - offset)
                         cursor_col = 0
@@ -199,19 +199,20 @@ class TouchTypeMode:
                                 else:
                                     break
                         cursor_col += len(user_inputs[current_line]) - input_pos
-                        safe_curs_set(2)
                         try:
                             stdscr.move(cursor_row, cursor_col)
                         except:
                             pass
                     else:
-                        safe_curs_set(0)
+                        curses.curs_set(0)
 
                     stdscr.refresh()
                     need_redraw = False
 
-                # Input handling
+                # === Input handling ===
                 changed = False
+                next_lesson = False
+
                 while True:
                     key = stdscr.getch()
                     if key == -1:
@@ -221,23 +222,19 @@ class TouchTypeMode:
                     if key == 3:  # Ctrl+C
                         sys.exit(0)
 
-                    # === NEW: Proper ESC handling ===
-                    if key == 27:  # ESC 
-                        next_key = stdscr.getch()
-                        if next_key == -1:
-                            return self.current_idx
-                        elif next_key in (curses.KEY_ENTER, 10, 13):
-                            return self.current_idx
-                        continue
-
                     if lesson_finished:
-                        if key in (ord("n"), ord("N")):
-                            completed = True
+                        if key in (ord('n'), ord('N')):
+                            next_lesson = True
+                            break  # exit key-drain loop early
+                        elif key in (ord('q'), ord('Q'), 27):  # q or Esc
+                            return False
                     else:
                         if key == 18:  # Ctrl+R
                             user_inputs = [[] for _ in lines]
                             current_line = 0
                             lesson_finished = False
+                        elif key == 27:  # Esc 
+                            return False
                         elif is_skip[current_line]:
                             if key in (curses.KEY_ENTER, 10, 13):
                                 if current_line < total_lines - 1:
@@ -257,13 +254,16 @@ class TouchTypeMode:
                                     remaining = "".join(processed_lines[current_line][cur_len:])
                                     if remaining.startswith("    "):
                                         user_inputs[current_line].extend([" ", " ", " ", " "])
-                            else:
-                                if 32 <= key <= 126:
-                                    ch = chr(key)
-                                    if len(user_inputs[current_line]) < len(processed_lines[current_line]):
-                                        user_inputs[current_line].append(ch)
+                            elif 32 <= key <= 126:
+                                ch = chr(key)
+                                if len(user_inputs[current_line]) < len(processed_lines[current_line]):
+                                    user_inputs[current_line].append(ch)
 
-                # Check completion
+                # After processing all pending keys
+                if next_lesson:
+                    break  # Exit the outer while True → go to next lesson in for-loop
+
+                # Check if lesson just completed
                 if all(is_skip[i] or user_inputs[i] == processed_lines[i] for i in range(total_lines)):
                     lesson_finished = True
                     changed = True
@@ -271,12 +271,7 @@ class TouchTypeMode:
                 if changed:
                     need_redraw = True
 
-            # Advance to next lesson after completing this one with 'n'
-            self.current_idx += 1
-
-        # All lessons completed in touch type mode
-        boom = Boom("Press any key to return to doc mode.")
+        # All lessons completed
+        boom = Boom("Press any key to exit.")
         boom.display(stdscr)
-        stdscr.getch()
-        curses.curs_set(0)
-        return len(self.lessons)
+        return True

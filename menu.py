@@ -1,6 +1,8 @@
 # ~/Apps/rtutor/modules/menu.py
 import curses
-from .ascii import title_ascii_art
+from ascii import title_ascii_art
+from bookmarks import Bookmarks
+from lesson_sequencer import LessonSequencer
 
 
 class Menu:
@@ -96,7 +98,7 @@ class Menu:
                     if len(course.parts) == 1 and course.parts[0].name == "Main":
                         part = course.parts[0]
                         if len(part.sections) == 1 and part.sections[0].name == "Main":
-                            from modules.lesson_sequencer import LessonSequencer
+                            from lesson_sequencer import LessonSequencer
 
                             sequencer = LessonSequencer(
                                 course.name,
@@ -115,7 +117,7 @@ class Menu:
                     need_redraw = True
 
                 elif key == ord("b") and self.doc_mode:
-                    from .bookmarks import Bookmarks
+                    from bookmarks import Bookmarks
 
                     bookmarks = Bookmarks()
                     result = bookmarks.show_menu_and_jump(stdscr, self.courses)
@@ -127,7 +129,6 @@ class Menu:
                             if course.name != target_course_name:
                                 continue
 
-                            # Case 1: Full hierarchy known — launch directly at section level
                             if target_part and target_section:
                                 for part in course.parts:
                                     if part.name != target_part:
@@ -135,32 +136,33 @@ class Menu:
                                     for section in part.sections:
                                         if section.name != target_section:
                                             continue
-                                        from .lesson_sequencer import LessonSequencer
+
                                         sequencer = LessonSequencer(
                                             f"{course.name}: {part.name}: {section.name}",
                                             section.lessons,
                                             doc_mode=True,
-                                            source_file=course.source_file
+                                            source_file=course.source_file,
                                         )
                                         sequencer.target_lesson_name = target_lesson
                                         sequencer.run(stdscr)
                                         found = True
                                         break
-                                    if found: break
-                                if found: break
-
-                            # Case 2: Only part known — open part menu
+                                    if found:
+                                        break
+                                if found:
+                                    break
                             elif target_part:
                                 for part in course.parts:
                                     if part.name != target_part:
                                         continue
+
                                     if len(part.sections) == 1 and part.sections[0].name == "Main":
-                                        from .lesson_sequencer import LessonSequencer
+
                                         sequencer = LessonSequencer(
                                             f"{course.name}: {part.name}",
                                             part.sections[0].lessons,
                                             doc_mode=True,
-                                            source_file=course.source_file
+                                            source_file=course.source_file,
                                         )
                                         sequencer.target_lesson_name = target_lesson
                                         sequencer.run(stdscr)
@@ -168,19 +170,18 @@ class Menu:
                                         self.run_section_menu(stdscr, course, part)
                                     found = True
                                     break
-                                if found: break
-
-                            # Case 3: Only course — open course normally
+                                if found:
+                                    break
                             else:
                                 if len(course.parts) == 1 and course.parts[0].name == "Main":
                                     part = course.parts[0]
                                     if len(part.sections) == 1 and part.sections[0].name == "Main":
-                                        from .lesson_sequencer import LessonSequencer
+
                                         sequencer = LessonSequencer(
                                             course.name,
                                             part.sections[0].lessons,
                                             doc_mode=True,
-                                            source_file=course.source_file
+                                            source_file=course.source_file,
                                         )
                                         sequencer.target_lesson_name = target_lesson
                                         sequencer.run(stdscr)
@@ -191,9 +192,8 @@ class Menu:
                                 found = True
                                 break
 
-                        # After doc mode ends, return to main menu
-                        need_redraw = True
-
+                        if found:
+                            need_redraw = True
                     else:
                         need_redraw = True
 
@@ -267,7 +267,6 @@ class Menu:
                     part = course.parts[selected]
 
                     if len(part.sections) == 1 and part.sections[0].name == "Main":
-                        from modules.lesson_sequencer import LessonSequencer
 
                         sequencer = LessonSequencer(
                             f"{course.name}: {part.name}",
@@ -348,7 +347,6 @@ class Menu:
                     return
                 elif key in (curses.KEY_RIGHT, ord("l")):
                     section = part.sections[selected]
-                    from modules.lesson_sequencer import LessonSequencer
 
                     sequencer = LessonSequencer(
                         f"{course.name}: {part.name}: {section.name}",

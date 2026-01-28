@@ -1,8 +1,8 @@
 # ~/Apps/rtutor/modules/flag_handler.py
 import sys
 import curses
-from .bookmarks import Bookmarks
-from .lesson_sequencer import LessonSequencer
+from bookmarks import Bookmarks
+from lesson_sequencer import LessonSequencer
 
 def handle_bookmark_flags(courses):
     flags = ["-b", "--bookmark"]

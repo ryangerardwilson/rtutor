@@ -4,10 +4,10 @@ import curses
 import sys
 import os
 from pathlib import Path
-from modules.menu import Menu
-from modules.course_parser import CourseParser
-from modules.flag_handler import handle_bookmark_flags
-from modules.config_manager import (
+from menu import Menu
+from course_parser import CourseParser
+from flag_handler import handle_bookmark_flags
+from config_manager import (
     ensure_seed_courses,
     get_courses_dir,
     load_config,
@@ -32,7 +32,7 @@ def main():
     # Determine repo seed directory and ensure seed courses are registered
     script_path = os.path.realpath(__file__)
     script_dir = Path(script_path).parent
-    seeds_dir = script_dir / "courses"
+    seeds_dir = script_dir
 
     config = load_config()
     config = ensure_seed_courses(config, seeds_dir)

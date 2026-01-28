@@ -1,5 +1,5 @@
 import curses
-from .ascii import boom_art
+from ascii import boom_art
 
 
 class Boom:

@@ -5,12 +5,12 @@ import time
 import re
 import subprocess
 from pathlib import Path
-from .structs import Lesson
-from .rote_mode import RoteMode
-from .touch_type_mode import TouchTypeMode
-from .doc_editor import DocEditor
-from .bookmarks import Bookmarks
-from .config_manager import ensure_seed_courses, load_config
+from structs import Lesson
+from rote_mode import RoteMode
+from touch_type_mode import TouchTypeMode
+from doc_editor import DocEditor
+from bookmarks import Bookmarks
+from config_manager import ensure_seed_courses, load_config
 
 
 class DocMode:
@@ -554,10 +554,10 @@ class DocMode:
                 elif key == 27:  # Esc
                     return False
                 elif key == ord("b"):
-                    from modules.course_parser import CourseParser
+                    from course_parser import CourseParser
 
-                    script_dir = Path(__file__).resolve().parent.parent
-                    seeds_dir = script_dir / "courses"
+                    script_dir = Path(__file__).resolve().parent
+                    seeds_dir = script_dir
                     config = load_config()
                     config = ensure_seed_courses(config, seeds_dir)
 

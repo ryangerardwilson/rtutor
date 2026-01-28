@@ -2,10 +2,11 @@
 import os
 from pathlib import Path
 import curses
+from config_manager import get_config_root
 
 
 class Bookmarks:
-    BOOKMARKS_FILE = Path(os.path.expanduser("~/.config/rtutor/bookmarks.conf"))
+    BOOKMARKS_FILE = get_config_root() / "bookmarks.conf"
 
     def __init__(self):
         self._ensure_config_dir()

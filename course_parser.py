@@ -1,6 +1,6 @@
 # ~/Apps/rtutor/modules/course_parser.py
 import os
-from modules.structs import Course, Part, Section, Lesson
+from structs import Course, Part, Section, Lesson
 
 
 class CourseParser:
