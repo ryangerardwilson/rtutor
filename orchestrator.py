@@ -216,11 +216,7 @@ class Orchestrator:
             self.sync_messages.append(f"Failed to ensure collection: {exc}")
             return []
 
-        collection_id = (
-            collection.get("id")
-            or collection.get("collection_id")
-            or collection_id
-        )
+        collection_id = _extract_identifier(collection, fallback=collection_id)
         if not collection_id:
             self.sync_messages.append("No collection id returned from xAI management API.")
             return []
@@ -252,7 +248,7 @@ class Orchestrator:
 
             try:
                 upload = file_client.upload_file(str(course_path))
-                file_id = upload.get("id") or upload.get("file_id")
+                file_id = _extract_identifier(upload)
                 if not file_id:
                     raise XAIClientError("Upload response missing file id")
                 management_client.add_document(collection_id, file_id)
@@ -320,3 +316,28 @@ class Orchestrator:
     def _handle_flags(self) -> None:
         sys.argv = [sys.argv[0]] + self.argv
         handle_bookmark_flags(self.courses)
+
+
+def _extract_identifier(
+    data: Any,
+    fallback: Optional[str] = None,
+) -> Optional[str]:
+    stack = [data]
+    seen = set()
+
+    while stack:
+        current = stack.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+
+        if isinstance(current, dict):
+            for key in ("id", "collection_id", "file_id", "uuid"):
+                value = current.get(key)
+                if isinstance(value, str) and value:
+                    return value
+            stack.extend(current.values())
+        elif isinstance(current, list):
+            stack.extend(current)
+
+    return fallback
