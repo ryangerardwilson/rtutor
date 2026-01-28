@@ -171,8 +171,7 @@ The former `-c/--cat` command has been retired.
 ## Configuration
 
 rtutor stores user configuration under `${XDG_CONFIG_HOME:-~/.config}/rt/`.
-You register courses yourself—either by editing `config.json` or with the
-`--add-course` CLI flag. Each course entry tracks:
+You register courses yourself by editing `config.json`. Each course entry tracks:
 
 - `name`: friendly label shown in menus
 - `local_path`: absolute path to the Markdown file (rtutor never relocates it)
@@ -211,8 +210,7 @@ You control the course catalog. Point rtutor at any Markdown lesson file by
 registering it:
 
 ```
-rtutor -c "Python Basics" ~/courses/python.md
-rtutor -c "SQL" ~/docs/sql.md
+rtutor -t                  # upload (train) all registered courses to Grok Collections
 ```
 
 Each file should follow the same structure the app expects:

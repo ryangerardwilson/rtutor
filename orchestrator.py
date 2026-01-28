@@ -34,7 +34,6 @@ class Orchestrator:
             status=False,
             purge=False,
             help=False,
-            add_courses=[],
         )
         self.config: Dict[str, Any] = {}
         self.courses = []
@@ -50,9 +49,6 @@ class Orchestrator:
 
         self.args = self._parse_args()
         self.config = self._load_and_prepare_config()
-
-        if self.args.add_courses:
-            self._register_courses(self.args.add_courses)
 
         self.courses, self.missing_courses = self._load_courses()
 
@@ -112,7 +108,6 @@ class Orchestrator:
         status = False
         purge = False
         show_help = False
-        add_courses: List[Tuple[str, str]] = []
         remaining: List[str] = []
         tokens = list(self.argv)
         i = 0
@@ -140,16 +135,6 @@ class Orchestrator:
                 show_help = True
                 i += 1
                 continue
-            if token == "-c":
-                if i + 2 >= len(tokens):
-                    raise SystemExit(
-                        "Error: -c requires a name and a path"
-                    )
-                name = tokens[i + 1]
-                path = tokens[i + 2]
-                add_courses.append((name, path))
-                i += 3
-                continue
             remaining.append(token)
             i += 1
         self.argv = remaining
@@ -159,7 +144,6 @@ class Orchestrator:
             status=status,
             purge=purge,
             help=show_help,
-            add_courses=add_courses,
         )
 
     def _load_and_prepare_config(self) -> Dict[str, Any]:
@@ -170,15 +154,6 @@ class Orchestrator:
         save_config(config)
 
         return config
-    def _register_courses(self, courses: List[Tuple[str, str]]) -> None:
-        updated = self.config
-        for name, path in courses:
-            entry = {"name": name, "local_path": path}
-            updated = upsert_course_entry(updated, entry)
-            print(f"Registered course '{name}' at {path}")
-        save_config(updated)
-        self.config = updated
-
     # ------------------------------------------------------------------
     # Course loading
     # ------------------------------------------------------------------
