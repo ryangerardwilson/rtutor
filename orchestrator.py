@@ -693,7 +693,7 @@ class Orchestrator:
         print("  -t             upload (train) registered courses")
         print("  -s             show indexing status for courses")
         print("  -p             remove all documents from the collection")
-        print("  -q QUESTION    ask a question using the collection")
+        print("  -q QUERY       query your xai collection")
         print("  -c NAME PATH   register a course")
 
 
