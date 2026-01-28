@@ -367,6 +367,65 @@ class Orchestrator:
 
         return collection_id
 
+    def _purge_collection(
+        self,
+        *,
+        collection_id: Optional[str] = None,
+        management_client: Optional[XAIManagementClient] = None,
+    ) -> None:
+        if management_client is None or collection_id is None:
+            api_key, management_key = self._resolve_api_keys()
+            if not management_key:
+                print(
+                    "[purge] Missing management key; set xai.management_key or $XAI_MANAGEMENT_API_KEY."
+                )
+                return
+
+            management_client = XAIManagementClient(management_key)
+            xai_section = self.config.setdefault("xai", {})
+            collection_name = "rtutor-course-library"
+            collection_id = xai_section.get("collection_id")
+            try:
+                collection = management_client.ensure_collection(
+                    collection_name, collection_id
+                )
+            except XAIClientError as exc:
+                print(f"[purge] Failed to ensure collection: {exc}")
+                return
+            collection_id = _extract_identifier(collection, fallback=collection_id)
+            if not collection_id:
+                print("[purge] No collection id available.")
+                return
+            xai_section["collection_id"] = collection_id
+            save_config(self.config)
+
+        print(f"[purge] Purging collection {collection_id}")
+        try:
+            total = 0
+            next_page: Optional[str] = None
+            while True:
+                documents = management_client.list_documents(
+                    collection_id, page_token=next_page
+                )
+                docs = documents.get("documents", [])
+                for doc in docs:
+                    file_id = doc.get("file_id") or doc.get("id")
+                    if not file_id:
+                        continue
+                    try:
+                        management_client.remove_document(collection_id, file_id)
+                        print(f"[purge] Deleted file {file_id} from collection")
+                        total += 1
+                    except XAIClientError as exc:
+                        print(f"[purge] Failed to delete file {file_id}: {exc}")
+                next_page = documents.get("next_page_token")
+                if not next_page:
+                    break
+            if total == 0:
+                print("[purge] Collection already empty")
+        except XAIClientError as exc:
+            print(f"[purge] Unable to list documents: {exc}")
+
     def _report_status(self) -> None:
         api_key, management_key = self._resolve_api_keys()
         if not management_key:
