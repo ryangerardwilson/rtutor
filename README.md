@@ -192,9 +192,10 @@ The runtime Python modules live directly in the repository root (no nested
 
 - `main.py` — CLI entry point
 - `menu.py`, `lesson_sequencer.py`, `doc_mode.py`, `rote_mode.py`, `touch_type_mode.py` — interactive UI flows
+- `orchestrator.py` — coordinates config loading, course ingestion, and runtime startup
 - `config_manager.py`, `course_parser.py`, `bookmarks.py`, `boom.py`, `structs.py` — shared utilities and data structures
 - `course_*.md` — bundled seed Markdown files in the repo root
-- `tests/` — lightweight regression coverage
+- `test_config_manager.py` — lightweight regression coverage (pytest)
 
 ## Adding Courses
 
