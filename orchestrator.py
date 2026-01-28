@@ -349,9 +349,7 @@ class Orchestrator:
             existing = existing_docs.pop(canonical_path, None)
             if existing:
                 remote_id = existing["file_id"]
-                remote_last_modified = (existing["fields"] or {}).get(
-                    "last_modified"
-                )
+                remote_last_modified = existing.get("last_modified")
                 if remote_last_modified == iso_mtime:
                     if course.get("xai_file_id") != remote_id:
                         course["xai_file_id"] = remote_id
@@ -621,7 +619,7 @@ class Orchestrator:
             try:
                 info = management_client.get_document(collection_id, file_id)
                 status_value = _extract_status(info)
-                fields = info.get("fields") or {}
+                fields = _extract_fields(info)
                 remote_mtime = fields.get("last_modified")
                 canonical_path = (
                     str(Path(local_path).expanduser().resolve()) if local_path else None
