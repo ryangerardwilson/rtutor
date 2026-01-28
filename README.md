@@ -132,14 +132,16 @@ compatibility; use it with tokens to do direct fuzzy searches.
 rtutor                 # launches doc-mode menus (default)
 rtutor -d "token ..."  # runs a direct search and opens the matches in doc-mode viewer
 rtutor -t                  # upload (train) all registered courses to Grok Collections
-rtutor -q "How do I inspect a df?"  # sync courses to Grok and answer a question
+rtutor -s                  # show indexing status for every registered course
+rtutor -q "How do I inspect a df?"  # answer a question using the collection
 ```
 
 - `rtutor` alone → menu-driven doc-mode.
 - `rtutor -d` with no tokens is redundant (same as running rtutor).
 - `rtutor -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
-- `rtutor -t` → force a full re-upload (training) of every course to Grok Collections.
-- `rtutor -q "question"` → non-interactive Q&A powered by Grok Collections (requires API keys).
+- `rtutor -t` → upload (or re-upload) every registered course to the Grok collection.
+- `rtutor -s` → display indexing/processing status for each course file.
+- `rtutor -q "question"` → non-interactive Q&A powered by the collection (requires API keys).
 - Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
 
 Token mapping (fuzzy, case-insensitive):
@@ -158,6 +160,7 @@ Examples:
 rtutor -d "repl"
 rtutor -d "python" "repl"
 rtutor -t
+rtutor -s
 rtutor -q "show me python repl basics"
 ```
 
@@ -165,20 +168,13 @@ The former `-c/--cat` command has been retired.
 
 ## Configuration
 
-rtutor now follows the XDG base directory spec:
-
-- Configuration root: `${XDG_CONFIG_HOME:-~/.config}/rt/`
-- Primary config file: `config.json`
-- Managed course directory: `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`
-- Course files are flattened and stored as `course_<id>.md`
-
-On first launch, rtutor copies the bundled seed courses into the managed course
-directory and registers them in `config.json`. You can inspect and edit that
-file to point at your own Markdown courses. Each course entry tracks:
+rtutor stores user configuration under `${XDG_CONFIG_HOME:-~/.config}/rt/`.
+You register courses yourself—either by editing `config.json` or with the
+`--add-course` CLI flag. Each course entry tracks:
 
 - `name`: friendly label shown in menus
-- `local_path`: absolute path to the Markdown file
-- `xai_file_id`: last uploaded document ID (populated after syncing with Grok)
+- `local_path`: absolute path to the Markdown file (rtutor never relocates it)
+- `xai_file_id`: last uploaded document ID (populated after running `-t`)
 
 Global Grok integration settings live under the top-level `xai` key:
 
@@ -226,3 +222,9 @@ Each file should follow the same structure the app expects:
 
 To remove a course, edit `config.json` directly (located at
 `${XDG_CONFIG_HOME:-~/.config}/rt/config.json`).
+
+After registering courses:
+
+1. Run `rtutor -t` to upload them to the Grok collection.
+2. Use `rtutor -s` to verify indexing status.
+3. Ask questions with `rtutor -q "your question"` once files show `processed`.
