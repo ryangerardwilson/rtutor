@@ -28,7 +28,11 @@ class Orchestrator:
     def __init__(self, argv: Optional[List[str]] = None):
         self.argv = argv if argv is not None else list(sys.argv[1:])
         self.args = SimpleNamespace(
-            question=None, train=False, status=False, add_courses=[]
+            question=None,
+            train=False,
+            status=False,
+            purge=False,
+            add_courses=[],
         )
         self.config: Dict[str, Any] = {}
         self.courses = []
@@ -60,6 +64,10 @@ class Orchestrator:
 
         if self.args.status:
             self._report_status()
+            return
+
+        if self.args.purge:
+            self._purge_collection()
             return
 
         if self.args.question:
@@ -96,6 +104,7 @@ class Orchestrator:
         question: Optional[str] = None
         train = False
         status = False
+        purge = False
         add_courses: List[Tuple[str, str]] = []
         remaining: List[str] = []
         tokens = list(self.argv)
@@ -116,6 +125,10 @@ class Orchestrator:
                 status = True
                 i += 1
                 continue
+            if token in {"-p", "--purge"}:
+                purge = True
+                i += 1
+                continue
             if token == "--add-course":
                 if i + 2 >= len(tokens):
                     raise SystemExit(
@@ -133,6 +146,7 @@ class Orchestrator:
             question=question,
             train=train,
             status=status,
+            purge=purge,
             add_courses=add_courses,
         )
 
@@ -243,32 +257,9 @@ class Orchestrator:
             xai_section["collection_id"] = collection_id
             updated = True
 
-        try:
-            next_page: Optional[str] = None
-            while True:
-                documents = management_client.list_documents(
-                    collection_id, page_token=next_page
-                )
-                for doc in documents.get("documents", []):
-                    existing_file_id = doc.get("file_id") or doc.get("id")
-                    if not existing_file_id:
-                        continue
-                    try:
-                        management_client.remove_document(
-                            collection_id, existing_file_id
-                        )
-                        print(
-                            f"[sync] Deleted existing file {existing_file_id} from collection"
-                        )
-                    except XAIClientError as exc:
-                        print(
-                            f"[sync] Failed to delete existing file {existing_file_id}: {exc}"
-                        )
-                next_page = documents.get("next_page_token")
-                if not next_page:
-                    break
-        except XAIClientError as exc:
-            print(f"[sync] Warning: unable to list existing documents: {exc}")
+        self._purge_collection(
+            collection_id=collection_id, management_client=management_client
+        )
 
         any_uploaded = False
         for course in self.config.get("courses", []):
@@ -511,3 +502,67 @@ def _extract_status(payload: Dict[str, Any]) -> str:
 
 def _report_status(self):
     pass
+    def _purge_collection(
+        self,
+        *,
+        collection_id: Optional[str] = None,
+        management_client: Optional[XAIManagementClient] = None,
+    ) -> None:
+        if management_client is None or collection_id is None:
+            api_key, management_key = self._resolve_api_keys()
+            if not management_key:
+                print(
+                    "[purge] Missing management key; set xai.management_key or $XAI_MANAGEMENT_API_KEY."
+                )
+                return
+
+            management_client = XAIManagementClient(management_key)
+            xai_section = self.config.setdefault("xai", {})
+            collection_name = "rtutor-course-library"
+            collection_id = xai_section.get("collection_id")
+            try:
+                collection = management_client.ensure_collection(
+                    collection_name, collection_id
+                )
+            except XAIClientError as exc:
+                print(f"[purge] Failed to ensure collection: {exc}")
+                return
+            collection_id = _extract_identifier(collection, fallback=collection_id)
+            if not collection_id:
+                print("[purge] No collection id available.")
+                return
+            xai_section["collection_id"] = collection_id
+            save_config(self.config)
+
+        print(f"[purge] Purging collection {collection_id}")
+        try:
+            next_page: Optional[str] = None
+            total = 0
+            while True:
+                documents = management_client.list_documents(
+                    collection_id, page_token=next_page
+                )
+                docs = documents.get("documents", [])
+                for doc in docs:
+                    existing_file_id = doc.get("file_id") or doc.get("id")
+                    if not existing_file_id:
+                        continue
+                    try:
+                        management_client.remove_document(
+                            collection_id, existing_file_id
+                        )
+                        print(
+                            f"[purge] Deleted file {existing_file_id} from collection"
+                        )
+                        total += 1
+                    except XAIClientError as exc:
+                        print(
+                            f"[purge] Failed to delete file {existing_file_id}: {exc}"
+                        )
+                next_page = documents.get("next_page_token")
+                if not next_page:
+                    break
+            if total == 0:
+                print("[purge] Collection already empty")
+        except XAIClientError as exc:
+            print(f"[purge] Unable to list documents: {exc}")
