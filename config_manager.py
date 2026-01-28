@@ -174,55 +174,22 @@ def remove_course_entry(config: Dict[str, Any], slug: str) -> Dict[str, Any]:
 
 
 def normalize_course_entries(config: Dict[str, Any]) -> Dict[str, Any]:
-    courses_dir = get_courses_dir()
-    moves = _flatten_courses_directory()
-
     dedup: Dict[str, Dict[str, Any]] = {}
 
     for raw_entry in config.get("courses", []):
         entry = _sanitize_course_entry(raw_entry)
 
-        local_path = entry.get("local_path")
-        if local_path and local_path in moves:
-            local_path = moves[local_path]
-            entry["local_path"] = local_path
-
-        path_obj = Path(local_path).expanduser() if local_path else None
-        if path_obj and not path_obj.exists():
-            path_obj = None
-
-        slug = course_slug(entry.get("name"), local_path)
-
-        target_path = courses_dir / _course_filename(slug)
-
-        if path_obj and path_obj.exists():
-            try:
-                if not path_obj.samefile(target_path):
-                    target_path.parent.mkdir(parents=True, exist_ok=True)
-                    if not target_path.exists():
-                        path_obj.rename(target_path)
-                    path_obj = target_path
-                else:
-                    path_obj = target_path
-            except OSError:
-                path_obj = target_path
-        else:
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            path_obj = target_path
-
-        entry["local_path"] = str(path_obj)
+        slug = course_slug(entry.get("name"), entry.get("local_path"))
         entry.setdefault("name", slug.replace("-", " ").title())
-
-        sanitized_entry = _sanitize_course_entry(entry)
 
         existing = dedup.get(slug)
         if existing:
-            merged_entry = {**existing, **sanitized_entry}
-            if sanitized_entry.get("xai_file_id") is None:
+            merged_entry = {**existing, **entry}
+            if entry.get("xai_file_id") is None:
                 merged_entry["xai_file_id"] = existing.get("xai_file_id")
             dedup[slug] = _sanitize_course_entry(merged_entry)
         else:
-            dedup[slug] = sanitized_entry
+            dedup[slug] = entry
 
     ordered_slugs = sorted(dedup.keys())
     config["courses"] = [dedup[key] for key in ordered_slugs]
@@ -264,41 +231,3 @@ def course_slug(name: Optional[str], local_path: Optional[str]) -> str:
         if slug:
             return slug
     return "untitled"
-
-
-def _flatten_courses_directory() -> Dict[str, str]:
-    courses_dir = get_courses_dir()
-    moves: Dict[str, str] = {}
-
-    if not courses_dir.exists():
-        return moves
-
-    for md_path in sorted(courses_dir.rglob("*.md")):
-        if not md_path.exists():
-            continue
-
-        original_path = str(md_path)
-        slug = _identifier_from_path(md_path)
-        target = courses_dir / _course_filename(slug)
-
-        if md_path == target:
-            moves[original_path] = original_path
-            continue
-
-        try:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if target.exists():
-                try:
-                    if target.samefile(md_path):
-                        moves[original_path] = str(target)
-                        continue
-                except OSError:
-                    pass
-                moves[original_path] = original_path
-                continue
-            md_path.rename(target)
-            moves[original_path] = str(target)
-        except OSError:
-            moves[original_path] = original_path
-
-    return moves

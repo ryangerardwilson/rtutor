@@ -81,17 +81,12 @@ def test_upsert_course_entry_preserves_existing_file_id(temp_config_home):
 def test_normalize_flattens_nested_courses(temp_config_home):
     config = cm.load_config()
 
-    courses_dir = cm.get_courses_dir()
-    nested_dir = courses_dir / "nested" / "inner"
-    nested_dir.mkdir(parents=True, exist_ok=True)
-
-    nested_file = nested_dir / "custom.md"
-    nested_file.write_text("# Custom\n", encoding="utf-8")
+    nested_path = "/tmp/nested/custom.md"
 
     config.setdefault("courses", []).append(
         {
             "name": "Custom",
-            "local_path": str(nested_file),
+            "local_path": nested_path,
         }
     )
 
@@ -103,12 +98,7 @@ def test_normalize_flattens_nested_courses(temp_config_home):
     }
     assert "custom" in entries
 
-    final_path = Path(entries["custom"]["local_path"])
-    assert final_path.parent == cm.get_courses_dir()
-    assert final_path.name.startswith("course_")
-    assert final_path.suffix == ".md"
-    assert final_path.exists()
-    assert not nested_file.exists()
+    assert entries["custom"]["local_path"] == nested_path
     assert entries["custom"]["xai_file_id"] is None
 
 
