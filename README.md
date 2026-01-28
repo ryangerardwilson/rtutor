@@ -1,6 +1,5 @@
 # RTutor
 
-
 AI slop is a problem. Inculcating great programming taste is the antidote.
 rtutor is an attempt to disseminate that antidote.
 
@@ -161,7 +160,7 @@ Example:
 
 ### Annotated Examples
 
-**Full hierarchy**
+#### Full hierarchy
 
 ```
 # Unix Fundamentals
@@ -177,7 +176,7 @@ Example:
     vim README.md
 ```
 
-**Part-only hierarchy**
+#### Part-only hierarchy
 
 ```
 # Python Warmups
@@ -190,7 +189,7 @@ Example:
     print(total)
 ```
 
-**Flat hierarchy**
+#### Flat hierarchy
 
 ```
 # Git Touch Typing
@@ -251,7 +250,7 @@ In-place editing:
 Short and brutal: doc-mode is default. `-d/--doc` is still accepted for
 compatibility; use it with tokens to do direct fuzzy searches.
 
-- ```
+```
 rt                     # launches doc-mode menus (default)
 rt -d "token ..."      # runs a direct search and opens the matches in doc-mode viewer
 rt -t                  # upload (train) all registered courses to Grok Collections
