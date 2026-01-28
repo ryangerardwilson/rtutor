@@ -54,6 +54,12 @@ class XAIManagementClient:
             f"/collections/{collection_id}/documents/{file_id}",
         )
 
+    def list_documents(self, collection_id: str) -> dict:
+        return self._request(
+            "GET",
+            f"/collections/{collection_id}/documents",
+        )
+
     def get_document(self, collection_id: str, file_id: str) -> dict:
         return self._request(
             "GET",

@@ -243,6 +243,20 @@ class Orchestrator:
             xai_section["collection_id"] = collection_id
             updated = True
 
+        try:
+            documents = management_client.list_documents(collection_id)
+            for doc in documents.get("documents", []):
+                existing_file_id = doc.get("file_id") or doc.get("id")
+                if not existing_file_id:
+                    continue
+                try:
+                    management_client.delete_document(collection_id, existing_file_id)
+                    print(f"[sync] Deleted existing file {existing_file_id} from collection")
+                except XAIClientError as exc:
+                    print(f"[sync] Failed to delete existing file {existing_file_id}: {exc}")
+        except XAIClientError as exc:
+            print(f"[sync] Warning: unable to list existing documents: {exc}")
+
         any_uploaded = False
         for course in self.config.get("courses", []):
             name = course.get("name") or "Course"
