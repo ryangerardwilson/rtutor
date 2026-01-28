@@ -105,6 +105,7 @@ def test_normalize_flattens_nested_courses(temp_config_home):
 def test_normalize_strips_display_name(temp_config_home):
     config = cm.load_config()
     courses_dir = cm.get_courses_dir()
+    courses_dir.mkdir(parents=True, exist_ok=True)
     sample = courses_dir / "course_demo.md"
     sample.write_text("# Demo", encoding="utf-8")
 

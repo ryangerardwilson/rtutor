@@ -6,9 +6,15 @@ rtutor is an attempt to disseminate that antidote.
 
 ## Table of Contents
 - [Preface](#preface)
-- [Featured Courses](#featured-courses)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Creating Course Markdown Files](#creating-course-markdown-files)
+  - [File Location and Naming](#file-location-and-naming)
+  - [Supported Heading Hierarchies](#supported-heading-hierarchies)
+  - [Lesson Code Block Requirements](#lesson-code-block-requirements)
+  - [Optional Skip Directives](#optional-skip-directives)
+  - [Annotated Examples](#annotated-examples)
+  - [Validation and Troubleshooting](#validation-and-troubleshooting)
 - [Doc Mode Features](#doc-mode-features)
 - [Doc Mode CLI Flags](#doc-mode-cli-flags)
 - [Configuration](#configuration)
@@ -23,62 +29,24 @@ interactive typing lessons. Each course has parts and optional sections.
 Lessons are code blocks you must type accurately—with the objective of
 embedding taste through repetition. Start from the basics. Yes, even you.
 
-## Featured Courses
-
-Built-ins. Minimal excuses.
-
-1. **python.md**: Hello World, primitives, loops, operators, functions, I/O. Great for scripting and MVPs. Debugging tutorials. Use Python to implement the Relational Model for elegant data science operations.
-2. **sql.md**: SQL was designed as a printing language; it has since evolved into a programming language. This has led to ugly queries. Learn to write readable, not-awful SQL with SOLID principles.
-3. **c.md**: `printf`, types, control flow, IO, constants. The metal is cold. Learn it anyway.
-4. **unix.md**: Terminal typing, `ls`, `tmux`, `grep`, `find`, `iwctl`. More coming.
-5. **a.md**: High-Level Assembly (HLA). Hello World, variables. Use it to ramp into real assembly.
-
 ## Installation
 
-On Omarchy (or any Arch derivative):
-
-1. Install Python 3:
-```
-sudo pacman -S python
-```
-
-2. Put the repo somewhere sane:
-```
-git clone <this-repo> ~/Apps/rtutor
-```
-
-3. Make a proper launcher. Symlink the executable main.py into your PATH as `rt`:
-```
-chmod +x ~/Apps/rtutor/main.py
-mkdir -p ~/.local/bin
-ln -sf ~/Apps/rtutor/main.py ~/.local/bin/rt
-```
-
-4. Ensure `~/.local/bin` is on PATH (fix your shell if it isn’t):
-```
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-command -v rt || echo "PATH not set right"
-```
-
-### One-line installer (Linux x86_64)
-
-Prefer the binary bundle? Use the install script, which mirrors the release workflow:
+Skip the yak shaving. Use the installer script (Linux x86_64):
 
 ```
 curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/rt/main/install.sh | bash
 ```
 
-Select a specific version or skip shell config updates:
+Optional flags:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/ryangerardwilson/rt/main/install.sh | \
   bash -s -- --version 0.3.0 --no-modify-path
 ```
 
-The installer downloads the `rt-linux-x64.tar.gz` artifact for the chosen release,
-installs it to `~/.rt/app/rt`, and writes a lightweight shim to `~/.rt/bin/rt`.
-It will add the directory to your PATH unless you pass `--no-modify-path`.
+The script downloads `rt-linux-x64.tar.gz`, installs to `~/.rt/app/rt`, and drops a
+shim in `~/.rt/bin/rt`. It adds that directory to your PATH unless you pass
+`--no-modify-path`.
 
 ## Usage
 
@@ -115,6 +83,142 @@ Markdown format for courses:
     code block here
     multiline ok
 ```
+
+Need more? See [Creating Course Markdown Files](#creating-course-markdown-files).
+
+## Creating Course Markdown Files
+
+rtutor only ingests Markdown that follows a strict structure. This section explains
+exactly what the parser expects so your custom lessons load without surprises.
+
+### File Location and Naming
+
+- Store your files wherever you want—`rt` never relocates them. The default config
+  points at `${XDG_CONFIG_HOME:-~/.config}/rt/`.
+- If you like convention, place courses under `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`
+  (create the directory yourself) and name them `course_<slug>.md`. The slug is reused
+  inside `config.json`.
+- Wherever you save them, record the absolute path in `config.json` (see
+  [Configuration](#configuration)).
+
+### Supported Heading Hierarchies
+
+The parser recognises three layouts. Only the first `#` heading is treated as the
+course title, so include it once at the top.
+
+1. **Full hierarchy — course → part → section → lesson**
+   ```
+   # Your Course
+   ## Part One
+   ### Section A
+   #### Lesson Name
+       code…
+   ```
+   Use this when you want both parts _and_ sections.
+
+2. **Part-only hierarchy — course → part → lesson**
+   ```
+   # Your Course
+   ## Part One
+   ### Lesson Name
+       code…
+   ```
+   Sections are omitted; the parser injects a default `Main` section for you.
+
+3. **Flat hierarchy — course → lesson**
+   ```
+   # Your Course
+   ## Lesson Name
+       code…
+   ```
+   Both parts and sections collapse into a single implicit `Main` grouping.
+
+Mixing styles in the same file is unsupported. Every lesson must sit under the
+appropriate parent heading (e.g., a `#### Lesson` cannot appear before a `### Section`).
+
+### Lesson Code Block Requirements
+
+- Each lesson needs at least one line indented by **four spaces** or a **single tab**.
+- Fenced code blocks (``` ticks) are ignored—indentation is the only signal.
+- Keep narrative prose above the lesson heading. Inside the indented block, stick to
+  the text you want users to type.
+- Blank lines are fine; keep them indented so they remain part of the lesson.
+- The parser trims trailing whitespace from each line; align indentation carefully.
+
+### Optional Skip Directives
+
+Lines that start with `#!`, `//!`, or `--!` are marked as **skip lines**. They still
+appear in doc mode but are excluded from accuracy scoring in typing modes. Use them for
+comments, instructions, or assertions users do not need to replicate.
+
+Example:
+
+```
+#### Echo basics
+    #! read the command, then press Enter
+    echo "hello"
+```
+
+### Annotated Examples
+
+**Full hierarchy**
+
+```
+# Unix Fundamentals
+## Part I — Shell Basics
+### Section 1 — Navigation
+#### Lesson: List files
+    #! Run this in a sandbox directory
+    pwd
+    ls -alh
+
+### Section 2 — Editing
+#### Lesson: Open file in vim
+    vim README.md
+```
+
+**Part-only hierarchy**
+
+```
+# Python Warmups
+## Part 1 — Expressions
+### Lesson: Print a string
+    print("Hello, taste.")
+
+### Lesson: Arithmetic
+    total = 41 + 1
+    print(total)
+```
+
+**Flat hierarchy**
+
+```
+# Git Touch Typing
+## Lesson: Clone a repo
+    git clone git@github.com:example/project.git
+
+## Lesson: Stage files
+    git status
+    git add README.md
+```
+
+### Validation and Troubleshooting
+
+1. **Preview locally** — run `rt` (doc mode) or jump directly with
+   `rt -d "Course" "Lesson"` to confirm headings and indentation load correctly.
+2. **Register the file** — add an entry to `config.json` with `name` and
+   `local_path`. Use absolute paths to avoid surprises.
+3. **Upload to Grok** — `rt -t` uploads new or changed files. Confirm status with
+   `rt -s`.
+
+Common parser errors:
+
+- `Error: Multiple course names` → only one `#` heading is allowed.
+- `Error: Lesson without section` → add a `### Section` before the `#### Lesson`.
+- Empty lessons (no indented lines) are dropped silently; make sure every lesson
+  contains code.
+
+Run `rt` again after edits; the app reloads courses and normalises the config.
 
 ## Doc Mode Features
 
@@ -240,12 +344,8 @@ pointing to the Markdown file. Once you've added or updated courses, run:
 rt -t                  # upload (train) all registered courses to Grok Collections
 ```
 
-Each file should follow the same structure the app expects:
-
-- Top-level: `# Course`
-- Parts: `## Part`
-- Optional sections: `### Section`
-- Lessons: `#### Lesson` with an indented code block underneath
+For the exact Markdown structure (including skip directives and examples), see
+[Creating Course Markdown Files](#creating-course-markdown-files).
 
 To remove a course, edit `config.json` directly (located at
 `${XDG_CONFIG_HOME:-~/.config}/rt/config.json`).

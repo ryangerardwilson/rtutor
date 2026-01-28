@@ -44,9 +44,7 @@ def _default_config() -> Dict[str, Any]:
 
 def ensure_config_dirs() -> None:
     root = get_config_root()
-    courses_dir = get_courses_dir()
     root.mkdir(parents=True, exist_ok=True)
-    courses_dir.mkdir(parents=True, exist_ok=True)
 
 
 def sanitize_config(data: Dict[str, Any]) -> Dict[str, Any]:
