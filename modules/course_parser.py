@@ -4,23 +4,36 @@ from modules.structs import Course, Part, Section, Lesson
 
 
 class CourseParser:
-    def __init__(self, courses_dir):
-        self.courses_dir = os.path.abspath(courses_dir)
+    def __init__(self, courses_dir=None):
+        self.courses_dir = os.path.abspath(courses_dir) if courses_dir else None
 
-    def parse_courses(self):
-        """Parse all .md files in the courses_dir into a list of Course objects."""
+    def parse_courses(self, course_files=None):
+        """Parse courses from provided files or the parser's directory."""
         courses = []
-        if not os.path.isdir(self.courses_dir):
-            raise FileNotFoundError(f"Directory {self.courses_dir} does not exist")
 
-        for filename in os.listdir(self.courses_dir):
-            if filename.endswith(".md"):
-                filepath = os.path.join(self.courses_dir, filename)
-                course = self._parse_md_file(filepath)
-                if course:
-                    courses.append(course)
-                else:
-                    print(f"Failed to parse course from: {filepath}")
+        files_to_parse = []
+        if course_files is not None:
+            for path in course_files:
+                if not path:
+                    continue
+                filepath = os.path.abspath(path)
+                if filepath.endswith(".md") and os.path.isfile(filepath):
+                    files_to_parse.append(filepath)
+        else:
+            if not self.courses_dir or not os.path.isdir(self.courses_dir):
+                raise FileNotFoundError(
+                    f"Directory {self.courses_dir} does not exist"
+                )
+            for filename in os.listdir(self.courses_dir):
+                if filename.endswith(".md"):
+                    files_to_parse.append(os.path.join(self.courses_dir, filename))
+
+        for filepath in files_to_parse:
+            course = self._parse_md_file(filepath)
+            if course:
+                courses.append(course)
+            else:
+                print(f"Failed to parse course from: {filepath}")
         return courses
 
     def _parse_md_file(self, filepath):

@@ -10,7 +10,8 @@ AI slop is a problem. Inculcating great programming taste is the antidote. rtuto
 - [Installation](#installation)
 - [Usage](#usage)
 - [Doc Mode Features](#doc-mode-features)
-- [DOC and CAT modes](#doc-and-cat-modes)
+- [Doc Mode CLI Flags](#doc-mode-cli-flags)
+- [Configuration](#configuration)
 - [Adding Courses](#adding-courses)
 
 ## Preface
@@ -92,7 +93,7 @@ Markdown format for courses:
 
 ## Doc Mode Features
 
-Doc mode is the default now. Just run rtutor — you'll be in the read-only doc viewer with full navigation and editing tools. The old -d flag still works but is redundant unless you're using it with search tokens (see DOC and CAT modes).
+Doc mode is the default now. Just run rtutor — you'll be in the read-only doc viewer with full navigation and editing tools. The old -d flag still works but is redundant unless you're using it with search tokens (see Doc Mode CLI Flags).
 
 Quick keys while viewing:
 - b — bookmark current lesson
@@ -113,27 +114,19 @@ In-place editing:
 - Press `i` on a lesson (if the source .md file is present).
 - rtutor opens your editor at the lesson heading, you edit and save, and rtutor reloads and attempts to keep your location.
 
-## DOC and CAT modes
+## Doc Mode CLI Flags
 
-Short and brutal: doc-mode is default. -d/--doc still accepted for compatibility; use them with tokens to do direct fuzzy searches.
+Short and brutal: doc-mode is default. `-d/--doc` is still accepted for compatibility; use it with tokens to do direct fuzzy searches.
 
-Doc mode:
 ```
 rtutor                 # launches doc-mode menus (default)
 rtutor -d "token ..."  # runs a direct search and opens the matches in doc-mode viewer
 ```
+
 - `rtutor` alone → menu-driven doc-mode.
 - `rtutor -d` with no tokens is redundant (same as running rtutor).
 - `rtutor -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
 - Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
-
-Cat mode: print the single best match to stdout (non-interactive):
-```
-rtutor -c <tokens...>
-rtutor --cat <tokens...>
-```
-- Same token mapping and fuzzy rules as -d.
-- Prints ANSI-colored lesson text to stdout. Exits 0 on success, 1 on no match.
 
 Token mapping (fuzzy, case-insensitive):
 - [L] -> search all courses for lesson fuzzy-matching L
@@ -150,8 +143,32 @@ Examples:
 ```
 rtutor -d "repl"
 rtutor -d "python" "repl"
-rtutor -c "python" "dipping toes" "repl"
 ```
+
+The former `-c/--cat` command has been retired. A new `-q` flag that queries Grok Collections is in progress.
+
+## Configuration
+
+rtutor now follows the XDG base directory spec:
+
+- Configuration root: `${XDG_CONFIG_HOME:-~/.config}/rt/`
+- Primary config file: `config.json`
+- Managed course directory: `${XDG_CONFIG_HOME:-~/.config}/rt/courses/`
+
+On first launch, rtutor copies the bundled seed courses into the managed course directory and registers them in `config.json`. You can inspect and edit that file to point at your own Markdown courses. Each course entry tracks:
+
+- `id`: stable identifier (defaults to the filename stem)
+- `display_name` / `name`: used in menus
+- `local_path`: absolute path to the Markdown file
+- `source`: `seed` or `user`
+- `xai`: metadata reserved for syncing with xAI Collections (collection ID, file IDs, timestamps)
+
+Environment variables:
+
+- `XAI_API_KEY` — standard Grok API key for retrieval requests
+- `XAI_MANAGEMENT_API_KEY` — Management API key with `AddFileToCollection` permission (uploading files)
+
+Both keys are optional today, but will be required for the upcoming `-q` Grok Collections integration.
 
 ## Adding Courses
 
@@ -163,4 +180,3 @@ Drop Markdown files into `courses/`. Keep it simple:
 - Lessons: `#### Lesson` with an indented code block underneath
 
 No fancy parsing — fast and predictable. Add content, not fluff.
-

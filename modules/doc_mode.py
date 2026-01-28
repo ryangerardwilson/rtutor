@@ -4,11 +4,13 @@ import sys
 import time
 import re
 import subprocess
+from pathlib import Path
 from .structs import Lesson
 from .rote_mode import RoteMode
 from .touch_type_mode import TouchTypeMode
 from .doc_editor import DocEditor
 from .bookmarks import Bookmarks
+from .config_manager import ensure_seed_courses, load_config
 
 
 class DocMode:
@@ -552,12 +554,21 @@ class DocMode:
                 elif key == 27:  # Esc
                     return False
                 elif key == ord("b"):
-                    import os
-                    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    courses_dir = os.path.join(script_dir, "courses")
                     from modules.course_parser import CourseParser
-                    parser = CourseParser(courses_dir)
-                    all_courses = parser.parse_courses()
+
+                    script_dir = Path(__file__).resolve().parent.parent
+                    seeds_dir = script_dir / "courses"
+                    config = load_config()
+                    config = ensure_seed_courses(config, seeds_dir)
+
+                    course_files = []
+                    for course in config.get("courses", []):
+                        path = course.get("local_path")
+                        if path and Path(path).expanduser().is_file():
+                            course_files.append(path)
+
+                    parser = CourseParser()
+                    all_courses = parser.parse_courses(course_files)
                     self.bookmarks.add(all_courses, self.sequencer.name, current_lesson.name)
                     self._show_msg(stdscr, "Bookmarked!")
                     redraw_needed = True
