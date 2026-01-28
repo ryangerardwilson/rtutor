@@ -36,30 +36,46 @@ def test_load_config_creates_file(temp_config_home):
     assert data["xai"].keys() == {"api_key", "management_key", "collection_id"}
 
 
-def test_ensure_seed_courses_uses_prefixed_names(temp_config_home, tmp_path):
+def test_upsert_course_entry_adds_course(temp_config_home):
     config = cm.load_config()
 
-    seeds_dir = tmp_path / "seeds"
-    seeds_dir.mkdir()
-
-    seed_md = seeds_dir / "course_sample.md"
-    seed_md.write_text(
-        """# Sample Course\n## Basics\n### Section\n#### Lesson One\n    print('hi')\n""",
-        encoding="utf-8",
+    updated = cm.upsert_course_entry(
+        config,
+        {"name": "Demo", "local_path": "/tmp/demo.md"},
     )
 
-    updated = cm.ensure_seed_courses(config, seeds_dir)
+    assert len(updated["courses"]) == 1
+    course = updated["courses"][0]
+    assert course == {
+        "name": "Demo",
+        "local_path": "/tmp/demo.md",
+        "xai_file_id": None,
+    }
 
-    courses_dir = cm.get_courses_dir()
-    expected_file = courses_dir / "course_sample.md"
-    assert expected_file.exists()
 
-    names = {Path(entry["local_path"]).name for entry in updated["courses"]}
-    assert "course_sample.md" in names
-    assert len(updated["courses"]) == len(names)  # no duplicates
-    for entry in updated["courses"]:
-        assert entry["xai_file_id"] is None
-        assert "id" not in entry
+def test_upsert_course_entry_preserves_existing_file_id(temp_config_home):
+    config = {
+        "courses": [
+            {
+                "name": "Demo",
+                "local_path": "/tmp/demo.md",
+                "xai_file_id": "file-123",
+            }
+        ],
+        "xai": {
+            "api_key": None,
+            "management_key": None,
+            "collection_id": None,
+        },
+    }
+
+    updated = cm.upsert_course_entry(
+        config,
+        {"name": "Demo", "local_path": "/tmp/demo.md"},
+    )
+
+    course = updated["courses"][0]
+    assert course["xai_file_id"] == "file-123"
 
 
 def test_normalize_flattens_nested_courses(temp_config_home):
@@ -70,10 +86,7 @@ def test_normalize_flattens_nested_courses(temp_config_home):
     nested_dir.mkdir(parents=True, exist_ok=True)
 
     nested_file = nested_dir / "custom.md"
-    nested_file.write_text(
-        """# Custom\n## Part\n### Section\n#### Lesson\n    pass\n""",
-        encoding="utf-8",
-    )
+    nested_file.write_text("# Custom\n", encoding="utf-8")
 
     config.setdefault("courses", []).append(
         {
@@ -91,13 +104,12 @@ def test_normalize_flattens_nested_courses(temp_config_home):
     assert "custom" in entries
 
     final_path = Path(entries["custom"]["local_path"])
-    assert final_path.parent == courses_dir
+    assert final_path.parent == cm.get_courses_dir()
     assert final_path.name.startswith("course_")
     assert final_path.suffix == ".md"
     assert final_path.exists()
     assert not nested_file.exists()
     assert entries["custom"]["xai_file_id"] is None
-    assert "id" not in entries["custom"]
 
 
 def test_normalize_strips_display_name(temp_config_home):

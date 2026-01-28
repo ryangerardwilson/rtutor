@@ -205,17 +205,24 @@ The runtime Python modules live directly in the repository root (no nested
 - `orchestrator.py` — coordinates config loading, course ingestion, and runtime startup
 - `config_manager.py`, `course_parser.py`, `bookmarks.py`, `boom.py`, `structs.py` — shared utilities and data structures
 - `xai_client.py` — thin HTTP wrappers for Grok Collections and Responses APIs
-- `course_*.md` — bundled seed Markdown files in the repo root
 - `test_config_manager.py` — lightweight regression coverage (pytest)
 
 ## Adding Courses
 
-Drop Markdown files named `course_<id>.md` into
-`${XDG_CONFIG_HOME:-~/.config}/rt/courses/`. Keep it simple:
+You control the course catalog. Point rtutor at any Markdown lesson file by
+registering it:
+
+```
+rtutor --add-course "Python Basics" ~/courses/python.md
+rtutor --add-course "SQL" ~/docs/sql.md
+```
+
+Each file should follow the same structure the app expects:
 
 - Top-level: `# Course`
 - Parts: `## Part`
 - Optional sections: `### Section`
 - Lessons: `#### Lesson` with an indented code block underneath
 
-No fancy parsing — fast and predictable. Add content, not fluff.
+To remove a course, edit `config.json` directly (located at
+`${XDG_CONFIG_HOME:-~/.config}/rt/config.json`).

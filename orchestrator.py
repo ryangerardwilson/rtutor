@@ -7,11 +7,11 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from config_manager import (
     ensure_config_dirs,
-    ensure_seed_courses,
     get_courses_dir,
     load_config,
     normalize_course_entries,
     save_config,
+    upsert_course_entry,
 )
 from course_parser import CourseParser
 from flag_handler import handle_bookmark_flags
@@ -28,7 +28,7 @@ from xai_client import (
 class Orchestrator:
     def __init__(self, argv: Optional[List[str]] = None):
         self.argv = argv if argv is not None else list(sys.argv[1:])
-        self.args = SimpleNamespace(question=None, train=False)
+        self.args = SimpleNamespace(question=None, train=False, add_courses=[])
         self.config: Dict[str, Any] = {}
         self.courses = []
         self.missing_courses: List[str] = []
@@ -43,6 +43,10 @@ class Orchestrator:
 
         self.args = self._parse_args()
         self.config = self._load_and_prepare_config()
+
+        if self.args.add_courses:
+            self._register_courses(self.args.add_courses)
+
         self.courses, self.missing_courses = self._load_courses()
 
         if self.args.train:
@@ -67,7 +71,11 @@ class Orchestrator:
 
         if not self.courses:
             target_dir = get_courses_dir()
-            print(f"No valid courses found. Place Markdown files in {target_dir}.")
+            print(
+                "No courses registered. Add one with:\n"
+                "  rtutor --add-course \"My Course\" /path/to/course.md\n"
+                f"Managed course directory: {target_dir}"
+            )
             sys.exit(1)
 
         menu = Menu(self.courses, doc_mode=True)
@@ -82,6 +90,7 @@ class Orchestrator:
     def _parse_args(self) -> SimpleNamespace:
         question: Optional[str] = None
         train = False
+        add_courses: List[Tuple[str, str]] = []
         remaining: List[str] = []
         tokens = list(self.argv)
         i = 0
@@ -97,21 +106,37 @@ class Orchestrator:
                 train = True
                 i += 1
                 continue
+            if token == "--add-course":
+                if i + 2 >= len(tokens):
+                    raise SystemExit(
+                        "Error: --add-course requires a name and a path"
+                    )
+                name = tokens[i + 1]
+                path = tokens[i + 2]
+                add_courses.append((name, path))
+                i += 3
+                continue
             remaining.append(token)
             i += 1
         self.argv = remaining
-        return SimpleNamespace(question=question, train=train)
+        return SimpleNamespace(question=question, train=train, add_courses=add_courses)
 
     def _load_and_prepare_config(self) -> Dict[str, Any]:
         ensure_config_dirs()
         config = load_config()
 
-        seeds_dir = Path(__file__).resolve().parent
-        config = ensure_seed_courses(config, seeds_dir)
         config = normalize_course_entries(config)
         save_config(config)
 
         return config
+    def _register_courses(self, courses: List[Tuple[str, str]]) -> None:
+        updated = self.config
+        for name, path in courses:
+            entry = {"name": name, "local_path": path}
+            updated = upsert_course_entry(updated, entry)
+            print(f"Registered course '{name}' at {path}")
+        save_config(updated)
+        self.config = updated
 
     # ------------------------------------------------------------------
     # Course loading

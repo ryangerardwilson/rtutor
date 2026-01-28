@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -172,76 +171,6 @@ def remove_course_entry(config: Dict[str, Any], slug: str) -> Dict[str, Any]:
     ]
     config["courses"] = updated_courses
     return config
-
-
-def ensure_seed_courses(config: Dict[str, Any], seeds_dir: Path) -> Dict[str, Any]:
-    ensure_config_dirs()
-    if not seeds_dir.exists():
-        return config
-
-    updated_config = sanitize_config(config)
-    courses_dir = get_courses_dir()
-    seed_files = list(seeds_dir.glob("course_*.md"))
-    if not seed_files:
-        return normalize_course_entries(updated_config)
-
-    changed = False
-    existing_slugs = {
-        course_slug(course.get("name"), course.get("local_path"))
-        for course in updated_config.get("courses", [])
-    }
-
-    for seed_file in seed_files:
-        identifier = (
-            _normalize_identifier(_strip_course_prefix(seed_file.stem)) or "untitled"
-        )
-        dest_path = courses_dir / _course_filename(identifier)
-        legacy_path = courses_dir / seed_file.name
-
-        file_changed = False
-        try:
-            if legacy_path.exists() and legacy_path != dest_path:
-                if not dest_path.exists():
-                    dest_path.parent.mkdir(parents=True, exist_ok=True)
-                    legacy_path.rename(dest_path)
-                    file_changed = True
-            if not dest_path.exists():
-                dest_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(seed_file, dest_path)
-                file_changed = True
-        except OSError:
-            continue
-
-        entry = {
-            "name": _extract_course_title(dest_path) or seed_file.stem,
-            "local_path": str(dest_path),
-        }
-
-        slug = course_slug(entry.get("name"), entry.get("local_path"))
-
-        was_present = slug in existing_slugs
-        updated_config = upsert_course_entry(updated_config, entry)
-        existing_slugs.add(slug)
-        if file_changed or not was_present:
-            changed = True
-
-    normalized = normalize_course_entries(updated_config)
-    if changed or normalized != updated_config:
-        save_config(normalized)
-
-    return normalized
-
-
-def _extract_course_title(path: Path) -> Optional[str]:
-    try:
-        with path.open("r", encoding="utf-8") as fh:
-            for line in fh:
-                stripped = line.strip()
-                if stripped.startswith("# "):
-                    return stripped[2:].strip()
-    except OSError:
-        return None
-    return None
 
 
 def normalize_course_entries(config: Dict[str, Any]) -> Dict[str, Any]:
