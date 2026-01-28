@@ -113,22 +113,25 @@ def _run_upgrade() -> int:
 def _print_help() -> None:
     print("Usage: rt [options]\n")
     print("Global options:")
-    print("  -v, --version       Print the installed version and exit")
-    print("  -u, --update        Upgrade rt to the latest release")
-    print("  -h, --help          Show this help and doc-mode options")
+    print("  -v    Print the installed version and exit")
+    print("  -u    Upgrade rt to the latest release")
+    print("  -h    Show this help and doc-mode options")
     print()
     print("Doc-mode and course management options:")
-    orchestrator = Orchestrator(argv=["--help"])
+    orchestrator = Orchestrator(argv=["-h"])
     orchestrator._print_help()
 
 
 def _handle_global_flags(argv: Iterable[str]) -> List[str]:
     remaining: List[str] = []
     for token in argv:
-        if token in {"-v", "-V", "--version"}:
+        if token in {"--version", "--update", "--help"}:
+            print("Use the single-hyphen forms: -v, -u, -h.", file=sys.stderr)
+            raise SystemExit(2)
+        if token in {"-v", "-V"}:
             print(__version__)
             raise SystemExit(0)
-        if token in {"-u", "--update"}:
+        if token == "-u":
             latest = _get_latest_version()
             if latest is None:
                 print(
@@ -148,7 +151,7 @@ def _handle_global_flags(argv: Iterable[str]) -> List[str]:
             else:
                 print(f"Upgrading to {latest}…")
             raise SystemExit(_run_upgrade())
-        if token in {"-h", "--help"}:
+        if token == "-h":
             _print_help()
             raise SystemExit(0)
         remaining.append(token)

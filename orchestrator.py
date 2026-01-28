@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from config_manager import (
     ensure_config_dirs,
+    get_config_file,
     get_courses_dir,
     load_config,
     normalize_course_entries,
@@ -85,11 +86,14 @@ class Orchestrator:
         self._handle_flags()
 
         if not self.courses:
-            target_dir = get_courses_dir()
+            courses_dir = get_courses_dir()
+            config_file = get_config_file()
+            print("No courses registered. Configure at least one course and rerun.")
+            print(f"  • Config file: {config_file}")
+            print(f"  • Default courses directory: {courses_dir}")
             print(
-                "No courses registered. Add one with:\n"
-                "  rtutor --add-course \"My Course\" /path/to/course.md\n"
-                f"Managed course directory: {target_dir}"
+                "Add Markdown lessons under the courses directory and reference"
+                " them in the config file."
             )
             sys.exit(1)
 
@@ -218,7 +222,7 @@ class Orchestrator:
         management_client = XAIManagementClient(management_key)
 
         xai_section = self.config.setdefault("xai", {})
-        collection_name = "rtutor-course-library"
+        collection_name = "rt-course-library"
         collection_id = xai_section.get("collection_id")
 
         updated = False
@@ -437,7 +441,7 @@ class Orchestrator:
         management_client = XAIManagementClient(management_key)
 
         xai_section = self.config.setdefault("xai", {})
-        collection_name = "rtutor-course-library"
+        collection_name = "rt-course-library"
         collection_id = xai_section.get("collection_id")
 
         try:
@@ -500,7 +504,7 @@ class Orchestrator:
 
             management_client = XAIManagementClient(management_key)
             xai_section = self.config.setdefault("xai", {})
-            collection_name = "rtutor-course-library"
+            collection_name = "rt-course-library"
             collection_id = xai_section.get("collection_id")
             try:
                 collection = management_client.ensure_collection(
@@ -571,7 +575,7 @@ class Orchestrator:
 
         management_client = XAIManagementClient(management_key)
         xai_section = self.config.setdefault("xai", {})
-        collection_name = "rtutor-course-library"
+        collection_name = "rt-course-library"
         collection_id = xai_section.get("collection_id")
 
         try:
@@ -694,7 +698,6 @@ class Orchestrator:
         print("  -s             show indexing status for courses")
         print("  -p             remove all documents from the collection")
         print("  -q QUERY       query your xai collection")
-        print("  -c NAME PATH   register a course")
 
 
 def _extract_identifier(

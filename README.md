@@ -154,6 +154,7 @@ rt -t                  # upload (train) all registered courses to Grok Collectio
 rt -s                  # show indexing status for every registered course
 rt -p                  # purge all documents from the Grok collection
 rt -q "How do I inspect a df?"  # answer a question using the collection
+rt -h                  # show global and doc-mode help
 rt -v                  # print the installed version
 rt -u                  # upgrade to the latest release
 ```
@@ -165,6 +166,7 @@ rt -u                  # upgrade to the latest release
 - `rt -s` → display indexing/processing status for each course file.
 - `rt -p` → purge every document currently stored in the Grok collection.
 - `rt -q "question"` → non-interactive Q&A powered by the collection (requires API keys).
+- `rt -h` → show global usage along with doc-mode options.
 - `rt -v` → show the current version.
 - `rt -u` → curl the installer and upgrade in-place.
 - Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
@@ -193,7 +195,7 @@ The former `-c/--cat` command has been retired.
 
 ## Configuration
 
-rtutor stores user configuration under `${XDG_CONFIG_HOME:-~/.config}/rt/`.
+rt stores user configuration under `${XDG_CONFIG_HOME:-~/.config}/rt/`.
 You register courses yourself by editing `config.json`. Each course entry tracks:
 
 - `name`: friendly label shown in menus
@@ -230,7 +232,9 @@ The runtime Python modules live directly in the repository root (no nested
 ## Adding Courses
 
 You control the course catalog. Point `rt` at any Markdown lesson file by
-registering it:
+editing `${XDG_CONFIG_HOME:-~/.config}/rt/config.json` and adding entries under
+the `courses` array. Each entry needs a friendly `name` and a `local_path`
+pointing to the Markdown file. Once you've added or updated courses, run:
 
 ```
 rt -t                  # upload (train) all registered courses to Grok Collections
