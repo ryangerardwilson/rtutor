@@ -427,6 +427,8 @@ class Orchestrator:
                     break
             if total == 0:
                 print("[purge] Collection already empty")
+            else:
+                print(f"[purge] Deleted {total} file(s)")
         except XAIClientError as exc:
             print(f"[purge] Unable to list documents: {exc}")
 

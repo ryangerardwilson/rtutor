@@ -79,7 +79,8 @@ class XAIManagementClient:
     def remove_document(self, collection_id: str, file_id: str) -> dict:
         return self._request(
             "POST",
-            f"/collections/{collection_id}/documents/{file_id}:remove",
+            f"/collections/{collection_id}/documents:remove",
+            json={"file_id": file_id},
         )
 
     # Internal utilities ---------------------------------------------
