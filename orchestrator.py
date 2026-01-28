@@ -117,25 +117,29 @@ class Orchestrator:
         i = 0
         while i < len(tokens):
             token = tokens[i]
-            if token in {"-q", "--question"}:
+            if token == "-d":
+                raise SystemExit(
+                    "Doc mode is the default; the -d/--doc flag has been removed."
+                )
+            if token == "-q":
                 if i + 1 >= len(tokens):
                     raise SystemExit("Error: -q/--question flag requires an argument")
                 question = tokens[i + 1]
                 i += 2
                 continue
-            if token in {"-t", "--train"}:
+            if token == "-t":
                 train = True
                 i += 1
                 continue
-            if token in {"-s", "--status"}:
+            if token == "-s":
                 status = True
                 i += 1
                 continue
-            if token in {"-p", "--purge"}:
+            if token == "-p":
                 purge = True
                 i += 1
                 continue
-            if token in {"-h", "--help"}:
+            if token == "-h":
                 show_help = True
                 i += 1
                 continue

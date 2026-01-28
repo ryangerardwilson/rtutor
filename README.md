@@ -203,8 +203,8 @@ Example:
 
 ### Validation and Troubleshooting
 
-1. **Preview locally** — run `rt` (doc mode) or jump directly with
-   `rt -d "Course" "Lesson"` to confirm headings and indentation load correctly.
+1. **Preview locally** — run `rt` (doc mode) and use `/` search or bookmarks to
+   confirm headings and indentation load correctly.
 2. **Register the file** — add an entry to `config.json` with `name` and
    `local_path`. Use absolute paths to avoid surprises.
 3. **Upload to Grok** — `rt -t` uploads new or changed files. Confirm status with
@@ -222,9 +222,7 @@ Run `rt` again after edits; the app reloads courses and normalises the config.
 ## Doc Mode Features
 
 Doc mode is the default now. Just run `rt` — you'll be in the read-only doc
-viewer with full navigation and editing tools. The old -d flag still works but
-is redundant unless you're using it with search tokens (see Doc Mode CLI
-Flags).
+viewer with full navigation and editing tools.
 
 Quick keys while viewing:
 - b — bookmark current lesson
@@ -247,54 +245,27 @@ In-place editing:
 
 ## Doc Mode CLI Flags
 
-Short and brutal: doc-mode is default. `-d/--doc` is still accepted for
-compatibility; use it with tokens to do direct fuzzy searches.
+Short and brutal: doc-mode is default. Launch `rt` with no flags for the
+interactive menus and lesson viewer.
 
 ```
 rt                     # launches doc-mode menus (default)
-rt -d "token ..."      # runs a direct search and opens the matches in doc-mode viewer
 rt -t                  # upload (train) all registered courses to Grok Collections
 rt -s                  # show indexing status for every registered course
 rt -p                  # purge all documents from the Grok collection
-rt -q "How do I inspect a df?"  # answer a question using the collection
+rt -q "query"          # query the collection
 rt -h                  # show global and doc-mode help
 rt -v                  # print the installed version
 rt -u                  # upgrade to the latest release
 ```
 
-- `rt` alone → menu-driven doc-mode.
-- `rt -d` with no tokens is redundant (same as running `rt`).
-- `rt -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
 - `rt -t` → upload (or re-upload) registered courses. Removes stray documents and skips unchanged files.
 - `rt -s` → display indexing/processing status for each course file.
 - `rt -p` → purge every document currently stored in the Grok collection.
-- `rt -q "question"` → non-interactive Q&A powered by the collection (requires API keys).
+- `rt -q "query"` → non-interactive Q&A powered by the collection (requires API keys).
 - `rt -h` → show global usage along with doc-mode options.
 - `rt -v` → show the current version.
 - `rt -u` → curl the installer and upgrade in-place.
-- Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
-
-Token mapping (fuzzy, case-insensitive):
-- [L] -> search all courses for lesson fuzzy-matching L
-- [C, L] -> course C, lesson L
-- [C, P, L] -> course, part, lesson
-- [C, P, S, L] -> course, part, section, lesson
-
-Fuzzy rules:
-- Single-word token matches individual words in the target with >= 70% similarity.
-- Multi-word token uses a sliding window of that many words in the target; any window scoring >= 70% matches.
-- Matching is punctuation-insensitive and case-insensitive.
-
-Examples:
-```
-rt -d "repl"
-rt -d "python" "repl"
-rt -t
-rt -s
-rt -q "show me python repl basics"
-```
-
-The former `-c/--cat` command has been retired.
 
 ## Configuration
 
@@ -353,4 +324,4 @@ After registering courses:
 
 1. Run `rt -t` to upload them to the Grok collection (only changed files are re-uploaded; stale remote files are removed).
 2. Use `rt -s` to verify indexing status.
-3. Ask questions with `rt -q "your question"` once files show `processed`.
+3. Ask query with `rt -q "your query"` once files show `processed`.
