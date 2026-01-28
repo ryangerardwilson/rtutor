@@ -411,6 +411,8 @@ class DocMode:
 
             # === KEYS IN SEARCH MODE ===
             if self.search_mode:
+                if key in (ord("q"), ord("Q")):
+                    raise SystemExit
                 if key in (curses.KEY_ENTER, ord("\n"), ord("\r"), 10, 13):
                     term = self.search_term.strip()
 
@@ -486,6 +488,9 @@ class DocMode:
 
             # === NORMAL AND VISUAL MODE KEYS ===
             redraw_needed = False
+
+            if key in (ord("q"), ord("Q")):
+                raise SystemExit
 
             if self.mode == "visual":
                 if key == ord("y"):

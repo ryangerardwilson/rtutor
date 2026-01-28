@@ -278,6 +278,8 @@ class Menu:
                     selected = (selected + 1) % total_items
                 elif key in (curses.KEY_LEFT, ord("h")):
                     return
+                elif key in (ord("q"), ord("Q")):
+                    raise SystemExit
                 elif key in (curses.KEY_RIGHT, ord("l")):
                     part = course.parts[selected]
 
@@ -361,6 +363,8 @@ class Menu:
                     selected = (selected + 1) % total_items
                 elif key in (curses.KEY_LEFT, ord("h")):
                     return
+                elif key in (ord("q"), ord("Q")):
+                    raise SystemExit
                 elif key in (curses.KEY_RIGHT, ord("l")):
                     section = part.sections[selected]
 

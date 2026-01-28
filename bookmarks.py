@@ -170,7 +170,7 @@ class Bookmarks:
                     except:
                         pass
 
-                instr = "j/k navigate | Enter/l go | dd delete | esc back"
+                instr = "j/k navigate | Enter/l go | dd delete | esc back | q quit"
                 try:
                     stdscr.addstr(max_y - 1, 0, instr, curses.color_pair(1))
                 except:
@@ -198,6 +198,8 @@ class Bookmarks:
                 return (course_name, part_name, section_name, lesson_name)
             elif key == 27:  # ESC
                 return None
+            elif key in (ord("q"), ord("Q")):
+                raise SystemExit
             elif key == ord("d"):
                 # Only accept second 'd' if within ~500ms
                 if last_d_time and (
