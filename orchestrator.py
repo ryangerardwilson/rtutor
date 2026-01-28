@@ -586,26 +586,56 @@ class Orchestrator:
         for course in self.config.get("courses", []):
             name = (course.get("name") or "<unnamed>").strip()
             file_id = course.get("xai_file_id")
+            local_path = course.get("local_path")
             if not file_id:
-                rows.append((name, "not uploaded"))
+                rows.append((name, "not uploaded", "-") )
                 continue
             try:
                 info = management_client.get_document(collection_id, file_id)
                 status_value = _extract_status(info)
-                rows.append((name, status_value))
+                fields = info.get("fields") or {}
+                remote_mtime = fields.get("last_modified")
+                canonical_path = (
+                    str(Path(local_path).expanduser().resolve()) if local_path else None
+                )
+                local_mtime_iso = None
+                if canonical_path and Path(canonical_path).is_file():
+                    local_mtime = os.path.getmtime(canonical_path)
+                    local_mtime_iso = (
+                        datetime.fromtimestamp(local_mtime, timezone.utc)
+                        .isoformat()
+                        .replace("+00:00", "Z")
+                    )
+                is_latest = (
+                    str(remote_mtime) == str(local_mtime_iso)
+                    if remote_mtime and local_mtime_iso
+                    else "unknown"
+                )
+                rows.append((name, status_value, str(is_latest)))
             except XAIClientError as exc:
-                rows.append((name, f"error: {exc}"))
+                rows.append((name, f"error: {exc}", "unknown"))
 
         if rows:
             name_width = max(len("course"), *(len(row[0]) for row in rows))
             status_width = max(len("status"), *(len(row[1]) for row in rows))
+            latest_width = max(len("is_latest"), *(len(row[2]) for row in rows))
 
-            header = f"{'course'.ljust(name_width)}  {'status'.ljust(status_width)}"
-            separator = f"{'-' * name_width}  {'-' * status_width}"
+            header = (
+                f"{'course'.ljust(name_width)}  "
+                f"{'status'.ljust(status_width)}  "
+                f"{'is_latest'.ljust(latest_width)}"
+            )
+            separator = (
+                f"{'-' * name_width}  {'-' * status_width}  {'-' * latest_width}"
+            )
             print(header)
             print(separator)
-            for name, status in rows:
-                print(f"{name.ljust(name_width)}  {status.ljust(status_width)}")
+            for name, status, latest in rows:
+                print(
+                    f"{name.ljust(name_width)}  "
+                    f"{status.ljust(status_width)}  "
+                    f"{latest.ljust(latest_width)}"
+                )
 
     def _ask_question(self, question: str, collection_ids: List[str]) -> str:
         api_key, _ = self._resolve_api_keys()
