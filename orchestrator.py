@@ -259,94 +259,155 @@ class Orchestrator:
             updated = True
 
         any_uploaded = False
-        configured_ids = {
-            course.get("xai_file_id")
-            for course in self.config.get("courses", [])
-            if course.get("xai_file_id")
-        }
 
-        if configured_ids:
-            self._purge_collection(
-                collection_id=collection_id,
-                management_client=management_client,
-                keep_file_ids=configured_ids,
-            )
-        else:
-            self._purge_collection(
-                collection_id=collection_id,
-                management_client=management_client,
-            )
+        existing_docs: Dict[str, Dict[str, Any]] = {}
+        orphan_file_ids: List[str] = []
 
+        next_page: Optional[str] = None
+        while True:
+            documents = management_client.list_documents(
+                collection_id, page_token=next_page
+            )
+            docs = (
+                documents.get("documents")
+                or documents.get("document_entries")
+                or []
+            )
+            for doc in docs:
+                file_id = _extract_file_id(doc)
+                if not file_id:
+                    continue
+                fields = doc.get("fields") or {}
+                remote_path = fields.get("local_path")
+                if remote_path:
+                    existing_docs[remote_path] = {
+                        "file_id": file_id,
+                        "fields": fields,
+                    }
+                else:
+                    orphan_file_ids.append(file_id)
+            next_page = documents.get("next_page_token")
+            if not next_page:
+                break
+
+        for file_id in orphan_file_ids:
+            try:
+                management_client.delete_document(collection_id, file_id)
+                print(f"[sync] Deleted orphan file {file_id} from collection")
+            except XAIClientError as exc:
+                print(f"[sync] Failed to delete orphan file {file_id}: {exc}")
+
+        course_entries: List[Tuple[Dict[str, Any], str, str]] = []
+        desired_paths: set[str] = set()
         for course in self.config.get("courses", []):
-            name = course.get("name") or "Course"
             local_path = course.get("local_path")
             if not local_path:
                 continue
-            print(f"[sync] processing course '{name}' at {local_path}")
-            course_path = Path(local_path).expanduser()
+            canonical_path = str(Path(local_path).expanduser().resolve())
+            course_entries.append((course, local_path, canonical_path))
+            desired_paths.add(canonical_path)
+
+        for remote_path, doc_info in list(existing_docs.items()):
+            if remote_path not in desired_paths:
+                file_id = doc_info["file_id"]
+                try:
+                    management_client.delete_document(collection_id, file_id)
+                    print(
+                        f"[sync] Deleted remote file {file_id} not present in config"
+                    )
+                except XAIClientError as exc:
+                    print(
+                        f"[sync] Failed to delete remote file {file_id}: {exc}"
+                    )
+                existing_docs.pop(remote_path, None)
+
+        for course, original_path, canonical_path in course_entries:
+            name = course.get("name") or "Course"
+            course_path = Path(original_path).expanduser()
             if not course_path.is_file():
                 print(f"[sync] Skipping missing file for '{name}'")
                 continue
 
-            current_mtime = None
             try:
                 current_mtime = os.path.getmtime(course_path)
             except OSError:
                 print(f"[sync] Unable to read mtime for '{name}', skipping")
                 continue
 
-            stored_id = course.get("xai_file_id")
-            stored_mtime = course.get("xai_file_mtime")
+            iso_mtime = (
+                datetime.fromtimestamp(current_mtime, timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
 
-            if stored_id and stored_mtime and abs(stored_mtime - current_mtime) < 1e-6:
-                print(
-                    f"[sync] '{name}' unchanged (mtime={current_mtime}); skipping upload"
+            existing = existing_docs.pop(canonical_path, None)
+            if existing:
+                remote_id = existing["file_id"]
+                remote_last_modified = (existing["fields"] or {}).get(
+                    "last_modified"
                 )
-                course["xai_file_mtime"] = current_mtime
-                updated = True
-                continue
-
-            if stored_id:
-                try:
-                    management_client.delete_document(collection_id, stored_id)
+                if remote_last_modified == iso_mtime:
+                    if course.get("xai_file_id") != remote_id:
+                        course["xai_file_id"] = remote_id
+                        updated = True
                     print(
-                        f"[sync] Deleted outdated file {stored_id} for '{name}'"
+                        f"[sync] '{name}' unchanged (mtime={current_mtime}); skipping upload"
+                    )
+                    continue
+                try:
+                    management_client.delete_document(collection_id, remote_id)
+                    print(
+                        f"[sync] Deleted outdated file {remote_id} for '{name}'"
                     )
                 except XAIClientError as exc:
                     print(
-                        f"[sync] Failed to delete previous file {stored_id} for '{name}': {exc}"
+                        f"[sync] Failed to delete outdated file {remote_id} for '{name}': {exc}"
                     )
+                if course.get("xai_file_id"):
+                    course["xai_file_id"] = None
+                    updated = True
 
             try:
                 upload = file_client.upload_file(str(course_path))
                 file_id = _extract_identifier(upload)
                 print(
-                    f"[sync] Uploaded {local_path}: response={upload}, file_id={file_id}"
+                    f"[sync] Uploaded {original_path}: response={upload}, file_id={file_id}"
                 )
                 if not file_id:
                     raise XAIClientError("Upload response missing file id")
 
-                iso_mtime = (
-                    datetime.fromtimestamp(current_mtime, timezone.utc)
-                    .isoformat()
-                    .replace("+00:00", "Z")
-                )
-
                 management_client.add_document(
                     collection_id,
                     file_id,
-                    fields={"last_modified": iso_mtime},
+                    fields={
+                        "course_name": name,
+                        "local_path": canonical_path,
+                        "last_modified": iso_mtime,
+                    },
                 )
                 print(
                     f"[sync] Added document {file_id} to collection {collection_id}"
                 )
-                course["xai_file_id"] = file_id
-                course["xai_file_mtime"] = current_mtime
-                updated = True
+                if course.get("xai_file_id") != file_id:
+                    course["xai_file_id"] = file_id
+                    updated = True
                 any_uploaded = True
             except XAIClientError as exc:
                 print(f"[sync] Failed to upload {course_path.name}: {exc}")
                 continue
+
+        # Delete any remaining remote documents that were not matched to courses
+        for doc_info in existing_docs.values():
+            file_id = doc_info.get("file_id")
+            if not file_id:
+                continue
+            try:
+                management_client.delete_document(collection_id, file_id)
+                print(
+                    f"[sync] Deleted unmatched file {file_id} from collection"
+                )
+            except XAIClientError as exc:
+                print(f"[sync] Failed to delete unmatched file {file_id}: {exc}")
 
         if updated:
             save_config(self.config)

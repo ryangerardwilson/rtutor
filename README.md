@@ -177,7 +177,6 @@ You register courses yourself—either by editing `config.json` or with the
 - `name`: friendly label shown in menus
 - `local_path`: absolute path to the Markdown file (rtutor never relocates it)
 - `xai_file_id`: last uploaded document ID (populated after running `-t`)
-- `xai_file_mtime`: last known modification timestamp (seconds since epoch)
 
 Global Grok integration settings live under the top-level `xai` key:
 
