@@ -131,11 +131,13 @@ compatibility; use it with tokens to do direct fuzzy searches.
 ```
 rtutor                 # launches doc-mode menus (default)
 rtutor -d "token ..."  # runs a direct search and opens the matches in doc-mode viewer
+rtutor -q "How do I inspect a df?"  # sync courses to Grok and answer a question
 ```
 
 - `rtutor` alone → menu-driven doc-mode.
 - `rtutor -d` with no tokens is redundant (same as running rtutor).
 - `rtutor -d "foo" "bar"` → treat tokens as [Course, Part, Section, Lesson] (fuzzy). See fuzzy rules below.
+- `rtutor -q "question"` → non-interactive Q&A powered by Grok Collections (requires API keys).
 - Direct doc searches open results in the linear doc viewer. No matches → exits with code 1.
 
 Token mapping (fuzzy, case-insensitive):
@@ -153,10 +155,10 @@ Examples:
 ```
 rtutor -d "repl"
 rtutor -d "python" "repl"
+rtutor -q "show me python repl basics"
 ```
 
-The former `-c/--cat` command has been retired. A new `-q` flag that queries
-Grok Collections is in progress.
+The former `-c/--cat` command has been retired.
 
 ## Configuration
 
@@ -171,19 +173,25 @@ On first launch, rtutor copies the bundled seed courses into the managed course
 directory and registers them in `config.json`. You can inspect and edit that
 file to point at your own Markdown courses. Each course entry tracks:
 
-- `id`: stable identifier (defaults to the filename stem)
-- `display_name` / `name`: used in menus
+- `name`: friendly label shown in menus
 - `local_path`: absolute path to the Markdown file
 - `source`: `seed` or `user`
-- `xai`: metadata reserved for syncing with xAI Collections (collection ID, file IDs, timestamps)
+- `xai_file_id`: last uploaded document ID (populated after syncing with Grok)
 
-Environment variables:
+Global Grok integration settings live under the top-level `xai` key:
 
-- `XAI_API_KEY` — standard Grok API key for retrieval requests
-- `XAI_MANAGEMENT_API_KEY` — Management API key with `AddFileToCollection` permission (uploading files)
+```
+"xai": {
+  "api_key": "...",           # optional, falls back to $XAI_API_KEY
+  "management_key": "...",    # optional, falls back to $XAI_MANAGEMENT_API_KEY
+  "collection_id": "..."      # filled automatically on first sync
+}
+```
 
-Both keys are optional today, but will be required for the upcoming `-q` Grok
-Collections integration.
+Environment variables (optional, used as fallbacks if the config fields are empty):
+
+- `XAI_API_KEY` — standard Grok API key for Responses API requests
+- `XAI_MANAGEMENT_API_KEY` — Management API key with `AddFileToCollection` permission (uploading documents)
 
 ## Project Layout
 
@@ -194,6 +202,7 @@ The runtime Python modules live directly in the repository root (no nested
 - `menu.py`, `lesson_sequencer.py`, `doc_mode.py`, `rote_mode.py`, `touch_type_mode.py` — interactive UI flows
 - `orchestrator.py` — coordinates config loading, course ingestion, and runtime startup
 - `config_manager.py`, `course_parser.py`, `bookmarks.py`, `boom.py`, `structs.py` — shared utilities and data structures
+- `xai_client.py` — thin HTTP wrappers for Grok Collections and Responses APIs
 - `course_*.md` — bundled seed Markdown files in the repo root
 - `test_config_manager.py` — lightweight regression coverage (pytest)
 

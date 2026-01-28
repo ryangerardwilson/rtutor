@@ -2,11 +2,12 @@ import curses
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from config_manager import (
-    ensure_seed_courses,
     ensure_config_dirs,
+    ensure_seed_courses,
     get_courses_dir,
     load_config,
     normalize_course_entries,
@@ -15,14 +16,23 @@ from config_manager import (
 from course_parser import CourseParser
 from flag_handler import handle_bookmark_flags
 from menu import Menu
+from xai_client import (
+    XAIClientError,
+    XAIFileClient,
+    XAIManagementClient,
+    XAIResponsesClient,
+    wait_for_document_processing,
+)
 
 
 class Orchestrator:
     def __init__(self, argv: Optional[List[str]] = None):
         self.argv = argv if argv is not None else list(sys.argv[1:])
+        self.args = SimpleNamespace(question=None)
         self.config: Dict[str, Any] = {}
         self.courses = []
         self.missing_courses: List[str] = []
+        self.sync_messages: List[str] = []
 
     # ------------------------------------------------------------------
     # Public entrypoint
@@ -31,7 +41,18 @@ class Orchestrator:
         os.environ.setdefault("ESCDELAY", "25")
         os.environ.setdefault("TERM", "xterm-256color")
 
+        self.args = self._parse_args()
         self.config = self._load_and_prepare_config()
+
+        if self.args.question:
+            collection_ids = self._sync_courses()
+            if not collection_ids:
+                print("No collections available to answer the question.")
+                return
+            answer = self._ask_question(self.args.question, collection_ids)
+            print(answer or "No answer returned from Grok.")
+            return
+
         self.courses, self.missing_courses = self._load_courses()
 
         self._handle_missing_courses()
@@ -42,9 +63,7 @@ class Orchestrator:
             print(f"No valid courses found. Place Markdown files in {target_dir}.")
             sys.exit(1)
 
-        doc_mode = True  # Reserved for future toggles (e.g., query mode)
-
-        menu = Menu(self.courses, doc_mode=doc_mode)
+        menu = Menu(self.courses, doc_mode=True)
         try:
             curses.wrapper(menu.run)
         except KeyboardInterrupt:
@@ -53,7 +72,25 @@ class Orchestrator:
     # ------------------------------------------------------------------
     # Config handling
     # ------------------------------------------------------------------
-    def _load_and_prepare_config(self) -> dict:
+    def _parse_args(self) -> SimpleNamespace:
+        question: Optional[str] = None
+        remaining: List[str] = []
+        tokens = list(self.argv)
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+            if token in {"-q", "--question"}:
+                if i + 1 >= len(tokens):
+                    raise SystemExit("Error: -q/--question flag requires an argument")
+                question = tokens[i + 1]
+                i += 2
+                continue
+            remaining.append(token)
+            i += 1
+        self.argv = remaining
+        return SimpleNamespace(question=question)
+
+    def _load_and_prepare_config(self) -> Dict[str, Any]:
         ensure_config_dirs()
         config = load_config()
 
@@ -88,23 +125,16 @@ class Orchestrator:
             if path_obj.is_file():
                 course_files.append(str(path_obj))
             else:
-                missing_courses.append(course.get("display_name") or course.get("id"))
+                missing_courses.append(course.get("name") or Path(local_path).name)
 
         return course_files, missing_courses
-
-    def _course_id_from_path(self, path: str) -> str:
-        if not path:
-            return ""
-        return Path(path).stem.lower().replace(" ", "-")
 
     def _update_config_with_courses(self, courses: Iterable) -> None:
         entries = []
         for course in courses:
             entries.append(
                 {
-                    "id": self._course_id_from_path(course.source_file),
                     "name": course.name,
-                    "display_name": course.name,
                     "local_path": course.source_file,
                 }
             )
@@ -117,6 +147,127 @@ class Orchestrator:
         self.config = merged
 
     # ------------------------------------------------------------------
+    # Synchronisation & Queries
+    # ------------------------------------------------------------------
+    def _sync_courses(self) -> List[str]:
+        api_key, management_key = self._resolve_api_keys()
+        if not api_key or not management_key:
+            missing = []
+            if not api_key:
+                missing.append("xai.api_key")
+            if not management_key:
+                missing.append("xai.management_key")
+            raise SystemExit(
+                "Missing required xAI credentials (" + ", ".join(missing) + ")"
+            )
+
+        file_client = XAIFileClient(api_key)
+        management_client = XAIManagementClient(management_key)
+
+        xai_section = self.config.setdefault("xai", {})
+        collection_name = "rtutor-course-library"
+        collection_id = xai_section.get("collection_id")
+
+        updated = False
+        self.sync_messages.clear()
+
+        try:
+            collection = management_client.ensure_collection(
+                collection_name, collection_id
+            )
+        except XAIClientError as exc:
+            self.sync_messages.append(f"Failed to ensure collection: {exc}")
+            return []
+
+        collection_id = collection.get("id") or collection_id
+        if not collection_id:
+            self.sync_messages.append("No collection id returned from xAI management API.")
+            return []
+
+        if xai_section.get("collection_id") != collection_id:
+            xai_section["collection_id"] = collection_id
+            updated = True
+
+        any_uploaded = False
+        for course in self.config.get("courses", []):
+            name = course.get("name") or "Course"
+            local_path = course.get("local_path")
+            if not local_path:
+                continue
+            course_path = Path(local_path).expanduser()
+            if not course_path.is_file():
+                self.sync_messages.append(f"Skipping missing file for '{name}'")
+                continue
+
+            previous_file_id = course.get("xai_file_id")
+            if previous_file_id:
+                try:
+                    management_client.delete_document(collection_id, previous_file_id)
+                except XAIClientError:
+                    pass
+                finally:
+                    course["xai_file_id"] = None
+                    updated = True
+
+            try:
+                upload = file_client.upload_file(str(course_path))
+                file_id = upload.get("id")
+                if not file_id:
+                    raise XAIClientError("Upload response missing file id")
+                management_client.add_document(collection_id, file_id)
+                try:
+                    wait_for_document_processing(
+                        management_client, collection_id, file_id
+                    )
+                except XAIClientError as exc:
+                    self.sync_messages.append(str(exc))
+                course["xai_file_id"] = file_id
+                updated = True
+                any_uploaded = True
+            except XAIClientError as exc:
+                self.sync_messages.append(
+                    f"Failed to upload {course_path.name}: {exc}"
+                )
+                continue
+
+        if updated:
+            save_config(self.config)
+
+        for message in self.sync_messages:
+            print(f"[sync] {message}")
+
+        has_any_file = any(
+            course.get("xai_file_id") for course in self.config.get("courses", [])
+        )
+        if not has_any_file and not any_uploaded:
+            return []
+
+        return [collection_id]
+
+    def _ask_question(self, question: str, collection_ids: List[str]) -> str:
+        api_key, _ = self._resolve_api_keys()
+        if not api_key:
+            raise SystemExit("Missing xAI API key; cannot execute query")
+        responses_client = XAIResponsesClient(api_key)
+        payload = responses_client.create_response(
+            question,
+            collection_ids,
+            system_prompt=(
+                "You are an instructor assistant. Answer based on the user's course materials. "
+                "Cite the course and lesson when possible."
+            ),
+        )
+        return responses_client.extract_text(payload)
+
+    def _resolve_api_keys(self) -> Tuple[Optional[str], Optional[str]]:
+        xai_section = self.config.get("xai", {}) if self.config else {}
+        api_key = xai_section.get("api_key") or os.environ.get("XAI_API_KEY")
+        management_key = xai_section.get("management_key") or os.environ.get(
+            "XAI_MANAGEMENT_API_KEY"
+        )
+        return api_key, management_key
+
+    # ------------------------------------------------------------------
     # Flags & warnings
     # ------------------------------------------------------------------
     def _handle_missing_courses(self) -> None:
@@ -126,6 +277,5 @@ class Orchestrator:
         print(f"Warning: Missing course files for: {missing_list}")
 
     def _handle_flags(self) -> None:
-        # flag_handler operates on global sys.argv; ensure it's in sync
         sys.argv = [sys.argv[0]] + self.argv
         handle_bookmark_flags(self.courses)

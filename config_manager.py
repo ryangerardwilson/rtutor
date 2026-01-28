@@ -1,7 +1,6 @@
 import json
 import os
 import shutil
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -9,7 +8,6 @@ from typing import Any, Dict, List, Optional
 CONFIG_DIR_NAME = "rt"
 CONFIG_FILE_NAME = "config.json"
 COURSES_DIR_NAME = "courses"
-DEFAULT_VERSION = 1
 
 COURSE_FILENAME_PREFIX = "course_"
 COURSE_FILENAME_SUFFIX = ".md"
@@ -35,14 +33,12 @@ def get_config_file() -> Path:
 
 
 def _default_config() -> Dict[str, Any]:
-    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     return {
-        "version": DEFAULT_VERSION,
-        "created_at": timestamp,
         "courses": [],
         "xai": {
-            "api_key_env": "XAI_API_KEY",
-            "management_key_env": "XAI_MANAGEMENT_API_KEY",
+            "api_key": None,
+            "management_key": None,
+            "collection_id": None,
         },
     }
 
@@ -60,18 +56,8 @@ def sanitize_config(data: Dict[str, Any]) -> Dict[str, Any]:
 
     sanitized = dict(data)
 
-    sanitized.setdefault("version", DEFAULT_VERSION)
-    sanitized.setdefault(
-        "created_at", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    )
     sanitized.setdefault("courses", [])
-    sanitized.setdefault(
-        "xai",
-        {
-            "api_key_env": "XAI_API_KEY",
-            "management_key_env": "XAI_MANAGEMENT_API_KEY",
-        },
-    )
+    sanitized.setdefault("xai", {})
 
     if not isinstance(sanitized["courses"], list):
         sanitized["courses"] = []
@@ -79,8 +65,12 @@ def sanitize_config(data: Dict[str, Any]) -> Dict[str, Any]:
     xai_section = sanitized.get("xai", {})
     if not isinstance(xai_section, dict):
         xai_section = {}
-    xai_section.setdefault("api_key_env", "XAI_API_KEY")
-    xai_section.setdefault("management_key_env", "XAI_MANAGEMENT_API_KEY")
+    xai_section.pop("api_key_env", None)
+    xai_section.pop("management_key_env", None)
+    xai_section.pop("collections", None)
+    xai_section.setdefault("api_key", None)
+    xai_section.setdefault("management_key", None)
+    xai_section.setdefault("collection_id", None)
     sanitized["xai"] = xai_section
 
     sanitized["courses"] = [
@@ -95,38 +85,22 @@ def _sanitize_course_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
         return _empty_course_entry()
 
     sanitized = dict(entry)
-    sanitized.setdefault("id", None)
+    sanitized.pop("display_name", None)
+    sanitized.pop("created_at", None)
+    sanitized.pop("version", None)
+    sanitized.pop("id", None)
     sanitized.setdefault("name", None)
-    sanitized.setdefault("display_name", None)
     sanitized.setdefault("local_path", None)
-    sanitized.setdefault("source", "user")
-    sanitized.setdefault("xai", {})
-
-    xai_data = sanitized.get("xai", {})
-    if not isinstance(xai_data, dict):
-        xai_data = {}
-    xai_data.setdefault("collection_id", None)
-    xai_data.setdefault("file_ids", [])
-    xai_data.setdefault("last_uploaded_at", None)
-    if not isinstance(xai_data.get("file_ids"), list):
-        xai_data["file_ids"] = []
-    sanitized["xai"] = xai_data
+    sanitized.setdefault("xai_file_id", None)
 
     return sanitized
 
 
 def _empty_course_entry() -> Dict[str, Any]:
     return {
-        "id": None,
         "name": None,
-        "display_name": None,
         "local_path": None,
-        "source": "user",
-        "xai": {
-            "collection_id": None,
-            "file_ids": [],
-            "last_uploaded_at": None,
-        },
+        "xai_file_id": None,
     }
 
 
@@ -167,27 +141,35 @@ def save_config(config: Dict[str, Any]) -> None:
 def upsert_course_entry(
     config: Dict[str, Any], entry: Dict[str, Any]
 ) -> Dict[str, Any]:
-    courses: List[Dict[str, Any]] = config.setdefault("courses", [])
-    target_id = entry.get("id")
-
     updated = sanitize_config(config)
-    courses = updated["courses"]
+    courses: List[Dict[str, Any]] = updated.setdefault("courses", [])
 
-    if target_id:
-        for idx, course in enumerate(courses):
-            if course.get("id") == target_id:
-                courses[idx] = _sanitize_course_entry({**course, **entry})
-                updated["courses"] = courses
-                return updated
+    sanitized_entry = _sanitize_course_entry(entry)
+    slug = course_slug(
+        sanitized_entry.get("name"), sanitized_entry.get("local_path")
+    )
 
-    courses.append(_sanitize_course_entry(entry))
+    for idx, course in enumerate(courses):
+        if course_slug(course.get("name"), course.get("local_path")) == slug:
+            merged_entry = {**course, **sanitized_entry}
+            if sanitized_entry.get("xai_file_id") is None:
+                merged_entry["xai_file_id"] = course.get("xai_file_id")
+            courses[idx] = _sanitize_course_entry(merged_entry)
+            updated["courses"] = courses
+            return updated
+
+    courses.append(sanitized_entry)
     updated["courses"] = courses
     return updated
 
 
-def remove_course_entry(config: Dict[str, Any], course_id: str) -> Dict[str, Any]:
+def remove_course_entry(config: Dict[str, Any], slug: str) -> Dict[str, Any]:
     courses: List[Dict[str, Any]] = config.get("courses", [])
-    updated_courses = [c for c in courses if c.get("id") != course_id]
+    updated_courses = [
+        c
+        for c in courses
+        if course_slug(c.get("name"), c.get("local_path")) != slug
+    ]
     config["courses"] = updated_courses
     return config
 
@@ -204,10 +186,9 @@ def ensure_seed_courses(config: Dict[str, Any], seeds_dir: Path) -> Dict[str, An
         return normalize_course_entries(updated_config)
 
     changed = False
-    existing_ids = {
-        course.get("id")
+    existing_slugs = {
+        course_slug(course.get("name"), course.get("local_path"))
         for course in updated_config.get("courses", [])
-        if course.get("id")
     }
 
     for seed_file in seed_files:
@@ -231,18 +212,16 @@ def ensure_seed_courses(config: Dict[str, Any], seeds_dir: Path) -> Dict[str, An
         except OSError:
             continue
 
-        display_name = _extract_course_title(dest_path) or seed_file.stem
         entry = {
-            "id": identifier,
-            "name": display_name,
-            "display_name": display_name,
+            "name": _extract_course_title(dest_path) or seed_file.stem,
             "local_path": str(dest_path),
-            "source": "seed",
         }
 
-        was_present = identifier in existing_ids
+        slug = course_slug(entry.get("name"), entry.get("local_path"))
+
+        was_present = slug in existing_slugs
         updated_config = upsert_course_entry(updated_config, entry)
-        existing_ids.add(identifier)
+        existing_slugs.add(slug)
         if file_changed or not was_present:
             changed = True
 
@@ -277,31 +256,17 @@ def normalize_course_entries(config: Dict[str, Any]) -> Dict[str, Any]:
         local_path = entry.get("local_path")
         if local_path and local_path in moves:
             local_path = moves[local_path]
+            entry["local_path"] = local_path
 
         path_obj = Path(local_path).expanduser() if local_path else None
         if path_obj and not path_obj.exists():
             path_obj = None
 
-        slug = ""
-        slug_candidates: List[Optional[str]] = []
-        if path_obj:
-            slug_candidates.append(path_obj.stem)
-        slug_candidates.extend(
-            [entry.get("id"), entry.get("display_name"), entry.get("name")]
-        )
-
-        for candidate in slug_candidates:
-            slug_candidate = _normalize_identifier(_strip_course_prefix(candidate))
-            if slug_candidate:
-                slug = slug_candidate
-                break
-
-        if not slug:
-            slug = "untitled"
+        slug = course_slug(entry.get("name"), local_path)
 
         target_path = courses_dir / _course_filename(slug)
 
-        if path_obj:
+        if path_obj and path_obj.exists():
             try:
                 if not path_obj.samefile(target_path):
                     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -316,48 +281,23 @@ def normalize_course_entries(config: Dict[str, Any]) -> Dict[str, Any]:
             target_path.parent.mkdir(parents=True, exist_ok=True)
             path_obj = target_path
 
-        normalized_entry = _sanitize_course_entry(
-            {
-                "id": slug,
-                "name": entry.get("name") or entry.get("display_name") or slug.title(),
-                "display_name": entry.get("display_name") or entry.get("name") or slug,
-                "local_path": str(path_obj),
-                "source": entry.get("source") or "user",
-                "xai": entry.get("xai") or {},
-            }
-        )
+        entry["local_path"] = str(path_obj)
+        entry.setdefault("name", slug.replace("-", " ").title())
+
+        sanitized_entry = _sanitize_course_entry(entry)
 
         existing = dedup.get(slug)
         if existing:
-            if (
-                existing.get("source") != "seed"
-                and normalized_entry.get("source") == "seed"
-            ):
-                dedup[slug] = normalized_entry
-            else:
-                if (
-                    normalized_entry.get("source") == "seed"
-                    and existing.get("source") != "seed"
-                ):
-                    existing["source"] = "seed"
-                if normalized_entry.get("local_path"):
-                    existing["local_path"] = normalized_entry["local_path"]
-                if not existing.get("name") and normalized_entry.get("name"):
-                    existing["name"] = normalized_entry["name"]
-                if not existing.get("display_name") and normalized_entry.get(
-                    "display_name"
-                ):
-                    existing["display_name"] = normalized_entry["display_name"]
-            continue
+            merged_entry = {**existing, **sanitized_entry}
+            if sanitized_entry.get("xai_file_id") is None:
+                merged_entry["xai_file_id"] = existing.get("xai_file_id")
+            dedup[slug] = _sanitize_course_entry(merged_entry)
+        else:
+            dedup[slug] = sanitized_entry
 
-        dedup[slug] = normalized_entry
+    ordered_slugs = sorted(dedup.keys())
+    config["courses"] = [dedup[key] for key in ordered_slugs]
 
-    config["courses"] = sorted(
-        dedup.values(),
-        key=lambda item: (
-            item.get("display_name") or item.get("name") or item.get("id", "")
-        ).lower(),
-    )
     return config
 
 
@@ -385,6 +325,16 @@ def _identifier_from_path(path: Path) -> str:
     if not path:
         return "untitled"
     return _normalize_identifier(_strip_course_prefix(path.stem)) or "untitled"
+
+
+def course_slug(name: Optional[str], local_path: Optional[str]) -> str:
+    if local_path:
+        return _identifier_from_path(Path(local_path))
+    if name:
+        slug = _normalize_identifier(name)
+        if slug:
+            return slug
+    return "untitled"
 
 
 def _flatten_courses_directory() -> Dict[str, str]:
