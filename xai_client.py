@@ -6,6 +6,7 @@ import time
 from typing import Any, Dict, Iterable, List, Optional
 
 import requests
+import json
 
 
 MANAGEMENT_BASE_URL = "https://management-api.x.ai/v1"
@@ -197,7 +198,65 @@ class XAIResponsesClient:
                 if content.get("type") in {"output_text", "text"}:
                     chunks.append(content.get("text", ""))
         return "".join(chunks).strip()
-
+ 
+    def create_stream(
+        self,
+        question: str,
+        collection_ids: Iterable[str],
+        model: str = "grok-4-1-fast",
+        system_prompt: Optional[str] = None,
+        max_num_results: int = 8,
+    ) -> Iterable[str]:
+        """Stream response text chunks."""
+        tools = []
+        collection_ids = [cid for cid in collection_ids if cid]
+        if collection_ids:
+            tools.append(
+                {
+                    "type": "file_search",
+                    "vector_store_ids": list(collection_ids),
+                    "collections": [{"collection_id": cid} for cid in collection_ids],
+                    "max_num_results": max_num_results,
+                }
+            )
+        input_messages: List[dict] = []
+        if system_prompt:
+            input_messages.append({"role": "system", "content": system_prompt})
+        input_messages.append({"role": "user", "content": question})
+        payload = {"model": model, "input": input_messages, "stream": True}
+        if tools:
+            payload["tools"] = tools
+        headers = {
+            **_prepare_headers(self.api_key),
+            "Content-Type": "application/json",
+        }
+        with self.session.post(
+            f"{REST_BASE_URL}/responses",
+            headers=headers,
+            json=payload,
+            stream=True,
+            timeout=(30, 120),
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines(decode_unicode=True):
+                if line:
+                    line_str = str(line).strip()
+                    if line_str.startswith("data: "):
+                        data = line_str[6:].strip()
+                        # No debug
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            # xAI Responses SSE format
+                            chunk_type = chunk.get("type")
+                            if chunk_type == "response.output_text.delta":
+                                delta_text = chunk.get("delta", "")
+                                if delta_text:
+                                    yield delta_text
+                        except (json.JSONDecodeError, KeyError):
+                            pass
+ 
 
 def wait_for_document_processing(
     management_client: XAIManagementClient,

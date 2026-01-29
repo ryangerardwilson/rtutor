@@ -78,8 +78,7 @@ class Orchestrator:
             if not collection_id:
                 print("No collection available. Run `rt -t` first to upload courses.")
                 return
-            answer = self._ask_question(self.args.question, [collection_id])
-            print(answer or "No answer returned from Grok.")
+            self._ask_question(self.args.question, [collection_id])
             return
 
         self._handle_missing_courses()
@@ -650,21 +649,41 @@ class Orchestrator:
                     f"{latest.ljust(latest_width)}"
                 )
 
-    def _ask_question(self, question: str, collection_ids: List[str]) -> str:
+    def _ask_question(self, question: str, collection_ids: List[str]) -> None:
+        """Stream the query response to stdout."""
         api_key, _ = self._resolve_api_keys()
         if not api_key:
             raise SystemExit("Missing xAI API key; cannot execute query")
         responses_client = XAIResponsesClient(api_key)
-        payload = responses_client.create_response(
-            question,
-            collection_ids,
-            system_prompt=(
-                "You are an instructor assistant. Answer ONLY using the user's course materials "
-                "accessible via the file_search tool. Always call file_search, include relevant "
-                "quotes or bullet points from the retrieved lessons, and cite file IDs in parentheses."
-            ),
+        system_prompt = (
+            "You are an instructor assistant. Answer ONLY using the user's course materials "
+            "accessible via the file_search tool. Always call file_search, include relevant "
+            "quotes or bullet points from the retrieved lessons, and cite file IDs in parentheses."
         )
-        return responses_client.extract_text(payload)
+        print("Grok: ", end="", flush=True)
+        full_answer = ''
+        import time
+        start_time = time.time()
+        try:
+            for chunk in responses_client.create_stream(question, collection_ids, system_prompt=system_prompt):
+                print(chunk, end="", flush=True)
+                full_answer += chunk
+                start_time = time.time()  # Reset timeout on chunks
+        except KeyboardInterrupt:
+            print("\n\nQuery interrupted.")
+            return
+        except XAIClientError as e:
+            print(f"\nQuery error: {e}")
+            return
+        if not full_answer and (time.time() - start_time > 5):  # Fallback if no stream after 5s
+            print(" (streaming quiet; falling back to full response)")
+            try:
+                payload = responses_client.create_response(question, collection_ids, system_prompt=system_prompt)
+                full_answer = responses_client.extract_text(payload)
+                print(full_answer)
+            except XAIClientError as e:
+                print(f"\nFallback error: {e}")
+        print("\n")
 
     def _resolve_api_keys(self) -> Tuple[Optional[str], Optional[str]]:
         xai_section = self.config.get("xai", {}) if self.config else {}
