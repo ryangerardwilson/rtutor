@@ -664,23 +664,29 @@ class Orchestrator:
         )
         # Spinner until first chunk
         stop_spinner = threading.Event()
+
         def spinner():
-            frames = ["🤖 RAGging against the machine... ⏳", 
-                      "🤖 RAGging against the machine.. ⏳", 
-                      "🤖 RAGging against the machine. ⏳"]
+            frames = [
+                "🤖 RAGging against the machine... ⏳",
+                "🤖 RAGging against the machine.. ⏳",
+                "🤖 RAGging against the machine. ⏳",
+            ]
             i = 0
             while not stop_spinner.is_set():
                 sys.stdout.write(f"\r{frames[i % 3]}")
                 sys.stdout.flush()
                 time.sleep(0.3)
                 i += 1
+
         spinner_thread = threading.Thread(target=spinner)
         spinner_thread.daemon = True
         spinner_thread.start()
 
         first_chunk = True
         try:
-            for chunk in responses_client.create_stream(question, collection_ids, system_prompt=system_prompt):
+            for chunk in responses_client.create_stream(
+                question, collection_ids, system_prompt=system_prompt
+            ):
                 if first_chunk:
                     sys.stdout.write("\r" + " " * 50 + "\r")  # Clear spinner
                     sys.stdout.flush()

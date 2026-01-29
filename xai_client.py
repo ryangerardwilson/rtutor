@@ -198,7 +198,7 @@ class XAIResponsesClient:
                 if content.get("type") in {"output_text", "text"}:
                     chunks.append(content.get("text", ""))
         return "".join(chunks).strip()
- 
+
     def create_stream(
         self,
         question: str,
@@ -256,7 +256,7 @@ class XAIResponsesClient:
                                     yield delta_text
                         except (json.JSONDecodeError, KeyError):
                             pass
- 
+
 
 def wait_for_document_processing(
     management_client: XAIManagementClient,
