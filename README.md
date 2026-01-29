@@ -260,7 +260,8 @@ rt                     # launches doc-mode menus (default)
 rt -t                  # upload (train) all registered courses to Grok Collections
 rt -s                  # show indexing status for every registered course
 rt -p                  # purge all documents from the Grok collection
-rt -q "query"          # query the collection
+rt -q0 "query"         # search the collection (document hits)
+rt -q1 "query"         # stream a Grok answer with the collection
 rt -h                  # show global and doc-mode help
 rt -v                  # print the installed version
 rt -u                  # upgrade to the latest release
@@ -269,7 +270,8 @@ rt -u                  # upgrade to the latest release
 - `rt -t` → upload (or re-upload) registered courses. Removes stray documents and skips unchanged files.
 - `rt -s` → display indexing/processing status for each course file.
 - `rt -p` → purge every document currently stored in the Grok collection.
-- `rt -q "query"` → non-interactive Q&A powered by the collection (requires API keys).
+- `rt -q0 "query"` → direct document search against the collection (returns matched snippets).
+- `rt -q1 "query"` → non-interactive Q&A powered by the collection with streaming Grok output (requires API keys).
 - `rt -h` → show global usage along with doc-mode options.
 - `rt -v` → show the current version.
 - `rt -u` → curl the installer and upgrade in-place.
@@ -332,4 +334,4 @@ After registering courses:
 
 1. Run `rt -t` to upload them to the Grok collection (only changed files are re-uploaded; stale remote files are removed).
 2. Use `rt -s` to verify indexing status.
-3. Ask query with `rt -q "your query"` once files show `processed`.
+3. Ask a question with `rt -q1 "your query"` once files show `processed`, or use `rt -q0` for raw search results.

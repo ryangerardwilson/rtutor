@@ -187,6 +187,41 @@ class XAIResponsesClient:
             )
         return response.json()
 
+    def search_documents(
+        self,
+        query: str,
+        collection_ids: Iterable[str],
+        *,
+        limit: Optional[int] = 5,
+        retrieval_mode: Optional[Dict[str, Any]] = None,
+    ) -> dict:
+        collection_ids = [cid for cid in collection_ids if cid]
+        if not collection_ids:
+            raise XAIClientError("No collection ids provided for document search")
+        payload: Dict[str, Any] = {
+            "query": query,
+            "source": {"collection_ids": collection_ids},
+        }
+        if limit is not None:
+            payload["limit"] = limit
+        if retrieval_mode:
+            payload["retrieval_mode"] = retrieval_mode
+
+        response = self.session.post(
+            f"{REST_BASE_URL}/documents/search",
+            headers={
+                **_prepare_headers(self.api_key),
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=60,
+        )
+        if response.status_code >= 400:
+            raise XAIClientError(
+                f"Documents search error {response.status_code}: {response.text}"
+            )
+        return response.json()
+
     @staticmethod
     def extract_text(response_payload: dict) -> str:
         output = response_payload.get("output", [])

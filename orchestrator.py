@@ -32,6 +32,7 @@ class Orchestrator:
         self.argv = argv if argv is not None else list(sys.argv[1:])
         self.args = SimpleNamespace(
             question=None,
+            search_query=None,
             train=False,
             status=False,
             purge=False,
@@ -74,6 +75,15 @@ class Orchestrator:
             self._purge_collection()
             return
 
+        if self.args.search_query:
+            xai_section = self.config.setdefault("xai", {})
+            collection_id = xai_section.get("collection_id")
+            if not collection_id:
+                print("No collection available. Run `rt -t` first to upload courses.")
+                return
+            self._search_documents(self.args.search_query, [collection_id])
+            return
+
         if self.args.question:
             xai_section = self.config.setdefault("xai", {})
             collection_id = xai_section.get("collection_id")
@@ -109,6 +119,7 @@ class Orchestrator:
     # ------------------------------------------------------------------
     def _parse_args(self) -> SimpleNamespace:
         question: Optional[str] = None
+        search_query: Optional[str] = None
         train = False
         status = False
         purge = False
@@ -122,9 +133,19 @@ class Orchestrator:
                 raise SystemExit(
                     "Doc mode is the default; the -d/--doc flag has been removed."
                 )
-            if token == "-q":
+            if token == "-q0":
                 if i + 1 >= len(tokens):
-                    raise SystemExit("Error: -q/--question flag requires an argument")
+                    raise SystemExit("Error: -q0 flag requires an argument")
+                if question is not None:
+                    raise SystemExit("Error: -q0 cannot be used together with -q1")
+                search_query = tokens[i + 1]
+                i += 2
+                continue
+            if token == "-q1":
+                if i + 1 >= len(tokens):
+                    raise SystemExit("Error: -q1 flag requires an argument")
+                if search_query is not None:
+                    raise SystemExit("Error: -q1 cannot be used together with -q0")
                 question = tokens[i + 1]
                 i += 2
                 continue
@@ -149,6 +170,7 @@ class Orchestrator:
         self.argv = remaining
         return SimpleNamespace(
             question=question,
+            search_query=search_query,
             train=train,
             status=status,
             purge=purge,
@@ -664,44 +686,132 @@ class Orchestrator:
         )
         # Spinner until first chunk
         stop_spinner = threading.Event()
+        frames = [
+            "🤖 Thinking... ⏳",
+            "🤖 Thinking.. ⏳",
+            "🤖 Thinking. ⏳",
+        ]
 
-        def spinner():
-            frames = [
-                "🤖 RAGging against the machine... ⏳",
-                "🤖 RAGging against the machine.. ⏳",
-                "🤖 RAGging against the machine. ⏳",
-            ]
+        def spinner() -> None:
             i = 0
             while not stop_spinner.is_set():
-                sys.stdout.write(f"\r{frames[i % 3]}")
+                sys.stdout.write(f"\r{frames[i % len(frames)]}")
                 sys.stdout.flush()
                 time.sleep(0.3)
                 i += 1
 
-        spinner_thread = threading.Thread(target=spinner)
-        spinner_thread.daemon = True
+        spinner_thread = threading.Thread(target=spinner, daemon=True)
         spinner_thread.start()
 
-        first_chunk = True
+        saw_output = False
         try:
             for chunk in responses_client.create_stream(
                 question, collection_ids, system_prompt=system_prompt
             ):
-                if first_chunk:
-                    sys.stdout.write("\r" + " " * 50 + "\r")  # Clear spinner
-                    sys.stdout.flush()
+                if not saw_output:
                     stop_spinner.set()
                     spinner_thread.join(timeout=0.1)
-                    first_chunk = False
+                    sys.stdout.write("\r" + " " * 60 + "\r")
+                    sys.stdout.flush()
+                saw_output = True
                 print(chunk, end="", flush=True)
         except KeyboardInterrupt:
             stop_spinner.set()
-            sys.stdout.write("\r" + " " * 50 + "\rQuery interrupted.\n")
-        except XAIClientError as e:
+            spinner_thread.join(timeout=0.1)
+            sys.stdout.write("\r" + " " * 60 + "\rQuery interrupted.\n")
+            return
+        except XAIClientError as exc:
             stop_spinner.set()
-            sys.stdout.write("\r" + " " * 50 + "\rQuery error: " + str(e) + "\n")
-        print("\n")
-        stop_spinner.set()
+            spinner_thread.join(timeout=0.1)
+            sys.stdout.write("\r" + " " * 60 + f"\rQuery error: {exc}\n")
+            return
+        finally:
+            stop_spinner.set()
+            spinner_thread.join(timeout=0.1)
+        if not saw_output:
+            sys.stdout.write("\r" + " " * 60 + "\r")
+            sys.stdout.flush()
+            print("No answer returned from Grok.")
+        else:
+            print("\n")
+
+    def _search_documents(self, query: str, collection_ids: List[str]) -> None:
+        api_key, _ = self._resolve_api_keys()
+        if not api_key:
+            raise SystemExit("Missing xAI API key; cannot execute search")
+        responses_client = XAIResponsesClient(api_key)
+        try:
+            payload = responses_client.search_documents(query, collection_ids)
+        except XAIClientError as exc:
+            print(f"Search error: {exc}")
+            return
+
+        results = (
+            payload.get("matches")
+            or payload.get("results")
+            or payload.get("data")
+            or payload.get("documents")
+            or []
+        )
+
+        if not results:
+            print(f"No results found for \"{query}\".")
+            return
+
+        print(f"Search results for \"{query}\":")
+        for index, result in enumerate(results, start=1):
+            score = result.get("score")
+            score_display = (
+                f"{score:.3f}" if isinstance(score, (int, float)) else str(score)
+                if score is not None
+                else "-"
+            )
+
+            document = result.get("document") or {}
+            fields = result.get("fields") or document.get("fields") or {}
+            course_name = (
+                fields.get("course_name")
+                or fields.get("name")
+                or document.get("name")
+            )
+            local_path = fields.get("local_path") or document.get("local_path")
+            doc_id = (
+                document.get("id")
+                or result.get("document_id")
+                or result.get("file_id")
+            )
+
+            snippet = ""
+            snippets = result.get("snippets")
+            if isinstance(snippets, list) and snippets:
+                snippet = " ".join(
+                    s.get("text", "") if isinstance(s, dict) else str(s)
+                    for s in snippets
+                )
+            elif isinstance(result.get("text"), str):
+                snippet = result["text"]
+            elif isinstance(result.get("chunk_content"), str):
+                snippet = result["chunk_content"]
+            elif isinstance(document.get("content"), str):
+                snippet = document["content"]
+
+            snippet = (snippet or "").replace("\n", " ").strip()
+            if len(snippet) > 240:
+                snippet = snippet[:237].rstrip() + "..."
+
+            header = f"{index}. [score: {score_display}]"
+            if course_name:
+                header += f" {course_name}"
+            print(header)
+            if doc_id:
+                print(f"   id: {doc_id}")
+            if local_path:
+                print(f"   path: {local_path}")
+            if snippet:
+                print(f"   {snippet}")
+            else:
+                print("   (no snippet available)")
+            print()
 
     def _resolve_api_keys(self) -> Tuple[Optional[str], Optional[str]]:
         xai_section = self.config.get("xai", {}) if self.config else {}
@@ -731,7 +841,8 @@ class Orchestrator:
         print("  -t             upload (train) registered courses")
         print("  -s             show indexing status for courses")
         print("  -p             remove all documents from the collection")
-        print("  -q QUERY       query your xai collection")
+        print("  -q0 QUERY      search your xai collection (document search)")
+        print("  -q1 QUERY      stream a Grok answer using your collection")
 
 
 def _extract_identifier(
