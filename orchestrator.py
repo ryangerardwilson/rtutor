@@ -73,11 +73,10 @@ class Orchestrator:
             return
 
         if self.args.question:
-            collection_id = self._ensure_collection_available()
+            xai_section = self.config.setdefault("xai", {})
+            collection_id = xai_section.get("collection_id")
             if not collection_id:
-                print(
-                    "No collection available to answer the question. Run with -t first."
-                )
+                print("No collection available. Run `rt -t` first to upload courses.")
                 return
             answer = self._ask_question(self.args.question, [collection_id])
             print(answer or "No answer returned from Grok.")
