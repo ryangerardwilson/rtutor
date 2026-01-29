@@ -1,6 +1,8 @@
 import curses
 import os
 import sys
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -660,30 +662,40 @@ class Orchestrator:
             "accessible via the file_search tool. Always call file_search, include relevant "
             "quotes or bullet points from the retrieved lessons, and cite file IDs in parentheses."
         )
-        print("Grok: ", end="", flush=True)
-        full_answer = ''
-        import time
-        start_time = time.time()
+        # Spinner until first chunk
+        stop_spinner = threading.Event()
+        def spinner():
+            frames = ["🤖 RAGging against the machine... ⏳", 
+                      "🤖 RAGging against the machine.. ⏳", 
+                      "🤖 RAGging against the machine. ⏳"]
+            i = 0
+            while not stop_spinner.is_set():
+                sys.stdout.write(f"\r{frames[i % 3]}")
+                sys.stdout.flush()
+                time.sleep(0.3)
+                i += 1
+        spinner_thread = threading.Thread(target=spinner)
+        spinner_thread.daemon = True
+        spinner_thread.start()
+
+        first_chunk = True
         try:
             for chunk in responses_client.create_stream(question, collection_ids, system_prompt=system_prompt):
+                if first_chunk:
+                    sys.stdout.write("\r" + " " * 50 + "\r")  # Clear spinner
+                    sys.stdout.flush()
+                    stop_spinner.set()
+                    spinner_thread.join(timeout=0.1)
+                    first_chunk = False
                 print(chunk, end="", flush=True)
-                full_answer += chunk
-                start_time = time.time()  # Reset timeout on chunks
         except KeyboardInterrupt:
-            print("\n\nQuery interrupted.")
-            return
+            stop_spinner.set()
+            sys.stdout.write("\r" + " " * 50 + "\rQuery interrupted.\n")
         except XAIClientError as e:
-            print(f"\nQuery error: {e}")
-            return
-        if not full_answer and (time.time() - start_time > 5):  # Fallback if no stream after 5s
-            print(" (streaming quiet; falling back to full response)")
-            try:
-                payload = responses_client.create_response(question, collection_ids, system_prompt=system_prompt)
-                full_answer = responses_client.extract_text(payload)
-                print(full_answer)
-            except XAIClientError as e:
-                print(f"\nFallback error: {e}")
+            stop_spinner.set()
+            sys.stdout.write("\r" + " " * 50 + "\rQuery error: " + str(e) + "\n")
         print("\n")
+        stop_spinner.set()
 
     def _resolve_api_keys(self) -> Tuple[Optional[str], Optional[str]]:
         xai_section = self.config.get("xai", {}) if self.config else {}
